@@ -32,15 +32,15 @@ func _init() -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#d9d0ff")
-	env.ambient_light_energy = 0.3
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.ambient_light_energy = 0.38
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_vp.add_child(we)
 
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-35, 35, 0)
-	key.light_energy = 0.8
+	key.light_energy = 1.0
 	key.shadow_enabled = true
 	_vp.add_child(key)
 	var rim := DirectionalLight3D.new()
@@ -70,6 +70,8 @@ func _init() -> void:
 	_pivot = Node3D.new()
 	_vp.add_child(_pivot)
 	avatar = MellyAvatar.new()
+	# MellyAvatar looks down -Z; turn her to face the camera.
+	avatar.rotation.y = PI
 	_pivot.add_child(avatar)
 	_pivot.rotation.y = deg_to_rad(-20)
 

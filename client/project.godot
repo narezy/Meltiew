@@ -14,18 +14,20 @@ config/name="Meltiew"
 config/description="Meltiew — play together"
 config/version="1.0.0"
 run/main_scene="res://scenes/boot.tscn"
-config/features=PackedStringArray("4.7", "GL Compatibility")
+config/features=PackedStringArray("4.7", "Mobile")
 boot_splash/bg_color=Color(0.105882, 0.0941176, 0.137255, 1)
 boot_splash/show_image=false
 config/icon="res://assets/icon.png"
 
 [autoload]
 
-Api="*res://scripts/autoload/api.gd"
 Session="*res://scripts/autoload/session.gd"
+L="*res://scripts/autoload/l.gd"
+Api="*res://scripts/autoload/api.gd"
 Net="*res://scripts/autoload/net.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 UI="*res://scripts/autoload/ui.gd"
+Busts="*res://scripts/autoload/busts.gd"
 
 [display]
 
@@ -75,12 +77,14 @@ pointing/emulate_touch_from_mouse=false
 [physics]
 
 common/physics_ticks_per_second=60
+common/physics_interpolation=true
 3d/physics_engine="Jolt Physics"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+rendering_device/fallback_to_opengl3=true
 textures/vram_compression/import_etc2_astc=true
-anti_aliasing/quality/msaa_3d=1
+anti_aliasing/quality/msaa_3d=2
 environment/defaults/default_clear_color=Color(0.105882, 0.0941176, 0.137255, 1)

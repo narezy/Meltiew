@@ -2,10 +2,10 @@ extends Control
 ## Main hub: sidebar navigation + pages (home, friends, avatar, settings).
 
 const PAGES := [
-	{"id": "home", "title": "Главная", "icon": "home"},
-	{"id": "friends", "title": "Друзья", "icon": "friends"},
-	{"id": "avatar", "title": "Аватар", "icon": "avatar"},
-	{"id": "settings", "title": "Настройки", "icon": "settings"},
+	{"id": "home", "title": "nav_home", "icon": "home"},
+	{"id": "friends", "title": "nav_friends", "icon": "friends"},
+	{"id": "avatar", "title": "nav_avatar", "icon": "avatar"},
+	{"id": "settings", "title": "nav_settings", "icon": "settings"},
 ]
 
 static var last_page := "home"
@@ -49,6 +49,27 @@ func _ready() -> void:
 	_poll.timeout.connect(_poll_requests)
 	add_child(_poll)
 	_poll_requests()
+	_check_launch()
+	L.changed.connect(func(): get_tree().reload_current_scene())
+
+
+func _notification(what: int) -> void:
+	# Coming back from the browser after pressing "Play" on the website.
+	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_check_launch()
+
+
+var _checking_launch := false
+
+
+func _check_launch() -> void:
+	if _checking_launch or not is_inside_tree():
+		return
+	_checking_launch = true
+	var r := await Api.request("GET", "/api/launch")
+	_checking_launch = false
+	if r.ok and r.data.get("launch") is Dictionary and is_inside_tree():
+		play(str(r.data.launch.server))
 
 
 func _build_sidebar() -> Control:
@@ -92,7 +113,7 @@ func _build_sidebar() -> Control:
 		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var ic := Icon.make(p.icon, 24, UI.MUTED)
 		inner.add_child(ic)
-		var l := UI.label(p.title, 20, UI.MUTED, "bold")
+		var l := UI.label(L.t(p.title), 20, UI.MUTED, "bold")
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l.size_flags_vertical = Control.SIZE_FILL
 		inner.add_child(l)

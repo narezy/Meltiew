@@ -1,46 +1,35 @@
 class_name RemotePlayer
 extends Node3D
-## Another player's Melly, smoothly interpolated between network snapshots.
+## Another player's Melly, rendered ~120 ms in the past and interpolated
+## between network snapshots for smooth motion.
+
+const DELAY_MS := 120.0
 
 var user: Dictionary = {}
 var avatar: MellyAvatar
-var _target_pos := Vector3.ZERO
-var _target_yaw := 0.0
-var _anim := "idle"
+var _snaps: Array = []  # [local_ms, pos, yaw, anim]
 var _name_tag: Label3D
 var _bubble: Label3D
 var _bubble_time := 0.0
-var _has_state := false
+var _dead := false
 
 
 func _ready() -> void:
+	# Moved every frame from buffered snapshots, not by physics.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	avatar = MellyAvatar.new()
 	add_child(avatar)
 	avatar.apply_user(user)
 	_name_tag = Label3D.new()
-	_name_tag.position.y = 2.35
+	_name_tag.position.y = 2.3
 	_name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_tag.font = UI.font_bold
-	_name_tag.font_size = 44
-	_name_tag.outline_size = 14
-	_name_tag.outline_modulate = Color(0.08, 0.07, 0.1, 0.9)
-	_name_tag.pixel_size = 0.0048
-	_name_tag.no_depth_test = false
-	_name_tag.fixed_size = false
+	_name_tag.font_size = 40
+	_name_tag.outline_size = 12
+	_name_tag.outline_modulate = Color(0.08, 0.07, 0.1, 0.85)
+	_name_tag.pixel_size = 0.0045
 	add_child(_name_tag)
-	_bubble = Label3D.new()
-	_bubble.position.y = 2.85
-	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_bubble.font = UI.font_bold
-	_bubble.font_size = 40
-	# A thick white outline doubles as a sticker-style speech bubble.
-	_bubble.outline_size = 30
-	_bubble.outline_modulate = Color(1, 1, 1, 0.96)
-	_bubble.modulate = UI.INK
-	_bubble.pixel_size = 0.0045
-	_bubble.width = 900
-	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bubble.visible = false
+	_bubble = GameBubble.make()
 	add_child(_bubble)
 	refresh_look()
 
@@ -53,33 +42,54 @@ func refresh_look() -> void:
 
 
 func set_state(p: Vector3, yaw: float, anim: String) -> void:
-	_target_pos = p
-	_target_yaw = yaw
-	_anim = anim
-	if not _has_state:
-		_has_state = true
+	var now := Time.get_ticks_msec()
+	if _snaps.is_empty():
 		global_position = p
 		avatar.rotation.y = yaw
+	_snaps.append([now, p, yaw, anim])
+	while _snaps.size() > 30:
+		_snaps.pop_front()
 
 
 func show_bubble(text: String) -> void:
-	_bubble.text = text
-	_bubble.visible = true
+	GameBubble.show(_bubble, text)
 	_bubble_time = 6.0
 
 
+func shatter() -> void:
+	if _dead:
+		return
+	_dead = true
+	Shatter.spawn(get_parent(), avatar.global_transform, avatar.get_colors())
+	avatar.visible = false
+	_name_tag.visible = false
+
+
 func _process(delta: float) -> void:
-	var k := minf(delta * 12.0, 1.0)
-	if global_position.distance_to(_target_pos) > 12.0:
-		global_position = _target_pos
-	else:
-		global_position = global_position.lerp(_target_pos, k)
-	avatar.rotation.y = lerp_angle(avatar.rotation.y, _target_yaw, k)
-	if _anim == "wave":
-		if not avatar.is_waving():
-			avatar.play("wave")
-	else:
-		avatar.play(_anim)
+	if not _snaps.is_empty():
+		var render_t := Time.get_ticks_msec() - DELAY_MS
+		# Drop snapshots we have fully passed, keeping one before render time.
+		while _snaps.size() >= 2 and _snaps[1][0] <= render_t:
+			_snaps.pop_front()
+		var a: Array = _snaps[0]
+		var pos: Vector3 = a[1]
+		var yaw: float = a[2]
+		if _snaps.size() >= 2 and render_t > a[0]:
+			var b: Array = _snaps[1]
+			var k := clampf((render_t - a[0]) / maxf(b[0] - a[0], 1.0), 0.0, 1.0)
+			pos = (a[1] as Vector3).lerp(b[1], k)
+			yaw = lerp_angle(a[2], b[2], k)
+		global_position = pos
+		avatar.rotation.y = lerp_angle(avatar.rotation.y, yaw, minf(delta * 16.0, 1.0))
+		var anim: String = a[3]
+		if anim == "dead":
+			shatter()
+		else:
+			if _dead:
+				_dead = false
+				avatar.visible = true
+				_name_tag.visible = true
+			avatar.play(anim)
 	if _bubble_time > 0.0:
 		_bubble_time -= delta
 		if _bubble_time <= 0.0:

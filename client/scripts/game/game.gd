@@ -1,17 +1,19 @@
 extends Node3D
 ## Playground session: world, local player, remote players and networking.
 
-const SEND_HZ := 12.0
+const SEND_HZ := 15.0
 
 var world: Playground
 var player: LocalPlayer
 var hud: GameHud
+var menu: GameMenu
 var remotes := {}  # user id -> RemotePlayer
 var users := {}  # user id -> public user dict (everyone incl. me)
 var my_id := -1
 var server_info := {}
 var _send_accum := 0.0
 var _last_sent := {}
+var _last_sent_at := 0
 var _ping_ms := -1
 var _ping_timer := 0.0
 var _stats_timer := 0.0
@@ -25,7 +27,7 @@ var _island_announced := false
 
 
 func _ready() -> void:
-	# Android back button should ask before leaving, not kill the app.
+	# Android back button should open the menu, not kill the app.
 	get_tree().quit_on_go_back = false
 	get_tree().set_auto_accept_quit(false)
 	world = Playground.new()
@@ -39,26 +41,37 @@ func _ready() -> void:
 	player.landed.connect(func(impact):
 		if impact > 9.0:
 			Sfx.play("land", clampf(1.3 - impact / 60.0, 0.7, 1.2)))
+	player.hurt.connect(func(_amount): Sfx.play("hurt"))
+	player.died.connect(_on_died)
+	player.respawned.connect(func(): hud.big_message(""))
 	world.bounced.connect(func(s): Sfx.play("boing", clampf(1.4 - s / 40.0, 0.8, 1.3)))
 	world.reached_island.connect(_on_island)
+	world.maze_solved.connect(func():
+		Sfx.play("coin")
+		hud.big_message(L.t("maze_solved"), 3.0))
 
-	_my_bubble = _make_bubble()
+	_my_bubble = GameBubble.make()
 	player.add_child(_my_bubble)
 
 	hud = GameHud.new()
-	hud.player = player
 	add_child(hud)
-	hud.leave_requested.connect(_confirm_leave)
+	hud.bind_player(player)
+	hud.menu_requested.connect(_open_menu)
 	hud.chat_submitted.connect(func(t): Net.send({"t": "chat", "m": t}))
-	hud.wave_pressed.connect(_wave)
-	hud.heart_pressed.connect(_heart)
-	hud.player_tapped.connect(_show_profile)
+	hud.emote_picked.connect(_emote)
+
+	menu = GameMenu.new()
+	menu.game = self
+	add_child(menu)
+	menu.reset_requested.connect(func(): player.die())
+	menu.leave_requested.connect(_confirm_leave)
+	menu.settings_changed.connect(_apply_quality)
 	_apply_quality()
 
 	Net.connected.connect(_on_connected)
 	Net.disconnected.connect(_on_disconnected)
 	Net.message.connect(_on_message)
-	hud.show_overlay("Подключаемся к площадке...")
+	hud.show_overlay(L.t("joining_playground"))
 	Net.connect_to_game()
 
 
@@ -70,17 +83,30 @@ func _exit_tree() -> void:
 
 func _apply_quality() -> void:
 	var vp := get_viewport()
-	if Session.settings.quality == "low":
-		vp.scaling_3d_scale = 0.75
-		vp.msaa_3d = Viewport.MSAA_DISABLED
-	else:
-		vp.scaling_3d_scale = 1.0
-		vp.msaa_3d = Viewport.MSAA_2X
+	match str(Session.settings.quality):
+		"low":
+			vp.scaling_3d_scale = 0.7
+			vp.msaa_3d = Viewport.MSAA_DISABLED
+		"medium":
+			vp.scaling_3d_scale = 0.85
+			vp.msaa_3d = Viewport.MSAA_2X
+		_:
+			vp.scaling_3d_scale = 1.0
+			vp.msaa_3d = Viewport.MSAA_4X
+	world.apply_quality(str(Session.settings.quality))
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_confirm_leave()
+		if menu and menu.visible:
+			menu.close()
+		else:
+			_open_menu()
+
+
+func _open_menu() -> void:
+	hud.release_touches()
+	menu.open()
 
 
 # --- networking -------------------------------------------------------------
@@ -96,22 +122,21 @@ func _on_disconnected(reason: String) -> void:
 	_joined = false
 	for id in remotes.keys():
 		_remove_remote(id)
-	if _retries < 3 and reason != "Ты зашёл(ла) в игру с другого устройства":
+	if _retries < 3 and reason != L.t("err_duplicate"):
 		_retries += 1
-		hud.show_overlay("%s\nПереподключаемся (%d/3)..." % [reason, _retries])
+		hud.show_overlay("%s\n%s" % [reason, L.t("reconnecting", [_retries])])
 		await get_tree().create_timer(1.5 * _retries).timeout
 		if not _leaving and is_inside_tree():
-			# Rejoin the same server if it still exists.
 			if server_info.has("id"):
 				Session.pending_server = str(server_info.id)
 			Net.connect_to_game()
 		return
 	hud.show_overlay(reason, [
-		["Ещё раз", func():
+		[L.t("retry"), func():
 			_retries = 0
-			hud.show_overlay("Подключаемся...")
+			hud.show_overlay(L.t("connecting"))
 			Net.connect_to_game()],
-		["В меню", _leave, "ghost"],
+		[L.t("to_menu"), _leave, "ghost"],
 	])
 
 
@@ -125,8 +150,7 @@ func _on_message(m: Dictionary) -> void:
 				if remotes.has(id):
 					remotes[id].set_state(Vector3(s[1], s[2], s[3]), float(s[4]), str(s[5]))
 		"join":
-			var u: Dictionary = m.player
-			_add_remote(u)
+			_add_remote(m.player)
 			Sfx.play("pop", 1.2)
 			_refresh_players()
 		"leave":
@@ -144,34 +168,39 @@ func _on_message(m: Dictionary) -> void:
 			var is_me := id == my_id
 			hud.add_chat(str(m.name), str(m.m), UI.ACCENT if is_me else UI.MINT)
 			if is_me:
-				_show_my_bubble(str(m.m))
+				GameBubble.show(_my_bubble, str(m.m))
+				_my_bubble_time = 6.0
 			elif remotes.has(id):
 				remotes[id].show_bubble(str(m.m))
 			Sfx.play("pop", 1.4)
 		"sys":
-			hud.add_chat("", str(m.m))
+			match str(m.get("k", "")):
+				"joined":
+					hud.add_chat("", L.t("sys_joined", [m.get("n", "")]))
+				"left":
+					hud.add_chat("", L.t("sys_left", [m.get("n", "")]))
+				"slow":
+					hud.add_chat("", L.t("sys_slow"))
 		"emote":
 			var id := int(m.id)
-			if id == my_id:
-				return
+			if remotes.has(id) and m.e == "heart":
+				_spawn_heart(remotes[id])
+		"dead":
+			var id := int(m.id)
 			if remotes.has(id):
-				if m.e == "wave":
-					remotes[id].avatar.play("wave")
-				elif m.e == "heart":
-					_spawn_heart(remotes[id])
+				remotes[id].shatter()
 		"error":
 			if not _joined:
-				var text := str(m.get("m", "Ошибка"))
-				hud.show_overlay(text, [
-					["Другой сервер", func():
+				hud.show_overlay(str(m.get("m", "Error")), [
+					[L.t("other_server"), func():
 						Session.pending_server = "auto"
-						hud.show_overlay("Ищем свободный сервер...")
+						hud.show_overlay(L.t("finding_server"))
 						Net.send({"t": "join", "game": "playground", "server": "auto"})],
-					["В меню", _leave, "ghost"],
+					[L.t("to_menu"), _leave, "ghost"],
 				])
 		"kicked":
 			_leaving = true
-			hud.show_overlay(str(m.get("m", "Отключено")), [["В меню", _leave]])
+			hud.show_overlay(L.t("err_duplicate"), [[L.t("to_menu"), _leave]])
 			Net.close()
 		"pong":
 			_ping_ms = Time.get_ticks_msec() - int(m.c)
@@ -188,12 +217,14 @@ func _on_welcome(m: Dictionary) -> void:
 	for u in m.players:
 		_add_remote(u)
 	var sp: Array = m.spawn
-	player.global_position = Vector3(sp[0], sp[1], sp[2])
+	player.spawn_point = Vector3(sp[0], sp[1], sp[2])
+	player.global_position = player.spawn_point
+	player.reset_physics_interpolation()
 	player.velocity = Vector3.ZERO
 	hud.hide_overlay()
 	_refresh_players()
 	Sfx.play("join")
-	hud.add_chat("", "Ты на сервере «%s». Веселись!" % server_info.name)
+	hud.add_chat("", L.t("welcome_server", [L.field(server_info, "name")]))
 
 
 func _add_remote(u: Dictionary) -> void:
@@ -221,10 +252,7 @@ func _remove_remote(id: int) -> void:
 
 
 func _refresh_players() -> void:
-	var list: Array = users.values()
-	list.sort_custom(func(a, b): return int(a.id) == my_id or (int(b.id) != my_id and str(a.display_name) < str(b.display_name)))
-	hud.set_players(list)
-	hud.set_server(str(server_info.get("name", "")), users.size(), int(server_info.get("max_players", 10)))
+	hud.set_server(L.field(server_info, "name"), users.size(), int(server_info.get("max_players", 10)))
 
 
 func _physics_process(delta: float) -> void:
@@ -240,9 +268,12 @@ func _physics_process(delta: float) -> void:
 			"r": snappedf(player.avatar.rotation.y, 0.01),
 			"a": player.current_anim(),
 		}
-		if state != _last_sent:
+		# Resend at least once a second so late joiners and interpolation stay fresh.
+		var now := Time.get_ticks_msec()
+		if state != _last_sent or now - _last_sent_at > 1000:
 			Net.send(state)
 			_last_sent = state
+			_last_sent_at = now
 
 
 func _process(delta: float) -> void:
@@ -262,14 +293,20 @@ func _process(delta: float) -> void:
 
 # --- actions ----------------------------------------------------------------
 
-func _wave() -> void:
-	player.avatar.play("wave")
-	Net.send({"t": "emote", "e": "wave"})
+func _emote(e: String) -> void:
+	if player.dead:
+		return
+	if e == "heart":
+		_spawn_heart(player)
+		Net.send({"t": "emote", "e": "heart"})
+		return
+	player.play_emote(e)
 
 
-func _heart() -> void:
-	_spawn_heart(player)
-	Net.send({"t": "emote", "e": "heart"})
+func _on_died() -> void:
+	Shatter.spawn(self, player.avatar.global_transform, player.avatar.get_colors())
+	Net.send({"t": "dead"})
+	hud.big_message(L.t("you_fell_apart"), 2.4)
 
 
 func _spawn_heart(target: Node3D) -> void:
@@ -304,48 +341,18 @@ func _make_heart_texture() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-func _make_bubble() -> Label3D:
-	var b := Label3D.new()
-	b.position.y = 2.6
-	b.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	b.font = UI.font_bold
-	b.font_size = 40
-	b.outline_size = 30
-	b.outline_modulate = Color(1, 1, 1, 0.96)
-	b.modulate = UI.INK
-	b.pixel_size = 0.0045
-	b.width = 900
-	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	b.visible = false
-	return b
-
-
-func _show_my_bubble(text: String) -> void:
-	_my_bubble.text = text
-	_my_bubble.visible = true
-	_my_bubble_time = 6.0
-
-
 func _on_island() -> void:
 	if _island_announced:
 		return
 	_island_announced = true
 	Sfx.play("coin")
-	UI.toast("Ты добрался(ась) до облаков! Легенда.", "ok")
-	Net.send({"t": "chat", "m": "Я на облачном острове!"})
-
-
-func _show_profile(u: Dictionary) -> void:
-	var popup := ProfilePopup.new()
-	popup.username = str(u.username)
-	popup.menu = null
-	add_child(popup)
+	hud.big_message(L.t("island_reached"), 3.0)
 
 
 func _confirm_leave() -> void:
 	if _leaving:
 		return
-	var yes: bool = await UI.confirm(hud, "Выйти с площадки?", "Вернёшься в главное меню.", "Выйти")
+	var yes: bool = await UI.confirm(menu, L.t("leave_q"), L.t("leave_body"), L.t("leave_game"))
 	if yes:
 		_leave()
 

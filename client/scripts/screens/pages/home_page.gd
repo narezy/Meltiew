@@ -19,14 +19,14 @@ func _ready() -> void:
 	add_child(root)
 
 	var head := UI.vbox(2)
-	head.add_child(UI.label("Привет, %s!" % Session.user.get("display_name", ""), 34, UI.TEXT, "black"))
-	head.add_child(UI.label("Во что сегодня играем? Пока выбор простой, но очень весёлый.", 19, UI.MUTED))
+	head.add_child(UI.label(L.t("hello_name", [Session.user.get("display_name", "")]), 34, UI.TEXT, "black"))
+	head.add_child(UI.label(L.t("home_sub"), 19, UI.MUTED))
 	root.add_child(head)
 
 	root.add_child(_build_hero())
 
 	_friends_section = UI.vbox(12)
-	_friends_section.add_child(UI.label("Друзья онлайн", 24, UI.TEXT, "black"))
+	_friends_section.add_child(UI.label(L.t("friends_online"), 24, UI.TEXT, "black"))
 	var fscroll := ScrollContainer.new()
 	fscroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	fscroll.custom_minimum_size.y = 124
@@ -37,7 +37,7 @@ func _ready() -> void:
 	root.add_child(_friends_section)
 
 	var sh := UI.hbox(12)
-	sh.add_child(UI.label("Серверы площадки", 24, UI.TEXT, "black"))
+	sh.add_child(UI.label(L.t("servers_title"), 24, UI.TEXT, "black"))
 	sh.add_child(UI.spacer())
 	var refresh := UI.button("", "ghost", 48)
 	refresh.custom_minimum_size.x = 48
@@ -47,14 +47,14 @@ func _ready() -> void:
 	refresh.add_child(ric)
 	refresh.pressed.connect(refresh_data)
 	sh.add_child(refresh)
-	var create := UI.button("  Новый сервер", "ghost", 48)
+	var create := UI.button(L.t("new_server"), "ghost", 48)
 	create.icon = null
 	create.pressed.connect(func(): _menu().play("new"))
 	sh.add_child(create)
 	root.add_child(sh)
 	_servers_box = UI.vbox(10)
 	root.add_child(_servers_box)
-	_servers_box.add_child(_empty_row("Загружаем серверы..."))
+	_servers_box.add_child(_empty_row(L.t("loading_servers")))
 
 	_timer = Timer.new()
 	_timer.wait_time = 8.0
@@ -84,10 +84,10 @@ func _build_hero() -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(info)
-	var tag := UI.label("ЕДИНСТВЕННАЯ И ЛУЧШАЯ", 14, UI.ACCENT, "black")
+	var tag := UI.label(L.t("featured_tag"), 14, UI.ACCENT, "black")
 	info.add_child(tag)
-	info.add_child(UI.label("Детская площадка", 32, UI.TEXT, "black"))
-	var desc := UI.label("Горки, качели, батуты, карусель и паркур над облаками. До 10 игроков на сервер.", 18, UI.MUTED)
+	info.add_child(UI.label(L.t("playground"), 32, UI.TEXT, "black"))
+	var desc := UI.label(L.t("playground_desc"), 18, UI.MUTED)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(desc)
 	var stat := UI.hbox(8)
@@ -96,13 +96,13 @@ func _build_hero() -> Control:
 	stat.add_child(_online_label)
 	info.add_child(stat)
 	var buttons := UI.hbox(12)
-	var play := UI.button("Играть", "primary", 60)
+	var play := UI.button(L.t("play"), "primary", 60)
 	play.custom_minimum_size.x = 200
 	var pic := Icon.make("play", 20, UI.INK)
 	pic.position = Vector2(26, 20)
 	play.add_child(pic)
 	play.add_theme_constant_override("h_separation", 0)
-	play.text = "    Играть"
+	play.text = "    " + L.t("play")
 	play.pressed.connect(func(): _menu().play("auto"))
 	buttons.add_child(play)
 	info.add_child(buttons)
@@ -143,9 +143,9 @@ func _render_servers(servers: Array) -> void:
 	var total := 0
 	for s in servers:
 		total += int(s.players)
-	_online_label.text = "%d %s сейчас на площадке" % [total, _plural(total, "игрок", "игрока", "игроков")]
+	_online_label.text = L.t("playing_now", [total, L.plural(total, "players_word")])
 	if servers.is_empty():
-		_servers_box.add_child(_empty_row("Пока ни одного сервера. Жми «Играть», и первый будет твоим."))
+		_servers_box.add_child(_empty_row(L.t("no_servers")))
 		return
 	for s in servers:
 		_servers_box.add_child(_server_row(s))
@@ -157,9 +157,9 @@ func _server_row(s: Dictionary) -> Control:
 	c.add_child(row)
 	var col := UI.vbox(4)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label(str(s.name), 20, UI.TEXT, "bold"))
+	col.add_child(UI.label(L.field(s, "name"), 20, UI.TEXT, "bold"))
 	var friends: Array = s.get("friends", [])
-	var sub := "Здесь друзья: " + ", ".join(friends) if friends.size() > 0 else "Сервер #" + str(s.id)
+	var sub := L.t("friends_here", [", ".join(friends)]) if friends.size() > 0 else L.t("server_id", [s.id])
 	col.add_child(UI.label(sub, 16, UI.MINT if friends.size() > 0 else UI.MUTED))
 	row.add_child(col)
 
@@ -188,7 +188,7 @@ func _server_row(s: Dictionary) -> Control:
 	row.add_child(meter)
 
 	var full := players >= max_p
-	var join := UI.button("Полный" if full else "Войти", "ghost" if full else "mint", 52)
+	var join := UI.button(L.t("full") if full else L.t("join"), "ghost" if full else "mint", 52)
 	join.custom_minimum_size.x = 130
 	join.disabled = full
 	join.pressed.connect(func(): _menu().play(str(s.id)))
@@ -214,23 +214,13 @@ func _render_friends(friends: Array) -> void:
 		col.add_child(nl)
 		var playing: Variant = f.get("playing")
 		if playing is Dictionary:
-			col.add_child(UI.label("На площадке", 15, UI.MINT))
-			var join := UI.button("Зайти", "mint", 36)
+			col.add_child(UI.label(L.t("on_playground"), 15, UI.MINT))
+			var join := UI.button(L.t("join"), "mint", 36)
 			join.add_theme_font_size_override("font_size", 16)
 			join.pressed.connect(func(): _menu().play(str(playing.server_id)))
 			col.add_child(join)
 		else:
-			col.add_child(UI.label("В меню", 15, UI.ONLINE))
+			col.add_child(UI.label(L.t("in_menu"), 15, UI.ONLINE))
 		row.add_child(col)
 		UI.on_tap(c, func(): _menu().show_profile(str(f.username)))
 		_friends_box.add_child(c)
-
-
-static func _plural(n: int, one: String, few: String, many: String) -> String:
-	var m10 := n % 10
-	var m100 := n % 100
-	if m10 == 1 and m100 != 11:
-		return one
-	if m10 >= 2 and m10 <= 4 and (m100 < 10 or m100 >= 20):
-		return few
-	return many

@@ -29,7 +29,7 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_stretch_ratio = 0.8
 	add_child(left)
-	left.add_child(UI.label("Аватар", 34, UI.TEXT, "black"))
+	left.add_child(UI.label(L.t("nav_avatar"), 34, UI.TEXT, "black"))
 	var stage_card := UI.card(0, Color(UI.CARD, 0.55), 26)
 	stage_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(stage_card)
@@ -38,15 +38,15 @@ func _ready() -> void:
 	stage_card.add_child(_stage)
 	_stage.clicked.connect(func(): _stage.avatar.play("wave"))
 	var tools := UI.hbox(10)
-	var wave := UI.button("Помахать", "ghost", 48)
+	var wave := UI.button(L.t("wave"), "ghost", 48)
 	wave.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wave.pressed.connect(func(): _stage.avatar.play("wave"))
 	tools.add_child(wave)
-	var rnd := UI.button("Случайно", "ghost", 48)
+	var rnd := UI.button(L.t("random"), "ghost", 48)
 	rnd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rnd.pressed.connect(_randomize)
 	tools.add_child(rnd)
-	var reset := UI.button("Как у Melly", "ghost", 48)
+	var reset := UI.button(L.t("like_melly"), "ghost", 48)
 	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reset.pressed.connect(func():
 		_colors = Session.DEFAULT_COLORS.duplicate()
@@ -59,7 +59,7 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
 	var tabs := UI.hbox(8)
-	for t in [["colors", "Цвета"], ["hats", "Шапки"], ["profile", "Профиль"]]:
+	for t in [["colors", L.t("colors")], ["hats", L.t("hats")], ["profile", L.t("profile")]]:
 		var b := UI.button(t[1], "flat", 46)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -86,7 +86,7 @@ func _ready() -> void:
 		stack.add_child(sc)
 		_tab_pages[k] = sc
 
-	_save = UI.button("Сохранить", "primary", 58)
+	_save = UI.button(L.t("save"), "primary", 58)
 	_save.pressed.connect(_on_save)
 	right.add_child(_save)
 
@@ -103,30 +103,30 @@ func _show_tab(id: String) -> void:
 
 func _build_colors_tab() -> Control:
 	var v := UI.vbox(14)
-	v.add_child(UI.label("Что красим", 18, UI.MUTED, "bold"))
+	v.add_child(UI.label(L.t("what_to_paint"), 18, UI.MUTED, "bold"))
 	var parts := HFlowContainer.new()
 	parts.add_theme_constant_override("h_separation", 8)
 	parts.add_theme_constant_override("v_separation", 8)
-	var all := _chip("Всё тело")
+	var all := _chip(L.t("whole_body"))
 	all.pressed.connect(func(): _select_parts(Session.BODY_PARTS.duplicate()))
 	parts.add_child(all)
 	_part_buttons["_all"] = all
 	for part in Session.BODY_PARTS:
-		var b := _chip(Session.PART_NAMES[part])
+		var b := _chip(L.t("part_" + part))
 		b.pressed.connect(func(): _select_parts([part]))
 		parts.add_child(b)
 		_part_buttons[part] = b
-	var arms := _chip("Обе руки")
+	var arms := _chip(L.t("both_arms"))
 	arms.pressed.connect(func(): _select_parts(["arm_l", "arm_r"]))
 	parts.add_child(arms)
 	_part_buttons["_arms"] = arms
-	var legs := _chip("Обе ноги")
+	var legs := _chip(L.t("both_legs"))
 	legs.pressed.connect(func(): _select_parts(["leg_l", "leg_r"]))
 	parts.add_child(legs)
 	_part_buttons["_legs"] = legs
 	v.add_child(parts)
 
-	v.add_child(UI.label("Цвет", 18, UI.MUTED, "bold"))
+	v.add_child(UI.label(L.t("color"), 18, UI.MUTED, "bold"))
 	var grid := GridContainer.new()
 	grid.columns = 8
 	grid.add_theme_constant_override("h_separation", 10)
@@ -145,7 +145,7 @@ func _build_colors_tab() -> Control:
 	v.add_child(grid)
 
 	var custom_row := UI.hbox(12)
-	custom_row.add_child(UI.label("Свой цвет", 18, UI.TEXT, "bold"))
+	custom_row.add_child(UI.label(L.t("custom_color"), 18, UI.TEXT, "bold"))
 	_custom_picker = ColorPickerButton.new()
 	_custom_picker.custom_minimum_size = Vector2(120, 48)
 	_custom_picker.edit_alpha = false
@@ -211,7 +211,7 @@ func _build_hats_tab() -> Control:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 12)
 	for h in UI.HATS:
-		var b := UI.button(h.name, "flat", 64)
+		var b := UI.button(L.t(h.name), "flat", 64)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -225,17 +225,17 @@ func _build_hats_tab() -> Control:
 
 func _build_profile_tab() -> Control:
 	var v := UI.vbox(12)
-	v.add_child(UI.label("Ник (видят все на сервере)", 18, UI.MUTED, "bold"))
-	_name_edit = UI.input("Ник")
+	v.add_child(UI.label(L.t("nick_label"), 18, UI.MUTED, "bold"))
+	_name_edit = UI.input(L.t("nick"))
 	_name_edit.max_length = 24
 	_name_edit.text = str(Session.user.get("display_name", ""))
 	_name_edit.text_changed.connect(func(_t): _set_dirty(true))
 	v.add_child(_name_edit)
-	v.add_child(UI.label("О себе", 18, UI.MUTED, "bold"))
+	v.add_child(UI.label(L.t("about_me"), 18, UI.MUTED, "bold"))
 	_bio_edit = TextEdit.new()
 	_bio_edit.custom_minimum_size.y = 120
 	_bio_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	_bio_edit.placeholder_text = "Пара слов о себе (до 160 символов)"
+	_bio_edit.placeholder_text = L.t("bio_hint")
 	_bio_edit.text = str(Session.user.get("bio", ""))
 	_bio_edit.text_changed.connect(func():
 		if _bio_edit.text.length() > 160:
@@ -243,7 +243,7 @@ func _build_profile_tab() -> Control:
 			_bio_edit.set_caret_column(160)
 		_set_dirty(true))
 	v.add_child(_bio_edit)
-	var info := UI.label("Логин: @%s" % Session.user.get("username", ""), 16, UI.MUTED)
+	var info := UI.label(L.t("login_is", [Session.user.get("username", "")]), 16, UI.MUTED)
 	v.add_child(info)
 	return v
 
@@ -261,7 +261,7 @@ func _set_dirty(v: bool) -> void:
 	_dirty = v
 	if _save:
 		_save.disabled = not v
-		_save.text = "Сохранить" if v else "Сохранено"
+		_save.text = L.t("save") if v else L.t("saved")
 
 
 func _randomize() -> void:
@@ -279,11 +279,11 @@ func _randomize() -> void:
 func _on_save() -> void:
 	var name := _name_edit.text.strip_edges()
 	if name.length() < 2:
-		UI.toast("Ник слишком короткий", "error")
+		UI.toast(L.t("nick_short"), "error")
 		_show_tab("profile")
 		return
 	_save.disabled = true
-	_save.text = "Сохраняем..."
+	_save.text = L.t("saving")
 	var r := await Api.request("PATCH", "/api/me", {
 		"colors": _colors,
 		"hat": _hat,
@@ -298,6 +298,7 @@ func _on_save() -> void:
 		return
 	Session.set_user(r.data.user)
 	Sfx.play("coin")
-	UI.toast("Образ сохранён", "ok")
+	UI.toast(L.t("look_saved"), "ok")
+	Busts.sync_my_render()
 	_stage.avatar.play("wave")
 	_set_dirty(false)

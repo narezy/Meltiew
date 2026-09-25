@@ -17,14 +17,14 @@ const ONLINE := Color("#5fe08e")
 const INK := Color("#17141f")
 
 const HATS := [
-	{"id": "none", "name": "Без шапки"},
-	{"id": "catears", "name": "Кошачьи ушки"},
-	{"id": "cap", "name": "Кепка"},
-	{"id": "crown", "name": "Корона"},
-	{"id": "halo", "name": "Нимб"},
-	{"id": "tophat", "name": "Цилиндр"},
-	{"id": "flower", "name": "Цветочек"},
-	{"id": "headphones", "name": "Наушники"},
+	{"id": "none", "name": "hat_none"},
+	{"id": "catears", "name": "hat_catears"},
+	{"id": "cap", "name": "hat_cap"},
+	{"id": "crown", "name": "hat_crown"},
+	{"id": "halo", "name": "hat_halo"},
+	{"id": "tophat", "name": "hat_tophat"},
+	{"id": "flower", "name": "hat_flower"},
+	{"id": "headphones", "name": "hat_headphones"},
 ]
 
 const SWATCHES := [
@@ -75,7 +75,7 @@ func _on_unauthorized() -> void:
 		return
 	Net.close()
 	Session.clear()
-	toast("Сессия истекла, войди заново", "error")
+	toast(L.t("session_expired"), "error")
 	goto("res://scenes/auth.tscn")
 
 
@@ -200,26 +200,26 @@ func dot(color: Color, size := 12) -> Control:
 	return p
 
 
-## Round initials badge painted in the user's avatar colors.
+## Round 3D bust portrait of the user (rendered by Busts, cached per look).
 func avatar_badge(u: Dictionary, size := 52) -> Control:
 	var colors := Session.colors_of(u)
-	var head := Color(colors.head)
-	var p := PanelContainer.new()
+	var p := Panel.new()
 	p.custom_minimum_size = Vector2(size, size)
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var sb := _box(head, size, 0, 0)
-	sb.border_width_bottom = int(size * 0.16)
-	sb.border_color = Color(colors.torso)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bg := Color(colors.torso).lerp(CARD_2, 0.55)
+	var sb := _box(bg, size, 0, 0)
 	p.add_theme_stylebox_override("panel", sb)
-	var initial := str(u.get("display_name", "?")).substr(0, 1).to_upper()
-	var l := label(initial, int(size * 0.42), INK if head.get_luminance() > 0.45 else TEXT, "black")
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	p.add_child(l)
+	var img := BustImage.new(u, size * 0.5)
+	img.set_anchors_preset(Control.PRESET_FULL_RECT)
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(img)
 	return p
 
 
-func confirm(parent: Node, title: String, text: String, ok_text := "Да", danger := false) -> bool:
+func confirm(parent: Node, title: String, text: String, ok_text := "", danger := false) -> bool:
+	if ok_text == "":
+		ok_text = L.t("yes")
 	var layer := CanvasLayer.new()
 	layer.layer = 50
 	parent.add_child(layer)
@@ -242,7 +242,7 @@ func confirm(parent: Node, title: String, text: String, ok_text := "Да", dange
 	v.add_child(body)
 	var row := hbox(12)
 	v.add_child(row)
-	var no := button("Отмена", "ghost")
+	var no := button(L.t("cancel"), "ghost")
 	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var yes := button(ok_text, "danger" if danger else "primary")
 	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -263,12 +263,12 @@ func confirm(parent: Node, title: String, text: String, ok_text := "Да", dange
 func relative_time(ms: float) -> String:
 	var sec := int((Time.get_unix_time_from_system() * 1000.0 - ms) / 1000.0)
 	if sec < 60:
-		return "только что"
+		return L.t("time_now")
 	if sec < 3600:
-		return "%d мин назад" % (sec / 60)
+		return L.t("time_min", [sec / 60])
 	if sec < 86400:
-		return "%d ч назад" % (sec / 3600)
-	return "%d дн назад" % (sec / 86400)
+		return L.t("time_hour", [sec / 3600])
+	return L.t("time_day", [sec / 86400])
 
 
 # --- theme ------------------------------------------------------------------

@@ -22,7 +22,7 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	http.timeout = TIMEOUT_SEC
 	http.use_threads = OS.get_name() != "Web"
 	add_child(http)
-	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
+	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json", "X-Lang: " + L.lang])
 	if Session.token != "":
 		headers.append("Authorization: Bearer " + Session.token)
 	var methods := {
@@ -35,14 +35,14 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var err := http.request(BASE_URL + path, headers, methods.get(method, HTTPClient.METHOD_GET), payload)
 	if err != OK:
 		http.queue_free()
-		return _fail(0, "network", "Не получилось отправить запрос")
+		return _fail(0, "network", L.t("err_request"))
 	var res: Array = await http.request_completed
 	http.queue_free()
 	var result: int = res[0]
 	var code: int = res[1]
 	var raw: PackedByteArray = res[3]
 	if result != HTTPRequest.RESULT_SUCCESS:
-		return _fail(0, "network", "Нет связи с сервером. Проверь интернет")
+		return _fail(0, "network", L.t("err_network"))
 	var data: Variant = JSON.parse_string(raw.get_string_from_utf8())
 	if typeof(data) != TYPE_DICTIONARY:
 		data = {}
@@ -50,12 +50,16 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 		unauthorized.emit()
 	if code >= 200 and code < 300:
 		return {"ok": true, "status": code, "data": data}
-	return _fail(code, str(data.get("error", "http")), str(data.get("message", "Ошибка сервера (%d)" % code)))
+	return _fail(code, str(data.get("error", "http")), str(data.get("message", L.t("err_server", [code]))))
 
 
 func _fail(status: int, code: String, message: String) -> Dictionary:
 	return {"ok": false, "status": status, "error": code, "message": message, "data": {}}
 
 
+func avatar_url(user_id: int) -> String:
+	return "%s/api/avatar/%d.png" % [BASE_URL, user_id]
+
+
 func ws_url() -> String:
-	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode()
+	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode() + "&lang=" + L.lang

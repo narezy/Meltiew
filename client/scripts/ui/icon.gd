@@ -129,3 +129,32 @@ func _draw() -> void:
 				var r := 9.5 if k % 2 == 0 else 4.2
 				pts.append(Vector2(12, 12.5) + Vector2(cos(a), sin(a)) * r)
 			_poly(pts)
+		"music":
+			_line([Vector2(9, 18), Vector2(9, 5), Vector2(19, 3), Vector2(19, 16)])
+			_circle(Vector2(6.5, 18), 2.8, true)
+			_circle(Vector2(16.5, 16), 2.8, true)
+		"chair":
+			_line([Vector2(7, 3), Vector2(7, 21)])
+			_line([Vector2(7, 13), Vector2(18, 13), Vector2(18, 21)])
+			_line([Vector2(7, 13), Vector2(7, 13)])
+		"smile":
+			_circle(Vector2(12, 12), 9.0)
+			_circle(Vector2(9, 10), 1.3, true)
+			_circle(Vector2(15, 10), 1.3, true)
+			_arc(Vector2(12, 12.5), 4.5, 0.2, PI - 0.2)
+		"clap":
+			_line([Vector2(6, 20), Vector2(9, 9), Vector2(12, 6)])
+			_line([Vector2(18, 20), Vector2(15, 9), Vector2(12, 6)])
+			_line([Vector2(4, 5), Vector2(6, 7)])
+			_line([Vector2(20, 5), Vector2(18, 7)])
+			_line([Vector2(12, 1.5), Vector2(12, 3)])
+		"camera":
+			_line([Vector2(3, 8), Vector2(21, 8), Vector2(21, 19), Vector2(3, 19), Vector2(3, 8)])
+			_line([Vector2(8, 8), Vector2(10, 5), Vector2(14, 5), Vector2(16, 8)])
+			_circle(Vector2(12, 13.5), 3.2)
+		"reset":
+			_arc(Vector2(12, 12), 7.5, PI * 0.65, PI * 2.35)
+			_poly([Vector2(3.5, 6.5), Vector2(9, 5), Vector2(5.5, 11)])
+		"shield":
+			_line([Vector2(12, 3), Vector2(20, 6), Vector2(19, 13), Vector2(12, 21), Vector2(5, 13), Vector2(4, 6), Vector2(12, 3)])
+			_line([Vector2(7, 7), Vector2(17, 17)])

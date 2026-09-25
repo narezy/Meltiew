@@ -1,7 +1,7 @@
 class_name MellyAvatar
 extends Node3D
 ## Melly character: loads the rigged model, paints its six body parts,
-## puts a hat on the head bone and drives the animations.
+## puts a hat on the head bone and drives the animations and emotes.
 
 const MODEL := preload("res://assets/melly.glb")
 const BODY_SHADER := preload("res://assets/shaders/melly_body.gdshader")
@@ -9,6 +9,20 @@ const BODY_SHADER := preload("res://assets/shaders/melly_body.gdshader")
 const MODEL_SCALE := 0.34
 ## Shader uniform order follows the skin joints: Torso, Head, ArmL, ArmR, LegL, LegR.
 const JOINT_ORDER := ["torso", "head", "arm_l", "arm_r", "leg_l", "leg_r"]
+## Network animation state -> [clip, speed, blend].
+const CLIPS := {
+	"idle": ["Idle", 1.0, 0.25],
+	"walk": ["Walk", 0.85, 0.2],
+	"run": ["Walk", 1.3, 0.2],
+	"jump": ["Jump", 1.0, 0.1],
+	"wave": ["Wave", 1.0, 0.15],
+	"dance": ["Dance", 1.0, 0.2],
+	"cheer": ["Cheer", 1.0, 0.15],
+	"sit": ["Sit", 1.0, 0.3],
+	"clap": ["Clap", 1.0, 0.15],
+	"laugh": ["Laugh", 1.0, 0.15],
+}
+const EMOTES := ["wave", "dance", "cheer", "sit", "clap", "laugh"]
 
 var anim_player: AnimationPlayer
 var _model: Node3D
@@ -16,7 +30,6 @@ var _body_mat: ShaderMaterial
 var _hat_root: BoneAttachment3D
 var _hat_id := ""
 var _current := ""
-var _one_shot := false
 var _look_colors := {}
 
 
@@ -30,6 +43,7 @@ func _ready() -> void:
 	for anim_name in ["Idle", "Walk"]:
 		if anim_player.has_animation(anim_name):
 			anim_player.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
+	EmoteAnims.install(anim_player)
 	anim_player.animation_finished.connect(_on_anim_finished)
 	var body: MeshInstance3D = _model.find_child("Body", true, false)
 	_body_mat = ShaderMaterial.new()
@@ -61,6 +75,10 @@ func set_colors(colors: Dictionary) -> void:
 		_body_mat.set_shader_parameter("part_colors", arr)
 
 
+func get_colors() -> Dictionary:
+	return _look_colors
+
+
 func set_hat(id: String) -> void:
 	if _hat_root == null:
 		_hat_id = id
@@ -75,41 +93,32 @@ func set_hat(id: String) -> void:
 		_hat_root.add_child(hat)
 
 
-## Accepts network animation names: idle, walk, run, jump, fall, wave.
+## Accepts network animation states: idle, walk, run, jump, fall, wave and the emotes.
 func play(state: String) -> void:
-	if anim_player == null:
+	if anim_player == null or state == _current:
 		return
-	if _one_shot and state == "idle":
-		return
-	if state == _current and state != "wave":
+	# A one-shot wave keeps playing over "idle" until it finishes.
+	if _current == "wave" and state == "idle" and anim_player.is_playing():
 		return
 	_current = state
-	_one_shot = false
-	match state:
-		"walk":
-			anim_player.play("Walk", 0.15, 1.0)
-		"run":
-			anim_player.play("Walk", 0.15, 1.55)
-		"jump":
-			anim_player.play("Jump", 0.08, 1.0)
-		"fall":
-			anim_player.play("Jump", 0.15, 1.0)
-			anim_player.seek(0.3, true)
-			anim_player.pause()
-		"wave":
-			_one_shot = true
-			anim_player.play("Wave", 0.12, 1.0)
-		_:
-			_current = "idle"
-			anim_player.play("Idle", 0.2, 1.0)
+	if state == "fall":
+		anim_player.play("Jump", 0.2, 1.0)
+		anim_player.seek(0.32, true)
+		anim_player.pause()
+		return
+	var clip: Array = CLIPS.get(state, CLIPS.idle)
+	anim_player.play(clip[0], clip[2], clip[1])
 
 
-func is_waving() -> bool:
-	return _one_shot and _current == "wave"
+func current_state() -> String:
+	return _current
+
+
+func is_emoting() -> bool:
+	return _current in EMOTES
 
 
 func _on_anim_finished(anim_name: StringName) -> void:
 	if anim_name == &"Wave":
-		_one_shot = false
 		_current = ""
 		play("idle")

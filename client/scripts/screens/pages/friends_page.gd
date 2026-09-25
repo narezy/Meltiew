@@ -18,13 +18,13 @@ func _ready() -> void:
 	var head := UI.hbox(16)
 	var title := UI.vbox(2)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_child(UI.label("Друзья", 34, UI.TEXT, "black"))
-	title.add_child(UI.label("Найди друзей по нику и играйте на одном сервере", 19, UI.MUTED))
+	title.add_child(UI.label(L.t("nav_friends"), 34, UI.TEXT, "black"))
+	title.add_child(UI.label(L.t("friends_sub"), 19, UI.MUTED))
 	head.add_child(title)
 	add_child(head)
 
 	var search_row := UI.hbox(12)
-	_search = UI.input("Поиск игроков по нику или логину")
+	_search = UI.input(L.t("search_players"))
 	_search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_search.right_icon = null
 	search_row.add_child(_search)
@@ -38,7 +38,7 @@ func _ready() -> void:
 	_search.text_submitted.connect(func(_t): _do_search())
 
 	var tabs := UI.hbox(8)
-	for t in [["friends", "Мои друзья"], ["incoming", "Заявки"], ["outgoing", "Отправленные"]]:
+	for t in [["friends", L.t("my_friends")], ["incoming", L.t("requests")], ["outgoing", L.t("sent")]]:
 		var b := UI.button(t[1], "flat", 44)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -89,7 +89,7 @@ func refresh() -> void:
 		return
 	_data = r.data
 	var n: int = _data.incoming.size()
-	_tab_buttons.incoming.text = "Заявки" + (" (%d)" % n if n > 0 else "")
+	_tab_buttons.incoming.text = L.t("requests") + (" (%d)" % n if n > 0 else "")
 	_menu().set_request_badge(n)
 	if _search.text.strip_edges() == "":
 		_render()
@@ -115,11 +115,11 @@ func _render() -> void:
 	if items.is_empty():
 		match _mode:
 			"friends":
-				_empty("Пока друзей нет. Найди кого-нибудь через поиск сверху!")
+				_empty(L.t("no_friends"))
 			"incoming":
-				_empty("Новых заявок нет")
+				_empty(L.t("no_requests"))
 			_:
-				_empty("Ты никому не отправлял(а) заявок")
+				_empty(L.t("no_sent"))
 		return
 	for u in items:
 		_list.add_child(_row(u, {"friends": "friends", "incoming": "incoming", "outgoing": "outgoing"}[_mode]))
@@ -138,7 +138,7 @@ func _do_search() -> void:
 		_empty(r.message)
 		return
 	if r.data.users.is_empty():
-		_empty("Никого не нашли по запросу «%s»" % q)
+		_empty(L.t("nobody_found", [q]))
 		return
 	for u in r.data.users:
 		_list.add_child(_row(u, str(u.get("relation", "none"))))
@@ -147,10 +147,10 @@ func _do_search() -> void:
 static func status_text(u: Dictionary) -> Array:
 	var playing: Variant = u.get("playing")
 	if playing is Dictionary:
-		return ["Играет: " + str(playing.get("server_name", "площадка")), UI.MINT]
+		return [L.t("playing_on", [L.field(playing, "server_name")]), UI.MINT]
 	if u.get("online", false):
-		return ["В сети", UI.ONLINE]
-	return ["Не в сети", UI.MUTED]
+		return [L.t("online"), UI.ONLINE]
+	return [L.t("offline"), UI.MUTED]
 
 
 func _row(u: Dictionary, relation: String) -> Control:
@@ -178,34 +178,38 @@ func _row(u: Dictionary, relation: String) -> Control:
 		"friends":
 			var playing: Variant = u.get("playing")
 			if playing is Dictionary:
-				var join := UI.button("Присоединиться", "mint", 50)
+				var join := UI.button(L.t("join_friend"), "mint", 50)
 				join.pressed.connect(func(): _menu().play(str(playing.server_id)))
 				row.add_child(join)
-			var rm := UI.button("Удалить", "ghost", 50)
+			var rm := UI.button(L.t("remove"), "ghost", 50)
 			rm.pressed.connect(func(): _remove(u))
 			row.add_child(rm)
 		"incoming":
-			var ok := UI.button("Принять", "mint", 50)
-			ok.pressed.connect(func(): _act("/api/friends/accept", u, "Теперь вы друзья с %s" % u.display_name))
+			var ok := UI.button(L.t("accept"), "mint", 50)
+			ok.pressed.connect(func(): _act("/api/friends/accept", u, L.t("now_friends_with", [u.display_name])))
 			row.add_child(ok)
-			var no := UI.button("Отклонить", "ghost", 50)
+			var no := UI.button(L.t("decline"), "ghost", 50)
 			no.pressed.connect(func(): _act("/api/friends/remove", u, ""))
 			row.add_child(no)
+		"blocked":
+			var ub := UI.button(L.t("unblock"), "ghost", 50)
+			ub.pressed.connect(func(): _act("/api/blocks/remove", u, L.t("unblocked")))
+			row.add_child(ub)
 		"outgoing":
-			var cancel := UI.button("Отменить", "ghost", 50)
-			cancel.pressed.connect(func(): _act("/api/friends/remove", u, "Заявка отменена"))
+			var cancel := UI.button(L.t("cancel_request"), "ghost", 50)
+			cancel.pressed.connect(func(): _act("/api/friends/remove", u, L.t("request_cancelled")))
 			row.add_child(cancel)
 		_:
-			var add := UI.button("Добавить", "primary", 50)
-			add.pressed.connect(func(): _act("/api/friends/request", u, "Заявка отправлена"))
+			var add := UI.button(L.t("add"), "primary", 50)
+			add.pressed.connect(func(): _act("/api/friends/request", u, L.t("request_sent")))
 			row.add_child(add)
 	return c
 
 
 func _remove(u: Dictionary) -> void:
-	var yes: bool = await UI.confirm(self, "Удалить из друзей?", "%s пропадёт из списка друзей." % u.display_name, "Удалить", true)
+	var yes: bool = await UI.confirm(self, L.t("remove_friend_q"), L.t("remove_friend_body", [u.display_name]), L.t("remove"), true)
 	if yes:
-		_act("/api/friends/remove", u, "Удалено")
+		_act("/api/friends/remove", u, L.t("removed"))
 
 
 func _act(path: String, u: Dictionary, ok_text: String) -> void:
@@ -216,7 +220,7 @@ func _act(path: String, u: Dictionary, ok_text: String) -> void:
 		UI.toast(r.message, "error")
 		return
 	if r.data.get("relation") == "friends" and path == "/api/friends/request":
-		ok_text = "У вас была встречная заявка, теперь вы друзья!"
+		ok_text = L.t("mutual_request")
 	if ok_text != "":
 		UI.toast(ok_text, "ok")
 		Sfx.play("pop")

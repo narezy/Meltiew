@@ -44,6 +44,12 @@ func drag(index: int, pos: Vector2) -> void:
 	queue_redraw()
 
 
+func reset() -> void:
+	_finger = -1
+	value = Vector2.ZERO
+	queue_redraw()
+
+
 func end(index: int) -> void:
 	if index != _finger:
 		return

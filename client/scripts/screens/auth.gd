@@ -45,7 +45,7 @@ func _ready() -> void:
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	brand.add_child(mark)
 	brand.add_child(UI.label("meltiew", 40, UI.TEXT, "black"))
-	var tagline := UI.label("Играй, наряжайся и тусуйся с друзьями", 22, UI.MUTED)
+	var tagline := UI.label(L.t("tagline"), 22, UI.MUTED)
 	left.add_child(tagline)
 	_stage = AvatarStage.new()
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -73,22 +73,22 @@ func _ready() -> void:
 	var tabs_bg := UI.card(6, UI.BG_2, 18)
 	tabs_bg.add_child(tabs)
 	form.add_child(tabs_bg)
-	_tab_login = _make_tab("Вход", "login")
-	_tab_register = _make_tab("Регистрация", "register")
+	_tab_login = _make_tab(L.t("sign_in"), "login")
+	_tab_register = _make_tab(L.t("sign_up"), "register")
 	tabs.add_child(_tab_login)
 	tabs.add_child(_tab_register)
 
-	_username = UI.input("Логин")
+	_username = UI.input(L.t("username"))
 	_username.max_length = 20
 	form.add_child(_username)
-	_display = UI.input("Как тебя называть (ник)")
+	_display = UI.input(L.t("display_name_hint"))
 	_display.max_length = 24
 	_display_row = _display
 	form.add_child(_display)
-	_password = UI.input("Пароль", true)
+	_password = UI.input(L.t("password"), true)
 	_password.max_length = 128
 	form.add_child(_password)
-	_password2 = UI.input("Повтори пароль", true)
+	_password2 = UI.input(L.t("password_repeat"), true)
 	_password2.max_length = 128
 	_password2_row = _password2
 	form.add_child(_password2)
@@ -97,7 +97,7 @@ func _ready() -> void:
 	_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_error.visible = false
 	form.add_child(_error)
-	_submit = UI.button("Войти")
+	_submit = UI.button(L.t("sign_in"))
 	_submit.custom_minimum_size.y = 60
 	form.add_child(_submit)
 	_hint = UI.label("", 16, UI.MUTED)
@@ -127,8 +127,8 @@ func _set_mode(mode: String) -> void:
 	_tab_register.button_pressed = reg
 	_display_row.visible = reg
 	_password2_row.visible = reg
-	_submit.text = "Создать аккаунт" if reg else "Войти"
-	_hint.text = "Логин: латиница, цифры и _. Пароль от 6 символов." if reg else "Нет аккаунта? Жми «Регистрация», это быстро."
+	_submit.text = L.t("create_account") if reg else L.t("sign_in")
+	_hint.text = L.t("register_hint") if reg else L.t("login_hint")
 	_error.visible = false
 
 
@@ -157,22 +157,22 @@ func _on_submit() -> void:
 	var password := _password.text
 	var regex := RegEx.create_from_string("^[A-Za-z0-9_]{3,20}$")
 	if regex.search(username) == null:
-		_show_error("Логин: 3–20 символов, латиница, цифры и _")
+		_show_error(L.t("bad_username"))
 		return
 	if password.length() < 6:
-		_show_error("Пароль должен быть от 6 символов")
+		_show_error(L.t("bad_password"))
 		return
 	var body := {"username": username, "password": password}
 	var path := "/api/login"
 	if _mode == "register":
 		if _password2.text != password:
-			_show_error("Пароли не совпадают")
+			_show_error(L.t("passwords_mismatch"))
 			return
 		var display := _display.text.strip_edges()
 		body.display_name = display if display.length() >= 2 else username
 		path = "/api/register"
 	_submit.disabled = true
-	_submit.text = "Секунду..."
+	_submit.text = L.t("one_sec")
 	_error.visible = false
 	var r := await Api.request("POST", path, body)
 	_submit.disabled = false
@@ -182,7 +182,8 @@ func _on_submit() -> void:
 		return
 	Session.set_auth(r.data.token, r.data.user)
 	Sfx.play("join")
-	UI.toast("Добро пожаловать, %s!" % r.data.user.display_name, "ok")
+	UI.toast(L.t("welcome_name", [r.data.user.display_name]), "ok")
+	Busts.sync_my_render()
 	UI.goto("res://scenes/main_menu.tscn")
 
 

@@ -22,6 +22,8 @@ func _ready() -> void:
 	_streams.join = _chord([523.25, 659.25, 783.99], 0.35, 0.22)
 	_streams.error = _tone(220.0, 150.0, 0.2, 0.3, "square")
 	_streams.coin = _chord([987.77, 1318.51], 0.25, 0.22)
+	_streams["break"] = _tone(420.0, 90.0, 0.35, 0.4, "noise")
+	_streams.hurt = _tone(330.0, 180.0, 0.16, 0.3, "square")
 
 
 func play(name: String, pitch := 1.0) -> void:

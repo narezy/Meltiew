@@ -50,6 +50,13 @@ func touch_press(index: int, pos: Vector2) -> bool:
 	return true
 
 
+func force_release() -> void:
+	if _finger >= 0 or _mouse_down:
+		_finger = -1
+		_mouse_down = false
+		_up()
+
+
 func touch_release(index: int) -> void:
 	if index == _finger:
 		_finger = -1

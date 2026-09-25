@@ -2,8 +2,8 @@ shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
 
 // Mown-lawn stripes plus a little value noise so the big ground plane isn't flat.
-uniform vec3 grass_a : source_color = vec3(0.45, 0.72, 0.39);
-uniform vec3 grass_b : source_color = vec3(0.41, 0.67, 0.35);
+uniform vec3 grass_a : source_color = vec3(0.40, 0.72, 0.33);
+uniform vec3 grass_b : source_color = vec3(0.37, 0.67, 0.30);
 varying vec3 world_pos;
 
 float hash(vec2 p) {
@@ -23,7 +23,7 @@ void vertex() {
 }
 
 void fragment() {
-	float stripe = step(0.5, fract(world_pos.x / 8.0));
+	float stripe = smoothstep(0.45, 0.55, fract(world_pos.x / 5.0)) * smoothstep(1.0, 0.9, fract(world_pos.x / 5.0));
 	vec3 col = mix(grass_a, grass_b, stripe);
 	float n = noise(world_pos.xz * 0.35) * 0.6 + noise(world_pos.xz * 1.7) * 0.4;
 	col *= 0.92 + n * 0.14;

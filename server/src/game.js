@@ -218,7 +218,7 @@ export class GameHub {
     }
 
     const angle = Math.random() * Math.PI * 2;
-    const spawn = [Math.cos(angle) * 2.5, 0.5, 10 + Math.sin(angle) * 2.5];
+    const spawn = [Math.cos(angle) * 2.2, 0.6, 15.5 + Math.sin(angle) * 1.2];
     const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn };
     server.players.set(conn.user.id, player);
     server.emptySince = 0;

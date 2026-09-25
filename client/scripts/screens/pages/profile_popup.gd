@@ -2,6 +2,8 @@ class_name ProfilePopup
 extends CanvasLayer
 ## Modal card with another player's profile, live avatar and friend actions.
 
+signal changed
+
 var username := ""
 var menu: Node
 var _box: VBoxContainer
@@ -38,7 +40,7 @@ func _ready() -> void:
 	_box = UI.vbox(12)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_box)
-	_box.add_child(UI.label("Загружаем профиль...", 20, UI.MUTED))
+	_box.add_child(UI.label(L.t("loading_profile"), 20, UI.MUTED))
 	_card.scale = Vector2(0.94, 0.94)
 	_card.pivot_offset = _card.custom_minimum_size / 2.0
 	_card.modulate.a = 0.0
@@ -90,14 +92,14 @@ func _render(u: Dictionary) -> void:
 	_box.add_child(srow)
 
 	var bio := str(u.get("bio", ""))
-	var bl := UI.label(bio if bio != "" else "Пока ничего о себе не рассказал(а)", 19, UI.TEXT if bio != "" else UI.MUTED)
+	var bl := UI.label(bio if bio != "" else L.t("no_bio"), 19, UI.TEXT if bio != "" else UI.MUTED)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(bl)
 
 	var stats := UI.hbox(12)
-	stats.add_child(_stat(str(int(u.get("friends", 0))), "друзей"))
+	stats.add_child(_stat(str(int(u.get("friends", 0))), L.plural(int(u.get("friends", 0)), "friends_word")))
 	var joined := Time.get_date_dict_from_unix_time(int(float(u.get("created_at", 0)) / 1000.0))
-	stats.add_child(_stat("%02d.%02d.%d" % [joined.day, joined.month, joined.year], "с нами с"))
+	stats.add_child(_stat("%02d.%02d.%d" % [joined.day, joined.month, joined.year], L.t("member_since")))
 	_box.add_child(stats)
 	_box.add_child(UI.spacer(false))
 
@@ -106,7 +108,7 @@ func _render(u: Dictionary) -> void:
 	var is_me := int(u.id) == int(Session.user.get("id", -1))
 	var playing: Variant = u.get("playing")
 	if playing is Dictionary and not is_me:
-		var join := UI.button("Присоединиться", "mint", 56)
+		var join := UI.button(L.t("join_friend"), "mint", 56)
 		join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		join.pressed.connect(func():
 			_close()
@@ -116,26 +118,41 @@ func _render(u: Dictionary) -> void:
 	if is_me:
 		return
 	var rel := str(u.get("relation", "none"))
-	var label: String = {"friends": "Удалить из друзей", "outgoing": "Отменить заявку", "incoming": "Принять заявку"}.get(rel, "Добавить в друзья")
-	var variant: String = {"friends": "ghost", "outgoing": "ghost", "incoming": "primary"}.get(rel, "primary")
-	var path: String = {"friends": "/api/friends/remove", "outgoing": "/api/friends/remove", "incoming": "/api/friends/accept"}.get(rel, "/api/friends/request")
-	var b := UI.button(label, variant, 56)
+	if rel != "blocked":
+		var label: String = {"friends": L.t("remove_friend"), "outgoing": L.t("cancel_request"), "incoming": L.t("accept_request")}.get(rel, L.t("add_friend"))
+		var variant: String = {"friends": "ghost", "outgoing": "ghost", "incoming": "primary"}.get(rel, "primary")
+		var path: String = {"friends": "/api/friends/remove", "outgoing": "/api/friends/remove", "incoming": "/api/friends/accept"}.get(rel, "/api/friends/request")
+		actions.add_child(_action_button(label, variant, path, u))
+	var block_path := "/api/blocks/remove" if rel == "blocked" else "/api/blocks/add"
+	var block := _action_button(L.t("unblock") if rel == "blocked" else L.t("block"), "ghost", block_path, u)
+	block.size_flags_horizontal = Control.SIZE_FILL
+	actions.add_child(block)
+
+
+func _action_button(text: String, variant: String, path: String, u: Dictionary) -> Button:
+	var b := UI.button(text, variant, 56)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.pressed.connect(func():
+		if path == "/api/blocks/add":
+			var sure: bool = await UI.confirm(self, L.t("block_q", [u.display_name]), L.t("block_body"), L.t("block"), true)
+			if not sure:
+				return
 		b.disabled = true
 		var r := await Api.request("POST", path, {"user_id": u.id})
 		if not is_inside_tree():
 			return
 		if r.ok:
 			Sfx.play("pop")
-			UI.toast({"friends": "Вы теперь друзья!", "outgoing": "Заявка отправлена", "none": "Готово"}.get(str(r.data.relation), "Готово"), "ok")
+			var toast_key: String = {"friends": "now_friends", "outgoing": "request_sent", "blocked": "blocked_done"}.get(str(r.data.relation), "done")
+			UI.toast(L.t(toast_key), "ok")
+			changed.emit()
 			for c in _box.get_children():
 				c.queue_free()
 			_load()
 		else:
 			b.disabled = false
 			UI.toast(r.message, "error"))
-	actions.add_child(b)
+	return b
 
 
 func _stat(value: String, caption: String) -> Control:
@@ -148,6 +165,6 @@ func _stat(value: String, caption: String) -> Control:
 
 
 func _add_close() -> void:
-	var b := UI.button("Закрыть", "ghost")
+	var b := UI.button(L.t("close"), "ghost")
 	b.pressed.connect(_close)
 	_box.add_child(b)

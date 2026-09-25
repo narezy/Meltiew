@@ -20,7 +20,7 @@ func connect_to_game() -> void:
 	var err := _ws.connect_to_url(Api.ws_url())
 	if err != OK:
 		_ws = null
-		disconnected.emit("Не удалось подключиться к игровому серверу")
+		disconnected.emit(L.t("err_ws_connect"))
 
 
 func close() -> void:
@@ -58,10 +58,10 @@ func _process(_delta: float) -> void:
 		_ws = null
 		if _closing:
 			return
-		var reason := "Соединение с сервером потеряно"
+		var reason := L.t("err_ws_lost")
 		if not _was_open:
-			reason = "Игровой сервер недоступен"
+			reason = L.t("err_ws_unavailable")
 		if code == 4000:
-			reason = "Ты зашёл(ла) в игру с другого устройства"
+			reason = L.t("err_duplicate")
 		_was_open = false
 		disconnected.emit(reason)

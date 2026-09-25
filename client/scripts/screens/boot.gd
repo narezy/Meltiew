@@ -42,17 +42,18 @@ func _route() -> void:
 	if Session.token == "":
 		UI.goto("res://scenes/auth.tscn")
 		return
-	_status.text = "Подключаемся..."
+	_status.text = L.t("connecting")
 	var r := await Api.request("GET", "/api/me")
 	if r.ok:
 		Session.set_user(r.data.user)
+		Busts.sync_my_render()
 		UI.goto("res://scenes/main_menu.tscn")
 	elif r.status == 401:
 		Session.clear()
 		UI.goto("res://scenes/auth.tscn")
 	else:
 		_status.text = r.message
-		var retry := UI.button("Попробовать снова", "ghost")
+		var retry := UI.button(L.t("retry"), "ghost")
 		retry.custom_minimum_size.x = 260
 		retry.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_status.get_parent().add_child(retry)
