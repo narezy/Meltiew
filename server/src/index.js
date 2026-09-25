@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { openDb } from './db.js';
 import { createApi, clientIp } from './api.js';
 import { pickLang, msg } from './i18n.js';
+import { PlaceStore } from './studio/places.js';
 import { GameHub } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,7 @@ const MIME = {
   '.apk': 'application/vnd.android.package-archive',
   '.json': 'application/json',
   '.glb': 'model/gltf-binary',
+  '.wasm': 'application/wasm',
 };
 
 function serveStatic(req, res) {
@@ -63,14 +65,30 @@ function serveStatic(req, res) {
 export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, renderDir, owner } = {}) {
   const db = openDb(dbFile);
   const renders = renderDir || (dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-renders-${process.pid}`) : path.join(path.dirname(dbFile), 'renders'));
+  // Studio place files, covers and uploaded images live next to the database.
+  const studioDir = dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-studio-${process.pid}`) : path.join(path.dirname(dbFile), 'studio');
+  const store = new PlaceStore(db, studioDir);
+  const placeRow = db.prepare("SELECT * FROM places WHERE id = ? AND kind = 'studio' AND deleted = 0");
   let api;
   const hub = new GameHub({
     log,
     loadBlocks: (id) => api.blockSet(id),
     loadFriends: (id) => api.friendSet(id),
     onJoin: (game) => api.countVisit(game),
+    places: {
+      row: (id) => placeRow.get(id),
+      load: (id) => store.load(id),
+      canJoin: (user, id) => store.canSee(placeRow.get(id), user, api.isFriend),
+      visit: (id, userId) => store.recordVisit(id, userId),
+      // Players leaving during shutdown may arrive after the database closed.
+      playtime: (id, userId, ms) => {
+        try {
+          store.recordPlaytime(id, userId, ms);
+        } catch {}
+      },
+    },
   });
-  api = createApi({ db, hub, renderDir: renders, owner });
+  api = createApi({ db, hub, renderDir: renders, store, owner });
 
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {
@@ -82,7 +100,8 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
     }
   });
 
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 });
+  // Room for studio remote-event arguments.
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://local');
     if (url.pathname !== '/ws') {

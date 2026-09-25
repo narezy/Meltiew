@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { createVersionGate, DOWNLOAD_PAGE, LATEST_CLIENT } from './version.js';
 import { FACES, ageOf, chatRules, validBirthdate } from './age.js';
 import { filterText } from './filter.js';
+import { createStudioRoutes } from './studio/routes.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -14,6 +15,8 @@ const ONLINE_WINDOW_MS = 60_000;
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60;
 const MAX_BODY = 16 * 1024;
 const MAX_RENDER_BODY = 600 * 1024;
+// Studio: whole place files and images.
+const MAX_STUDIO_BODY = 12 * 1024 * 1024;
 const LAUNCH_TTL_MS = 3 * 60_000;
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -66,7 +69,7 @@ export function clientIp(req) {
   return fwd || req.socket.remoteAddress || '?';
 }
 
-export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
+export function createApi({ db, hub, renderDir, store, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
   fs.mkdirSync(renderDir, { recursive: true });
   const gate = createVersionGate(db);
   const launches = new Map(); // userId -> { server, game, at }
@@ -118,7 +121,8 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
   promoteOwner();
 
   const pq = {
-    all: db.prepare('SELECT * FROM places ORDER BY created_at'),
+    // Listed: the built-in games and published (public) studio places.
+    all: db.prepare("SELECT * FROM places WHERE deleted = 0 AND (kind = 'builtin' OR visibility = 'public') ORDER BY created_at"),
     one: db.prepare('SELECT * FROM places WHERE id = ?'),
     votes: db.prepare('SELECT SUM(value = 1) AS likes, SUM(value = -1) AS dislikes FROM place_votes WHERE place_id = ?'),
     myVote: db.prepare('SELECT value FROM place_votes WHERE place_id = ? AND user_id = ?'),
@@ -137,28 +141,47 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     );
   }
 
-  function placeView(p, viewerId) {
+  function placeView(p, viewerId, lang = 'en') {
     const v = pq.votes.get(p.id);
-    const author = q.userByName.get(p.author_username);
+    const studio = p.kind === 'studio';
+    const author = studio ? q.userById.get(p.owner_id) : q.userByName.get(p.author_username);
+    // Studio places carry their own translations; the built-in one has EN/RU columns.
+    let i18n = {};
+    try {
+      i18n = JSON.parse(p.i18n || '{}');
+    } catch {}
+    const name = studio ? i18n.name?.[lang] || p.name : p.name;
+    const description = studio ? i18n.description?.[lang] || p.description : p.description;
     return {
       id: p.id,
-      name: p.name,
-      name_ru: p.name_ru,
-      description: p.description,
-      description_ru: p.description_ru,
-      cover: p.cover,
+      kind: p.kind || 'builtin',
+      name,
+      name_ru: studio ? i18n.name?.ru || name : p.name_ru,
+      description,
+      description_ru: studio ? i18n.description?.ru || description : p.description_ru,
+      cover: p.cover || '/img/place-default.png',
       cover_square: p.cover_square || '',
       visits: p.visits,
       created_at: p.created_at,
+      updated_at: p.updated_at || p.created_at,
+      visibility: p.visibility || 'public',
+      comments_enabled: studio ? !!p.comments_enabled : true,
       likes: v.likes || 0,
       dislikes: v.dislikes || 0,
       my_vote: viewerId ? pq.myVote.get(p.id, viewerId)?.value || 0 : 0,
       playing: hub.playerCount(p.id),
-      max_players: MAX_PLAYERS,
+      max_players: studio ? p.max_players : MAX_PLAYERS,
       author: author
         ? { id: author.id, username: author.username, display_name: author.display_name, role: author.role, render: author.render_hash }
         : { id: 0, username: p.author_username, display_name: p.author_username, role: 'owner', render: '' },
     };
+  }
+
+  const isFriend = (a, b) => a === b || !!(q.friendRow.get(a, b)?.status === 'accepted' || q.friendRow.get(b, a)?.status === 'accepted');
+  function visibleRow(user, id) {
+    const p = pq.one.get(id);
+    if (!p || p.deleted || !store.canSee(p, user, isFriend)) throw new HttpError(404, 'no_place');
+    return p;
   }
 
   function serversFor(game, userId) {
@@ -517,7 +540,9 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     // The website queues a join, then opens the app (meltiew://play); the app picks it up.
     'POST /api/launch': (req, body) => {
       const { user } = requireAuth(req);
-      const game = GAMES[body.game] ? body.game : 'playground';
+      let game = 'playground';
+      if (GAMES[body.game]) game = body.game;
+      else if (body.game) game = visibleRow(user, String(body.game)).id;
       let server = String(body.server ?? 'auto');
       if (server !== 'auto' && server !== 'new' && !hub.hasServer(server)) throw new HttpError(404, 'bad_server');
       launches.set(user.id, { server, game, at: Date.now() });
@@ -566,28 +591,30 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       let list = pq.all.all();
       if (term) {
         list = list.filter((p) =>
-          [p.name, p.name_ru, p.description, p.description_ru, p.author_username].some((f) => String(f).toLowerCase().includes(term)),
+          [p.name, p.name_ru, p.description, p.description_ru, p.author_username, p.i18n].some((f) => String(f).toLowerCase().includes(term)),
         );
       }
-      return { places: list.map((p) => placeView(p, user.id)) };
+      const lang = pickLang(req);
+      const views = list.map((p) => placeView(p, user.id, lang));
+      // Busy places first, then the most liked and visited.
+      views.sort((a, b) => b.playing - a.playing || b.likes - a.likes || b.visits - a.visits);
+      return { places: views };
     },
 
     'GET /api/places/:id': (req, _body, _url, params) => {
       const { user } = requireAuth(req);
-      const p = pq.one.get(params.id);
-      if (!p) throw new HttpError(404, 'no_place');
-      return { place: placeView(p, user.id), servers: serversFor(p.id, user.id) };
+      const p = visibleRow(user, params.id);
+      return { place: placeView(p, user.id, pickLang(req)), servers: serversFor(p.id, user.id) };
     },
 
     'POST /api/places/:id/vote': (req, body, _url, params) => {
       const { user } = requireAuth(req);
       if (!writeLimiter.allow('vote:' + user.id)) throw new HttpError(429, 'slow_down');
-      const p = pq.one.get(params.id);
-      if (!p) throw new HttpError(404, 'no_place');
+      const p = visibleRow(user, params.id);
       const value = Number(body.value);
       if (value === 1 || value === -1) pq.setVote.run(p.id, user.id, value);
       else pq.clearVote.run(p.id, user.id);
-      return { place: placeView(p, user.id) };
+      return { place: placeView(p, user.id, pickLang(req)) };
     },
 
     // --- admin panel (admins and the owner) ---------------------------------
@@ -819,14 +846,34 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     'POST /api/report': (req, body) => {
       const { user } = requireAuth(req);
       if (!writeLimiter.allow('report:' + user.id)) throw new HttpError(429, 'slow_down');
-      const target = lookupTarget(body);
-      const reason = ['chat', 'name', 'avatar', 'cheating', 'other'].includes(body.reason) ? body.reason : 'other';
-      db.prepare('INSERT INTO reports (reporter_id, target_id, reason, details, created_at) VALUES (?, ?, ?, ?, ?)').run(
+      // A player, a place (target = its owner) or a comment (target = its author).
+      let target;
+      let type = 'user';
+      let ref = '';
+      if (body.place_id) {
+        const p = visibleRow(user, String(body.place_id));
+        target = q.userById.get(p.owner_id) || q.userByName.get(p.author_username);
+        type = 'place';
+        ref = p.id;
+      } else if (body.comment_id) {
+        const c = db.prepare('SELECT * FROM place_comments WHERE id = ?').get(Number(body.comment_id));
+        if (!c) throw new HttpError(404, 'not_found');
+        target = q.userById.get(c.user_id);
+        type = 'comment';
+        ref = String(c.id);
+      } else {
+        target = lookupTarget(body);
+      }
+      if (!target) throw new HttpError(404, 'no_user');
+      const reason = ['chat', 'name', 'avatar', 'cheating', 'place', 'comment', 'other'].includes(body.reason) ? body.reason : 'other';
+      db.prepare('INSERT INTO reports (reporter_id, target_id, reason, details, created_at, target_type, target_ref) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
         user.id,
         target.id,
         reason,
         cleanText(body.details, 300),
         Date.now(),
+        type,
+        ref,
       );
       return { ok: true, message: msg('reported', pickLang(req)) };
     },
@@ -842,6 +889,9 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
           created_at: r.created_at,
           reporter: q.userById.get(r.reporter_id) ? publicProfile(q.userById.get(r.reporter_id)) : null,
           target: q.userById.get(r.target_id) ? adminUser(q.userById.get(r.target_id)) : null,
+          target_type: r.target_type || 'user',
+          place: r.target_type === 'place' ? (() => { const p = pq.one.get(r.target_ref); return p ? { id: p.id, name: p.name } : null; })() : null,
+          comment: r.target_type === 'comment' ? db.prepare('SELECT body, place_id FROM place_comments WHERE id = ?').get(Number(r.target_ref)) || null : null,
         })),
       };
     },
@@ -865,6 +915,11 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       return { servers: serversFor(game, user.id), max_players: MAX_PLAYERS };
     },
   };
+
+  Object.assign(
+    routes,
+    createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, isFriend, placeView, pickLang }),
+  );
 
   const compiled = Object.entries(routes).map(([key, handler]) => {
     const [method, pattern] = key.split(' ');
@@ -890,13 +945,17 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         'cache-control': 'no-store',
         'access-control-allow-origin': '*',
         'access-control-allow-headers': 'authorization, content-type, x-lang, x-client, x-client-version',
-        'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS',
+        'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
       });
       res.end(body);
     };
     if (req.method === 'OPTIONS') return send(204, {});
     // Outdated apps get a clear "please update" instead of half-working.
-    const ungated = url.pathname === '/api/health' || url.pathname.startsWith('/api/avatar/');
+    const ungated =
+      url.pathname === '/api/health' ||
+      url.pathname.startsWith('/api/avatar/') ||
+      url.pathname.startsWith('/api/assets/') ||
+      url.pathname.startsWith('/api/media/');
     if (!ungated && !gate.allows(req.headers['x-client'], req.headers['x-client-version'], req.headers['user-agent'])) {
       return send(426, {
         error: 'update_required',
@@ -914,7 +973,9 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       const params = {};
       r.names.forEach((n, i) => (params[n] = decodeURIComponent(m[i + 1])));
       try {
-        const limit = url.pathname === '/api/me/render' ? MAX_RENDER_BODY : MAX_BODY;
+        // Place files, covers and images are bigger than the usual JSON.
+        const big = url.pathname.startsWith('/api/studio/') || url.pathname === '/api/assets';
+        const limit = url.pathname === '/api/me/render' ? MAX_RENDER_BODY : big ? MAX_STUDIO_BODY : MAX_BODY;
         const body = req.method === 'GET' ? {} : await readJson(req, limit);
         const out = await r.handler(req, body, url, params);
         if (out && out.__raw) {
@@ -935,5 +996,5 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     return send(matchedPath ? 405 : 404, { error: 'not_found', message: msg('not_found', lang) });
   }
 
-  return { handle, userForToken, blockSet, friendSet, countVisit: (id) => pq.visit.run(id), gate };
+  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate };
 }

@@ -3,6 +3,7 @@ import { parseColors } from './colors.js';
 import { msg } from './i18n.js';
 import { chatRules } from './age.js';
 import { filterText } from './filter.js';
+import { PlaceVM } from './studio/vm.js';
 
 export const MAX_PLAYERS = 10;
 export const GAMES = {
@@ -16,6 +17,11 @@ export const GAMES = {
 };
 
 const TICK_HZ = 20;
+// Studio place servers: how many events a player may send per tick, and when a
+// server whose scripts keep crashing the runtime is shut down.
+const MAX_EVENTS_PER_TICK = 40;
+const MAX_VM_FAILURES = 20;
+const LOG_LINES = 200;
 const EMPTY_SERVER_TTL_MS = 30_000;
 const WORLD_LIMIT = 400;
 export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead']);
@@ -56,13 +62,17 @@ export class GameHub {
    * @param {object} opts
    * @param {(userId:number)=>Set<number>} [opts.loadBlocks] ids this user has blocked
    */
-  constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {} } = {}) {
+  /**
+   * @param {object} [opts.places] studio places: { load(id) -> marp, row(id), canJoin(user, id), visit(id, userId), playtime(id, userId, ms) }
+   */
+  constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {}, places = null } = {}) {
     this.servers = new Map(); // id -> server
     this.byUser = new Map(); // userId -> { server, player, conn }
     this.log = log;
     this.loadBlocks = loadBlocks;
     this.loadFriends = loadFriends;
     this.onJoin = onJoin;
+    this.places = places;
     this.timer = setInterval(() => this.tick(), 1000 / TICK_HZ);
     this.timer.unref?.();
     this.nameCounter = 0;
@@ -72,7 +82,143 @@ export class GameHub {
     clearInterval(this.timer);
     for (const s of this.servers.values()) {
       for (const p of s.players.values()) p.conn.ws.close(1001, 'server shutdown');
+      s.vm?.close();
     }
+  }
+
+  isStudio(game) {
+    return !GAMES[game] && !!this.places?.row(game);
+  }
+
+  /** A server for a studio place: its own sandboxed Luau VM running the place's scripts. */
+  async createPlaceServer(placeId) {
+    const row = this.places.row(placeId);
+    const marp = this.places.load(placeId);
+    if (!row || !marp) throw new Error('no place');
+    const vm = await PlaceVM.create();
+    let id;
+    do id = crypto.randomBytes(3).toString('hex'); while (this.servers.has(id));
+    this.nameCounter += 1;
+    const starter = (marp.tree.k || []).find((n) => n.c === 'StarterPlayer')?.p || {};
+    const server = {
+      id,
+      game: placeId,
+      kind: 'studio',
+      name: `Server #${this.nameCounter}`,
+      name_ru: `Сервер #${this.nameCounter}`,
+      players: new Map(),
+      createdAt: Date.now(),
+      emptySince: Date.now(),
+      maxPlayers: Math.max(1, Math.min(MAX_PLAYERS, row.max_players || MAX_PLAYERS)),
+      ownerId: row.owner_id,
+      chat: starter.ChatEnabled !== false,
+      emotes: starter.EmotesEnabled !== false,
+      strings: marp.strings || {},
+      vm,
+      inbox: [],
+      shared: [],
+      targeted: new Map(),
+      kicks: [],
+      logs: [],
+      failures: 0,
+      lastStep: Date.now(),
+    };
+    this.servers.set(id, server);
+    this.routeOps(server, vm.init({ role: 'server', place: marp, seed: crypto.randomInt(1 << 30) }));
+    this.routeOps(server, vm.start());
+    this.log(`place server ${id} created for ${placeId}`);
+    return server;
+  }
+
+  /** Sorts what a place's VM produced: replication for everyone, remotes for someone, logs. */
+  routeOps(server, ops) {
+    for (const op of ops) {
+      switch (op.o) {
+        case 'new':
+        case 'set':
+        case 'del':
+        case 'parent':
+        case 'sound':
+          server.shared.push(op);
+          break;
+        case 'fire':
+          if (op.to === 'all') server.shared.push({ o: 'fire', id: op.id, args: op.args });
+          else this.target(server, op.to, { o: 'fire', id: op.id, args: op.args });
+          break;
+        case 'ret':
+          this.target(server, op.to, { o: 'ret', rid: op.rid, ok: op.ok, values: op.values });
+          break;
+        case 'spawn':
+          this.target(server, op.to, { o: 'spawn', pos: op.pos });
+          break;
+        case 'kick':
+          server.kicks.push(op);
+          break;
+        case 'print': {
+          const line = { level: op.level, msg: String(op.msg).slice(0, 2000), src: op.src || '', at: Date.now() };
+          server.logs.push(line);
+          if (server.logs.length > LOG_LINES) server.logs.shift();
+          // The place's creator sees the server console while playing.
+          if (server.players.has(server.ownerId)) this.target(server, server.ownerId, { o: 'print', ...line, server: true });
+          break;
+        }
+        default:
+      }
+    }
+  }
+
+  target(server, userId, op) {
+    const list = server.targeted.get(userId) || [];
+    list.push(op);
+    server.targeted.set(userId, list);
+  }
+
+  flushPlace(server) {
+    if (!server.shared.length && !server.targeted.size) return;
+    const shared = server.shared;
+    for (const [id, p] of server.players) {
+      const own = server.targeted.get(id);
+      const o = own ? shared.concat(own) : shared;
+      if (o.length) p.conn.send({ t: 'r', o });
+    }
+    server.shared = [];
+    server.targeted = new Map();
+  }
+
+  stepPlace(server, now) {
+    const dt = Math.min(0.25, (now - server.lastStep) / 1000);
+    server.lastStep = now;
+    try {
+      const events = server.inbox;
+      server.inbox = [];
+      for (const p of server.players.values()) {
+        p.events = 0;
+        if (p.posDirty) {
+          p.posDirty = false;
+          events.push({ e: 'pos', userId: p.user.id, p: { $v3: p.p } });
+        }
+      }
+      if (events.length) this.routeOps(server, server.vm.dispatch(events));
+      this.routeOps(server, server.vm.step(dt));
+    } catch (err) {
+      server.failures += 1;
+      this.log(`place server ${server.id} runtime error: ${err.message}`);
+      if (server.failures > MAX_VM_FAILURES) {
+        this.log(`place server ${server.id} closed after repeated runtime errors`);
+        this.closeServer(server.id);
+        return;
+      }
+    }
+    for (const k of server.kicks.splice(0)) {
+      const p = server.players.get(Number(k.to));
+      if (p) this.kick(p.user.id, 'place', k.msg);
+    }
+    this.flushPlace(server);
+  }
+
+  /** Closes every server of a studio place (it was deleted or made private). */
+  closePlace(placeId) {
+    for (const s of [...this.servers.values()]) if (s.game === placeId) this.closeServer(s.id);
   }
 
   createServer(game = 'playground') {
@@ -109,7 +255,7 @@ export class GameHub {
       name: s.name,
       name_ru: s.name_ru,
       players: s.players.size,
-      max_players: MAX_PLAYERS,
+      max_players: s.maxPlayers || MAX_PLAYERS,
       created_at: s.createdAt,
       player_ids: [...s.players.keys()],
     };
@@ -140,7 +286,7 @@ export class GameHub {
     let best = null;
     let bestScore = -1;
     for (const s of this.servers.values()) {
-      if (s.game !== game || s.players.size >= MAX_PLAYERS) continue;
+      if (s.game !== game || s.players.size >= (s.maxPlayers || MAX_PLAYERS)) continue;
       let friends = 0;
       for (const id of s.players.keys()) if (friendIds.has(id)) friends += 1;
       const score = friends * 100 + s.players.size;
@@ -149,7 +295,7 @@ export class GameHub {
         bestScore = score;
       }
     }
-    return best || this.createServer(game);
+    return best;
   }
 
   /** Called for every authenticated websocket. */
@@ -191,18 +337,28 @@ export class GameHub {
   handle(conn, m) {
     switch (m.t) {
       case 'join':
-        return this.join(conn, m);
+        return this.join(conn, m).catch((err) => {
+          this.log(`join failed: ${err.stack || err}`);
+          conn.send({ t: 'error', code: 'not_found', m: msg('no_place', conn.lang) });
+        });
+      // Studio places: remote events, touches, clicks from the player's app.
+      case 'remote':
+      case 'invoke':
+      case 'touch':
+      case 'click':
+        return this.placeEvent(conn, m);
       case 'state':
         return this.state(conn, m);
       case 'chat':
         return this.chat(conn, m);
       case 'emote':
-        if (conn.server && EMOTES.has(m.e)) {
+        if (conn.server && EMOTES.has(m.e) && conn.server.emotes !== false) {
           this.broadcast(conn.server, { t: 'emote', id: conn.user.id, e: m.e }, conn.user.id);
         }
         return;
       case 'dead':
         if (conn.server) this.broadcast(conn.server, { t: 'dead', id: conn.user.id }, conn.user.id);
+        if (conn.server?.vm) conn.server.inbox.push({ e: 'died', userId: conn.user.id });
         return;
       case 'ping':
         return conn.send({ t: 'pong', c: m.c ?? 0, s: Date.now() });
@@ -210,23 +366,44 @@ export class GameHub {
     }
   }
 
-  join(conn, m) {
+  placeEvent(conn, m) {
+    const server = conn.server;
+    const pl = conn.player;
+    if (!server?.vm || !pl) return;
+    if (++pl.events > MAX_EVENTS_PER_TICK) return;
+    const id = String(m.id ?? '').slice(0, 20);
+    const userId = conn.user.id;
+    if (m.t === 'remote') server.inbox.push({ e: 'fire', userId, id, args: Array.isArray(m.args) ? m.args.slice(0, 20) : [] });
+    else if (m.t === 'invoke') server.inbox.push({ e: 'invoke', userId, id, rid: Number(m.rid) || 0, args: Array.isArray(m.args) ? m.args.slice(0, 20) : [] });
+    else if (m.t === 'touch') server.inbox.push({ e: 'touch', userId, id, ended: m.ended === true });
+    else if (m.t === 'click') server.inbox.push({ e: 'click', userId, id });
+  }
+
+  async join(conn, m) {
     if (conn.rules.age === null) {
       return conn.send({ t: 'error', code: 'birthdate', m: msg('birthdate_needed', conn.lang) });
     }
     if (conn.server) this.leave(conn);
-    const game = GAMES[m.game] ? m.game : 'playground';
-    let server;
-    if (m.server === 'new') {
-      server = this.createServer(game);
-    } else if (m.server && m.server !== 'auto') {
-      server = this.servers.get(String(m.server));
-      if (!server) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
-    } else {
-      server = this.pickServer(game, this.loadFriends(conn.user.id));
+    let game = 'playground';
+    if (GAMES[m.game]) game = m.game;
+    else if (m.game && this.isStudio(String(m.game))) {
+      game = String(m.game);
+      if (!this.places.canJoin(conn.user, game)) return conn.send({ t: 'error', code: 'not_found', m: msg('no_place', conn.lang) });
     }
-    if (server.players.size >= MAX_PLAYERS) {
-      return conn.send({ t: 'error', code: 'full', m: msg('server_full', conn.lang, { n: MAX_PLAYERS }) });
+    const studio = !GAMES[game];
+    let server;
+    if (m.server && m.server !== 'auto' && m.server !== 'new') {
+      server = this.servers.get(String(m.server));
+      if (!server || server.game !== game) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
+    } else {
+      if (m.server !== 'new') server = this.pickServer(game, this.loadFriends(conn.user.id));
+      if (!server) server = studio ? await this.createPlaceServer(game) : this.createServer(game);
+    }
+    // The socket may have closed while the place was loading.
+    if (conn.ws.readyState !== 1) return;
+    const cap = server.maxPlayers || MAX_PLAYERS;
+    if (server.players.size >= cap) {
+      return conn.send({ t: 'error', code: 'full', m: msg('server_full', conn.lang, { n: cap }) });
     }
 
     // One live session per account: the newest connection wins.
@@ -239,18 +416,23 @@ export class GameHub {
 
     const angle = Math.random() * Math.PI * 2;
     const spawn = [Math.cos(angle) * 2.2, 0.6, 15.5 + Math.sin(angle) * 1.2];
-    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn };
+    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn, joinedAt: Date.now(), events: 0 };
     server.players.set(conn.user.id, player);
     server.emptySince = 0;
     conn.player = player;
     conn.server = server;
     this.byUser.set(conn.user.id, { server, player, conn });
 
+    // Studio places: the joining app gets the current world first, then hears about
+    // its own arrival (Player, character, spawn point) like everyone else.
+    const place = studio ? { id: game, strings: server.strings, snapshot: server.vm.snapshot() } : null;
     conn.send({
       t: 'welcome',
       server: this.describe(server),
       you: conn.user.id,
-      chat: conn.rules.chat,
+      chat: conn.rules.chat && server.chat !== false,
+      emotes: server.emotes !== false,
+      place,
       spawn,
       players: [...server.players.values()]
         .filter((p) => p !== player)
@@ -258,6 +440,11 @@ export class GameHub {
     });
     this.broadcast(server, { t: 'join', player: { ...player.user, p: player.p, r: player.r, a: player.a } }, conn.user.id);
     this.broadcast(server, { t: 'sys', k: 'joined', n: player.user.display_name }, conn.user.id);
+    if (studio) {
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang }]));
+      this.flushPlace(server);
+      this.places.visit(game, conn.user.id);
+    }
     this.onJoin(game);
     this.log(`${conn.user.username} joined ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
   }
@@ -269,10 +456,11 @@ export class GameHub {
     pl.r = finite(m.r, 100);
     pl.a = ANIMS.has(m.a) ? m.a : 'idle';
     pl.dirty = true;
+    pl.posDirty = true;
   }
 
   chat(conn, m) {
-    if (!conn.server) return;
+    if (!conn.server || conn.server.chat === false) return;
     const text = String(m.m ?? '')
       .replace(/[\u0000-\u001f\u007f]/g, ' ')
       .trim()
@@ -306,6 +494,14 @@ export class GameHub {
       if (entry && entry.conn === conn) this.byUser.delete(conn.user.id);
       this.broadcast(server, { t: 'leave', id: conn.user.id });
       this.broadcast(server, { t: 'sys', k: 'left', n: player.user.display_name });
+      if (server.vm) {
+        try {
+          this.routeOps(server, server.vm.dispatch([{ e: 'player_remove', userId: conn.user.id }]));
+        } catch (err) {
+          this.log(`player_remove failed: ${err.message}`);
+        }
+        this.places?.playtime(server.game, conn.user.id, Date.now() - player.joinedAt);
+      }
       if (server.players.size === 0) server.emptySince = Date.now();
       this.log(`${conn.user.username} left ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
     }
@@ -348,6 +544,7 @@ export class GameHub {
       this.leave(p.conn);
     }
     this.servers.delete(server.id);
+    server.vm?.close();
     return true;
   }
 
@@ -370,10 +567,12 @@ export class GameHub {
       if (server.players.size === 0) {
         if (server.emptySince && now - server.emptySince > EMPTY_SERVER_TTL_MS) {
           this.servers.delete(server.id);
+          server.vm?.close();
           this.log(`server ${server.id} closed (empty)`);
         }
         continue;
       }
+      if (server.vm) this.stepPlace(server, now);
       const states = [];
       for (const [id, p] of server.players) {
         if (!p.dirty) continue;

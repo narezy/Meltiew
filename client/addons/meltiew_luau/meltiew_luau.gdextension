@@ -7,3 +7,5 @@ reloadable = false
 [libraries]
 
 linux.x86_64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.linux.x86_64.so"
+windows.x86_64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.windows.x86_64.dll"
+android.arm64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.android.arm64.so"

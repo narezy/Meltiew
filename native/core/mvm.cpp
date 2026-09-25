@@ -17,6 +17,7 @@ struct VM
     size_t used = 0;
     size_t limit = 0;
     double deadline = 0.0; // steady clock seconds, 0 = no limit
+    double limit_sec = 0.0;
     unsigned ticks = 0;
 };
 
@@ -58,11 +59,25 @@ static void interrupt(lua_State* L, int gc)
     VM* vm = vmOf(L);
     if (vm->deadline <= 0.0 || (++vm->ticks & 255) != 0)
         return;
-    if (now() > vm->deadline)
+    if (now() <= vm->deadline)
+        return;
+    // Only user code is stopped; the runtime itself (chunks named "=runtime...") always
+    // finishes what it is doing, so its bookkeeping never breaks halfway.
+    // Look at the innermost Luau function (skipping C functions like string.gsub).
+    lua_Debug ar;
+    for (int level = 0; lua_getinfo(L, level, "s", &ar); level++)
     {
-        lua_rawcheckstack(L, 1);
-        luaL_error(L, "script timeout: it ran too long without yielding (use task.wait() in loops)");
+        if (ar.what && ar.what[0] == 'C')
+            continue;
+        if (ar.source && strncmp(ar.source, "=runtime", 8) == 0)
+            return;
+        break;
     }
+    // Give the rest of the call a fresh budget: other scripts keep running, and a second
+    // runaway loop gets stopped too.
+    vm->deadline = now() + vm->limit_sec;
+    lua_rawcheckstack(L, 1);
+    luaL_error(L, "script timeout: it ran too long without yielding (use task.wait() in loops)");
 }
 
 // __compile(source, chunkname) -> function | (nil, error)
@@ -165,6 +180,7 @@ bool call(VM* vm, const char* name, const std::string& arg, double time_limit, s
         return false;
     }
     lua_pushlstring(L, arg.data(), arg.size());
+    vm->limit_sec = time_limit;
     vm->deadline = time_limit > 0.0 ? now() + time_limit : 0.0;
     vm->ticks = 0;
     int status = lua_pcall(L, 1, 1, 0);

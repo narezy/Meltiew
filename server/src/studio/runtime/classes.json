@@ -100,6 +100,15 @@
    "win",
    "boing",
    "whoosh"
+  ],
+  "SkyPreset": [
+   "Day",
+   "Sunset",
+   "Night",
+   "Space",
+   "Overcast",
+   "Candy",
+   "Custom"
   ]
  },
  "classes": {
@@ -810,7 +819,10 @@
    "events": [],
    "icon": "remote_fn",
    "category": "Logic",
-   "creatable": true
+   "creatable": true,
+   "callbacks": [
+    "OnServerInvoke"
+   ]
   },
   "BindableEvent": {
    "base": "Instance",
@@ -1350,6 +1362,56 @@
    "icon": "grid",
    "category": "GUI",
    "creatable": true
+  },
+  "Sky": {
+   "base": "Instance",
+   "props": {
+    "Preset": {
+     "type": "enum:SkyPreset",
+     "default": "Day"
+    },
+    "SkyboxUp": {
+     "type": "asset",
+     "default": ""
+    },
+    "SkyboxDown": {
+     "type": "asset",
+     "default": ""
+    },
+    "SkyboxFront": {
+     "type": "asset",
+     "default": ""
+    },
+    "SkyboxBack": {
+     "type": "asset",
+     "default": ""
+    },
+    "SkyboxLeft": {
+     "type": "asset",
+     "default": ""
+    },
+    "SkyboxRight": {
+     "type": "asset",
+     "default": ""
+    },
+    "StarsVisible": {
+     "type": "bool",
+     "default": false
+    },
+    "SunVisible": {
+     "type": "bool",
+     "default": true
+    },
+    "CloudsVisible": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "sky",
+   "category": "3D",
+   "creatable": true,
+   "doc": "Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down, front, back, left, right)."
   }
  },
  "services": [

@@ -137,4 +137,60 @@ function migrate(db) {
   );
   // Runs after the seed insert so fresh databases get the square cover too.
   db.prepare("UPDATE places SET cover_square = '/img/cover_square.png' WHERE id = 'playground' AND cover_square = ''").run();
+
+  // Studio places (made by players). The built-in playground keeps kind = 'builtin'.
+  const add = (col, def) => {
+    if (!pcols.has(col)) db.exec(`ALTER TABLE places ADD COLUMN ${col} ${def}`);
+  };
+  add('kind', "TEXT NOT NULL DEFAULT 'builtin'");
+  add('owner_id', 'INTEGER NOT NULL DEFAULT 0');
+  add('visibility', "TEXT NOT NULL DEFAULT 'public'"); // private | friends | public
+  add('i18n', "TEXT NOT NULL DEFAULT '{}'"); // { name: { lang: text }, description: { lang: text } }
+  add('version', 'INTEGER NOT NULL DEFAULT 0');
+  add('updated_at', 'INTEGER NOT NULL DEFAULT 0');
+  add('published_at', 'INTEGER NOT NULL DEFAULT 0');
+  add('playtime_ms', 'INTEGER NOT NULL DEFAULT 0');
+  add('max_players', 'INTEGER NOT NULL DEFAULT 10');
+  add('comments_enabled', 'INTEGER NOT NULL DEFAULT 1');
+  add('deleted', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS place_players (
+      place_id    TEXT NOT NULL,
+      user_id     INTEGER NOT NULL,
+      visits      INTEGER NOT NULL DEFAULT 0,
+      playtime_ms INTEGER NOT NULL DEFAULT 0,
+      first_at    INTEGER NOT NULL,
+      last_at     INTEGER NOT NULL,
+      PRIMARY KEY (place_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS place_daily (
+      place_id    TEXT NOT NULL,
+      day         TEXT NOT NULL,
+      visits      INTEGER NOT NULL DEFAULT 0,
+      playtime_ms INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (place_id, day)
+    );
+    CREATE TABLE IF NOT EXISTS place_comments (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      place_id   TEXT NOT NULL,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body       TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS place_comments_by_place ON place_comments(place_id, id);
+    CREATE TABLE IF NOT EXISTS assets (
+      id         TEXT PRIMARY KEY,
+      owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      mime       TEXT NOT NULL,
+      size       INTEGER NOT NULL,
+      width      INTEGER NOT NULL DEFAULT 0,
+      height     INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+  `);
+  // Reports can be about a player, a place or a comment.
+  const rcols = new Set(db.prepare('PRAGMA table_info(reports)').all().map((c) => c.name));
+  if (!rcols.has('target_type')) db.exec("ALTER TABLE reports ADD COLUMN target_type TEXT NOT NULL DEFAULT 'user'");
+  if (!rcols.has('target_ref')) db.exec("ALTER TABLE reports ADD COLUMN target_ref TEXT NOT NULL DEFAULT ''");
 }
