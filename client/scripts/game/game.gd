@@ -32,6 +32,8 @@ var _retries := 0
 var _my_bubble: Label3D
 var _my_bubble_time := 0.0
 var _heart_tex: Texture2D
+var _last_heart := -100000
+const HEART_COOLDOWN_MS := 2500
 var _island_announced := false
 
 
@@ -242,6 +244,12 @@ func _on_message(m: Dictionary) -> void:
 			var id := int(m.id)
 			if remotes.has(id):
 				remotes[id].shatter()
+		"correct":
+			# The server's anti-cheat put us back where we legitimately were.
+			var cp: Array = m.p
+			player.global_position = Vector3(float(cp[0]), float(cp[1]), float(cp[2]))
+			player.reset_physics_interpolation()
+			player.velocity = Vector3.ZERO
 		"error":
 			if str(m.get("code", "")) == "birthdate":
 				_leaving = true
@@ -500,6 +508,11 @@ func _emote(e: String) -> void:
 	if player.dead:
 		return
 	if e == "heart":
+		# Same cooldown as the server, so spamming doesn't even show locally.
+		var now := Time.get_ticks_msec()
+		if now - _last_heart < HEART_COOLDOWN_MS:
+			return
+		_last_heart = now
 		_spawn_heart(player)
 		net.send({"t": "emote", "e": "heart"})
 		return
@@ -527,7 +540,6 @@ func _spawn_heart(target: Node3D) -> void:
 		t.tween_property(s, "position:y", s.position.y + 1.6, 1.4).set_delay(i * 0.15).set_trans(Tween.TRANS_SINE)
 		t.tween_property(s, "modulate:a", 0.0, 0.6).set_delay(0.9 + i * 0.15)
 		t.chain().tween_callback(s.queue_free)
-	Sfx.play("coin", 1.3)
 
 
 func _make_heart_texture() -> Texture2D:

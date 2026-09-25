@@ -20,6 +20,7 @@ export const MESSAGES = {
   no_request: ['Request not found', 'Заявка не найдена'],
   blocked: ["You can't interact with this player", 'С этим игроком нельзя взаимодействовать'],
   bad_image: ['Invalid image', 'Некорректная картинка'],
+  kicked_cheat: ['Kicked by the anti-cheat: your character moved in a way the game doesn\'t allow.', 'Кикнуто античитом: персонаж двигался так, как игра не позволяет.'],
   bad_server: ['Unknown server', 'Нет такого сервера'],
   banned: ['This account is banned', 'Этот аккаунт заблокирован'],
   banned_reason: ['This account is banned: {r}', 'Этот аккаунт заблокирован: {r}'],

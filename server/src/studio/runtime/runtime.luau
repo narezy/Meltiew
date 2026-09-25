@@ -1817,11 +1817,11 @@ Methods.Player = {
 		if typeOf(pos) ~= "Vector3" then
 			error("Teleport needs a Vector3", 2)
 		end
-		if role == "server" then
-			emit({ o = "spawn", to = D[self].props.UserId, pos = encodeValue(pos) })
-		else
-			emit({ o = "teleport", pos = encodeValue(pos) })
+		-- Only the server moves characters: a client-side teleport would look like cheating.
+		if role ~= "server" then
+			error("Teleport can only be called from a Script (use a RemoteEvent to ask the server)", 2)
 		end
+		emit({ o = "spawn", to = D[self].props.UserId, pos = encodeValue(pos) })
 	end,
 }
 
@@ -2477,4 +2477,23 @@ end
 
 G.__snapshot = function()
 	return json.encode(snapshotOps())
+end
+
+-- Movement limits per player for the server's anti-cheat: how fast and how high
+-- each character may legitimately go right now.
+G.__limits = function()
+	local out = {}
+	local ws = services.Workspace and D[services.Workspace].props or {}
+	for uid, player in playersByUser do
+		local hum = humanoidOf(player)
+		local hp = hum and D[hum] and D[hum].props
+		out[tostring(uid)] = {
+			walk = hp and hp.WalkSpeed or 5,
+			sprint = hp and hp.SprintSpeed or 7,
+			jump = hp and (hp.CanJump and hp.JumpPower or 0) or 8.2,
+			gravity = ws.Gravity or 22,
+			check = starterValue("AntiCheat") ~= false,
+		}
+	end
+	return json.encode(out)
 end

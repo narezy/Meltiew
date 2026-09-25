@@ -162,6 +162,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | ChatEnabled | bool | true |  |
 | CameraMode | [CameraMode](#cameramode) | "Classic" |  |
 | CameraMaxZoom | number | 14 | min 1, max 60 |
+| AntiCheat | bool | true |  |
 
 ### StarterPlayerScripts
 

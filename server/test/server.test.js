@@ -376,3 +376,32 @@ test('website language list matches the server one', async () => {
   const site = JSON.parse(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
   assert.deepEqual(site, LANGUAGES);
 });
+
+test('anti-cheat snaps teleports back; hearts have a cooldown', async () => {
+  const tokens = [];
+  for (const name of ['cheater1', 'watcher1']) {
+    const reg = await call('POST', '/api/register', { username: name, password: 'secret123', birthdate: '2000-01-01' });
+    tokens.push(reg.data.token);
+  }
+  const c = await connect(tokens[0]);
+  c.send2({ t: 'join', server: 'new' });
+  const wc = await c.next((m) => m.t === 'welcome');
+  const w = await connect(tokens[1]);
+  w.send2({ t: 'join', server: wc.server.id });
+  await w.next((m) => m.t === 'welcome');
+  await new Promise((r) => setTimeout(r, 1600)); // past the spawn grace period
+
+  c.send2({ t: 'state', p: [150, 30, 150], r: 0, a: 'idle' });
+  const fix = await c.next((m) => m.t === 'correct');
+  assert.deepEqual(fix.p, wc.spawn);
+
+  c.send2({ t: 'emote', e: 'heart' });
+  c.send2({ t: 'emote', e: 'heart' });
+  c.send2({ t: 'emote', e: 'heart' });
+  await w.next((m) => m.t === 'emote');
+  await new Promise((r) => setTimeout(r, 300));
+  const more = await Promise.race([w.next((m) => m.t === 'emote'), new Promise((r) => setTimeout(() => r(null), 200))]);
+  assert.equal(more, null, 'only one heart within the cooldown');
+  c.close();
+  w.close();
+});

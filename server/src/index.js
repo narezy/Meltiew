@@ -77,6 +77,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
     loadBlocks: (id) => api.blockSet(id),
     loadFriends: (id) => api.friendSet(id),
     onJoin: (game) => api.countVisit(game),
+    onCheat: (user, reason, game) => api.cheatReport(user, reason, game),
     places: {
       row: (id) => placeRow.get(id),
       load: (id) => store.load(id),

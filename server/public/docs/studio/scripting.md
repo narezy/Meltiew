@@ -110,6 +110,10 @@ Defaults for every new character come from **StarterPlayer**: the same humanoid 
 
 On the server a player can be sent somewhere with `player:Teleport(Vector3.new(0, 20, 0))`, respawned with `player:LoadCharacter()` or removed with `player:Kick("reason")`. `Workspace.FallHeight` is the void: fall below it and you respawn.
 
+### Anti-cheat
+
+The server checks how every character moves against the place's own rules: the Humanoid's `WalkSpeed`, `SprintSpeed` and `JumpPower` and `Workspace.Gravity`. Moving faster than that, jumping higher or teleporting puts the player back where they were, and players who keep doing it get kicked. Teleports from your Scripts (`player:Teleport`, respawns) are always fine; `Teleport` only works on the server for that reason. If your place moves players in ways the checks can't know about (fast moving platforms, launchers), set `StarterPlayer.AntiCheat` to false.
+
 In a LocalScript, `game.Players.LocalPlayer` is you.
 
 ### A kill brick

@@ -55,6 +55,11 @@ export class PlaceVM {
     return this._call('__snapshot');
   }
 
+  /** Per player { walk, sprint, jump, gravity, check } for the anti-cheat. */
+  limits() {
+    return this._call('__limits');
+  }
+
   memoryUsed() {
     return this.vm.memoryUsed();
   }

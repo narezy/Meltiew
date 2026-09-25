@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { parseColors } from './colors.js';
 import { msg } from './i18n.js';
+import { MoveGuard, PLAYGROUND_LIMITS } from './anticheat.js';
 import { chatRules } from './age.js';
 import { filterText } from './filter.js';
 import { PlaceVM } from './studio/vm.js';
@@ -25,6 +26,8 @@ const LOG_LINES = 200;
 const EMPTY_SERVER_TTL_MS = 30_000;
 const WORLD_LIMIT = 400;
 export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead']);
+export const HEART_COOLDOWN_MS = 2500;
+export const EMOTE_COOLDOWN_MS = 800;
 export const EMOTES = new Set(['wave', 'heart', 'dance', 'cheer', 'sit', 'clap', 'laugh']);
 const SERVER_NAMES = [
   ['Sunny', 'Солнечная'],
@@ -65,7 +68,7 @@ export class GameHub {
   /**
    * @param {object} [opts.places] studio places: { load(id) -> marp, row(id), canJoin(user, id), visit(id, userId), playtime(id, userId, ms) }
    */
-  constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {}, places = null } = {}) {
+  constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {}, places = null, onCheat = () => {} } = {}) {
     this.servers = new Map(); // id -> server
     this.byUser = new Map(); // userId -> { server, player, conn }
     this.log = log;
@@ -73,6 +76,7 @@ export class GameHub {
     this.loadFriends = loadFriends;
     this.onJoin = onJoin;
     this.places = places;
+    this.onCheat = onCheat;
     this.timer = setInterval(() => this.tick(), 1000 / TICK_HZ);
     this.timer.unref?.();
     this.nameCounter = 0;
@@ -148,9 +152,14 @@ export class GameHub {
         case 'ret':
           this.target(server, op.to, { o: 'ret', rid: op.rid, ok: op.ok, values: op.values });
           break;
-        case 'spawn':
+        case 'spawn': {
+          // The place moved this player (spawn, respawn, Teleport): that jump is legit.
+          const who = server.players.get(Number(op.to));
+          const v = op.pos?.$v3;
+          if (who && Array.isArray(v)) who.guard.reset(v.map(Number));
           this.target(server, op.to, { o: 'spawn', pos: op.pos });
           break;
+        }
         case 'kick':
           server.kicks.push(op);
           break;
@@ -200,6 +209,10 @@ export class GameHub {
       }
       if (events.length) this.routeOps(server, server.vm.dispatch(events));
       this.routeOps(server, server.vm.step(dt));
+      if (!server.limitsAt || now - server.limitsAt > 1000) {
+        server.limitsAt = now;
+        server.limits = server.vm.limits();
+      }
     } catch (err) {
       server.failures += 1;
       this.log(`place server ${server.id} runtime error: ${err.message}`);
@@ -356,11 +369,17 @@ export class GameHub {
       case 'chat':
         return this.chat(conn, m);
       case 'emote':
-        if (conn.server && EMOTES.has(m.e) && conn.server.emotes !== false) {
+        if (conn.server && conn.player && EMOTES.has(m.e) && conn.server.emotes !== false) {
+          // Spamming (hearts especially) floods everyone's screen: one per cooldown.
+          const now = Date.now();
+          const wait = m.e === 'heart' ? HEART_COOLDOWN_MS : EMOTE_COOLDOWN_MS;
+          if (now - (conn.player.emotesAt[m.e] || 0) < wait) return;
+          conn.player.emotesAt[m.e] = now;
           this.broadcast(conn.server, { t: 'emote', id: conn.user.id, e: m.e }, conn.user.id);
         }
         return;
       case 'dead':
+        if (conn.player && !conn.server?.vm) conn.player.guard.expect(conn.player.spawn, 6);
         if (conn.server) this.broadcast(conn.server, { t: 'dead', id: conn.user.id }, conn.user.id);
         if (conn.server?.vm) conn.server.inbox.push({ e: 'died', userId: conn.user.id });
         return;
@@ -420,7 +439,7 @@ export class GameHub {
 
     const angle = Math.random() * Math.PI * 2;
     const spawn = [Math.cos(angle) * 2.2, 0.6, 15.5 + Math.sin(angle) * 1.2];
-    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn, joinedAt: Date.now(), events: 0 };
+    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn, joinedAt: Date.now(), events: 0, spawn, guard: new MoveGuard(spawn), emotesAt: {} };
     server.players.set(conn.user.id, player);
     server.emptySince = 0;
     conn.player = player;
@@ -456,11 +475,33 @@ export class GameHub {
   state(conn, m) {
     const pl = conn.player;
     if (!pl || !Array.isArray(m.p)) return;
-    pl.p = [finite(m.p[0], WORLD_LIMIT), finite(m.p[1], WORLD_LIMIT), finite(m.p[2], WORLD_LIMIT)];
+    const pos = [finite(m.p[0], WORLD_LIMIT), finite(m.p[1], WORLD_LIMIT), finite(m.p[2], WORLD_LIMIT)];
+    const bad = pl.guard.check(pos, this.limitsFor(conn.server, conn.user.id));
+    if (bad) return this.caught(conn, pl, bad);
+    pl.p = pos;
     pl.r = finite(m.r, 100);
     pl.a = ANIMS.has(m.a) ? m.a : 'idle';
     pl.dirty = true;
     pl.posDirty = true;
+  }
+
+  /** How fast and high this player may go in this place right now. */
+  limitsFor(server, userId) {
+    if (!server?.vm) return PLAYGROUND_LIMITS;
+    const l = server.limits?.[String(userId)];
+    return l ? { ...l, check: l.check !== false } : { walk: 5, sprint: 7, jump: 8.2, gravity: 22, check: true };
+  }
+
+  /** A movement check failed: put the player back, and kick repeat offenders. */
+  caught(conn, pl, bad) {
+    if (bad.silent) return;
+    conn.send({ t: 'correct', p: bad.back });
+    this.log(`anticheat: ${conn.user.username} ${bad.reason} (points ${pl.guard.points}) on ${conn.server?.id}`);
+    if (pl.guard.shouldKick) {
+      this.log(`anticheat: kicked ${conn.user.username} for ${bad.reason}`);
+      this.onCheat(conn.user, bad.reason, conn.server?.game || '');
+      this.kick(conn.user.id, 'cheat', msg('kicked_cheat', conn.lang));
+    }
   }
 
   chat(conn, m) {

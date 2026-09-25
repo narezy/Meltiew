@@ -1008,5 +1008,13 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     return send(matchedPath ? 405 : 404, { error: 'not_found', message: msg('not_found', lang) });
   }
 
-  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate };
+  // The anti-cheat kicked someone: leave a note in the admin reports queue.
+  function cheatReport(user, reason, game) {
+    try {
+      db.prepare('INSERT INTO reports (reporter_id, target_id, reason, details, created_at, target_type, target_ref) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        user.id, user.id, 'cheating', `Anti-cheat: ${reason} in ${game}`, Date.now(), 'user', '');
+    } catch {}
+  }
+
+  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate, cheatReport };
 }
