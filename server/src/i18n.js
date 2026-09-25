@@ -28,7 +28,7 @@ export const MESSAGES = {
   no_place: ['Place not found', 'Плейс не найден'],
   update_required: ['A new Meltiew is out ({v}). Please update the app.', 'Вышла новая версия Meltiew ({v}). Обнови приложение.'],
   bad_birthdate: ['Please enter a real date of birth', 'Укажи настоящую дату рождения'],
-  birthdate_locked: ['Your date of birth is already set. Ask support to change it.', 'Дата рождения уже указана. Сменить её может только поддержка.'],
+  birthdate_locked: ['You can change your date of birth again on {d}.', 'Снова сменить дату рождения можно будет {d}.'],
   birthdate_needed: ['Enter your date of birth to play', 'Укажи дату рождения, чтобы играть'],
   bad_face: ['Unknown face', 'Нет такого лица'],
   empty: ['Message is empty', 'Пустое сообщение'],

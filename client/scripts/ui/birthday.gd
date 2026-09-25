@@ -57,7 +57,8 @@ func value() -> String:
 
 
 ## Modal that asks for the date of birth and saves it. Returns true once saved.
-static func ask(parent: Node) -> bool:
+## `changing` = the player already has a date and is using a change (different wording).
+static func ask(parent: Node, changing := false) -> bool:
 	var layer := CanvasLayer.new()
 	layer.layer = 70
 	parent.add_child(layer)
@@ -75,7 +76,7 @@ static func ask(parent: Node) -> bool:
 	var v := UI.vbox(14)
 	c.add_child(v)
 	v.add_child(UI.label(L.t("bd_title"), 26, UI.TEXT, "black"))
-	var why := UI.label(L.t("bd_why"), 17, UI.MUTED)
+	var why := UI.label(L.t("bd_change_why" if changing else "bd_why"), 17, UI.MUTED)
 	why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(why)
 	var picker := BirthdayInput.new()
@@ -85,7 +86,7 @@ static func ask(parent: Node) -> bool:
 	v.add_child(err)
 	var row := UI.hbox(10)
 	v.add_child(row)
-	var later := UI.button(L.t("bd_later"), "ghost")
+	var later := UI.button(L.t("cancel" if changing else "bd_later"), "ghost")
 	later.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(later)
 	var save := UI.button(L.t("save"))

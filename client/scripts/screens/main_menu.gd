@@ -274,6 +274,13 @@ func _highlight(id: String) -> void:
 		_nav_icons[pid][1].add_theme_color_override("font_color", UI.TEXT if on else UI.MUTED)
 
 
+## Rebuilds the current page from scratch (after changes that alter its layout).
+func reload_page() -> void:
+	var id := _page_id
+	_page_id = ""
+	open_page(id)
+
+
 func open_page(id: String) -> void:
 	if id == _page_id and _page:
 		if _page.has_method("refresh"):

@@ -116,6 +116,8 @@ function migrate(db) {
   if (!cols.has('banned')) db.exec('ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('ban_reason')) db.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''");
   if (!cols.has('birthdate')) db.exec("ALTER TABLE users ADD COLUMN birthdate TEXT NOT NULL DEFAULT ''");
+  // 0 = the free change after sign-up is still unused; otherwise when it was last changed.
+  if (!cols.has('birthdate_changed_at')) db.exec('ALTER TABLE users ADD COLUMN birthdate_changed_at INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('face')) db.exec("ALTER TABLE users ADD COLUMN face TEXT NOT NULL DEFAULT ':D'");
   if (!cols.has('hide_friends')) db.exec('ALTER TABLE users ADD COLUMN hide_friends INTEGER NOT NULL DEFAULT 0');
   const pcols = new Set(db.prepare('PRAGMA table_info(places)').all().map((c) => c.name));

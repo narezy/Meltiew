@@ -341,9 +341,16 @@ test('direct messages: requests for strangers, open chat for friends, filtered f
   assert.equal((await call('POST', `/api/dm/${alice.id}`, { text: 'hi' }, kid.data.token)).status, 403);
 });
 
-test('birthdate is set once, faces, friends privacy, place search and reports', async () => {
-  let r = await call('PATCH', '/api/me', { birthdate: '1990-01-01' }, users.alice);
+test('birthdate: one free change, then a cooldown; faces, friends privacy, place search and reports', async () => {
+  let r = await call('GET', '/api/me', null, users.alice);
+  assert.equal(r.data.user.birthdate_change.free, true);
+  r = await call('PATCH', '/api/me', { birthdate: '1990-01-01' }, users.alice);
+  assert.equal(r.status, 200);
+  assert.equal(r.data.user.birthdate, '1990-01-01');
+  assert.equal(r.data.user.birthdate_change.can, false);
+  r = await call('PATCH', '/api/me', { birthdate: '1991-01-01' }, users.alice);
   assert.equal(r.status, 403);
+  assert.match(r.data.message, /\d{4}-\d{2}-\d{2}/);
   r = await call('PATCH', '/api/me', { face: ':3', hide_friends: true }, users.alice);
   assert.equal(r.data.user.face, ':3');
   assert.equal((await call('PATCH', '/api/me', { face: 'lol' }, users.alice)).status, 400);

@@ -1,0 +1,1364 @@
+{
+ "version": 1,
+ "enums": {
+  "PartShape": [
+   "Block",
+   "Ball",
+   "Cylinder",
+   "Wedge"
+  ],
+  "Material": [
+   "Plastic",
+   "SmoothPlastic",
+   "Neon",
+   "Wood",
+   "Metal",
+   "Glass",
+   "Grass",
+   "Brick",
+   "Concrete",
+   "Fabric",
+   "Ice",
+   "Sand"
+  ],
+  "Font": [
+   "Regular",
+   "Bold",
+   "Black"
+  ],
+  "TextXAlignment": [
+   "Left",
+   "Center",
+   "Right"
+  ],
+  "TextYAlignment": [
+   "Top",
+   "Center",
+   "Bottom"
+  ],
+  "FillDirection": [
+   "Vertical",
+   "Horizontal"
+  ],
+  "HorizontalAlignment": [
+   "Left",
+   "Center",
+   "Right"
+  ],
+  "VerticalAlignment": [
+   "Top",
+   "Center",
+   "Bottom"
+  ],
+  "SortOrder": [
+   "LayoutOrder",
+   "Name"
+  ],
+  "ScaleType": [
+   "Stretch",
+   "Fit",
+   "Crop"
+  ],
+  "ScrollingDirection": [
+   "Vertical",
+   "Horizontal",
+   "XY"
+  ],
+  "CameraMode": [
+   "Classic",
+   "LockFirstPerson"
+  ],
+  "EasingStyle": [
+   "Linear",
+   "Quad",
+   "Cubic",
+   "Sine",
+   "Back",
+   "Bounce",
+   "Elastic"
+  ],
+  "EasingDirection": [
+   "In",
+   "Out",
+   "InOut"
+  ],
+  "SurfaceSide": [
+   "Front",
+   "Back",
+   "Top",
+   "Bottom",
+   "Left",
+   "Right",
+   "All"
+  ],
+  "BuiltinSound": [
+   "pop",
+   "click",
+   "jump",
+   "coin",
+   "hurt",
+   "win",
+   "boing",
+   "whoosh"
+  ]
+ },
+ "classes": {
+  "Instance": {
+   "base": null,
+   "props": {
+    "Name": {
+     "type": "string",
+     "default": "Instance"
+    }
+   },
+   "events": [
+    "Changed",
+    "ChildAdded",
+    "ChildRemoved",
+    "Destroying",
+    "AncestryChanged"
+   ],
+   "abstract": true
+  },
+  "DataModel": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "hidden": true
+  },
+  "Workspace": {
+   "base": "Instance",
+   "props": {
+    "Gravity": {
+     "type": "number",
+     "default": 22.0,
+     "min": 0,
+     "max": 200
+    },
+    "FallHeight": {
+     "type": "number",
+     "default": -60.0
+    }
+   },
+   "events": [],
+   "service": true,
+   "icon": "world",
+   "category": "Service"
+  },
+  "Lighting": {
+   "base": "Instance",
+   "props": {
+    "ClockTime": {
+     "type": "number",
+     "default": 14.0,
+     "min": 0,
+     "max": 24
+    },
+    "Brightness": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0,
+     "max": 4
+    },
+    "Ambient": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#8d88a8"
+     }
+    },
+    "SkyTop": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#6fa8ef"
+     }
+    },
+    "SkyHorizon": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#d9ecff"
+     }
+    },
+    "FogEnabled": {
+     "type": "bool",
+     "default": true
+    },
+    "FogColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#d9ecff"
+     }
+    },
+    "FogEnd": {
+     "type": "number",
+     "default": 220.0,
+     "min": 10
+    },
+    "Shadows": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "service": true,
+   "icon": "sun",
+   "category": "Service"
+  },
+  "ReplicatedStorage": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "box",
+   "category": "Service"
+  },
+  "ServerScriptService": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "code",
+   "category": "Service",
+   "server_only": true
+  },
+  "ServerStorage": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "box",
+   "category": "Service",
+   "server_only": true
+  },
+  "StarterGui": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "window",
+   "category": "Service"
+  },
+  "StarterPlayer": {
+   "base": "Instance",
+   "props": {
+    "WalkSpeed": {
+     "type": "number",
+     "default": 5.0,
+     "min": 0,
+     "max": 60
+    },
+    "SprintSpeed": {
+     "type": "number",
+     "default": 7.0,
+     "min": 0,
+     "max": 80
+    },
+    "JumpPower": {
+     "type": "number",
+     "default": 8.2,
+     "min": 0,
+     "max": 60
+    },
+    "CanJump": {
+     "type": "bool",
+     "default": true
+    },
+    "MaxHealth": {
+     "type": "number",
+     "default": 100.0,
+     "min": 1,
+     "max": 100000
+    },
+    "AutoHeal": {
+     "type": "bool",
+     "default": true
+    },
+    "HealthRegen": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0
+    },
+    "RespawnTime": {
+     "type": "number",
+     "default": 3.0,
+     "min": 0,
+     "max": 60
+    },
+    "EmotesEnabled": {
+     "type": "bool",
+     "default": true
+    },
+    "ChatEnabled": {
+     "type": "bool",
+     "default": true
+    },
+    "CameraMode": {
+     "type": "enum:CameraMode",
+     "default": "Classic"
+    },
+    "CameraMaxZoom": {
+     "type": "number",
+     "default": 14.0,
+     "min": 1,
+     "max": 60
+    }
+   },
+   "events": [],
+   "service": true,
+   "icon": "user",
+   "category": "Service"
+  },
+  "StarterPlayerScripts": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "code",
+   "category": "Service"
+  },
+  "Players": {
+   "base": "Instance",
+   "props": {
+    "MaxPlayers": {
+     "type": "number",
+     "default": 10,
+     "min": 1,
+     "max": 10,
+     "readonly": true
+    }
+   },
+   "events": [
+    "PlayerAdded",
+    "PlayerRemoving"
+   ],
+   "service": true,
+   "icon": "users",
+   "category": "Service",
+   "runtime": true
+  },
+  "Player": {
+   "base": "Instance",
+   "props": {
+    "DisplayName": {
+     "type": "string",
+     "default": "",
+     "readonly": true
+    },
+    "UserId": {
+     "type": "number",
+     "default": 0,
+     "readonly": true
+    },
+    "Character": {
+     "type": "Instance",
+     "default": null,
+     "readonly": true
+    },
+    "Language": {
+     "type": "string",
+     "default": "en",
+     "readonly": true
+    }
+   },
+   "events": [
+    "CharacterAdded"
+   ],
+   "runtime": true,
+   "icon": "user"
+  },
+  "PlayerGui": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "runtime": true,
+   "icon": "window"
+  },
+  "PlayerScripts": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "runtime": true,
+   "icon": "code"
+  },
+  "Humanoid": {
+   "base": "Instance",
+   "props": {
+    "Health": {
+     "type": "number",
+     "default": 100.0
+    },
+    "MaxHealth": {
+     "type": "number",
+     "default": 100.0,
+     "min": 1
+    },
+    "WalkSpeed": {
+     "type": "number",
+     "default": 5.0,
+     "min": 0
+    },
+    "SprintSpeed": {
+     "type": "number",
+     "default": 7.0,
+     "min": 0
+    },
+    "JumpPower": {
+     "type": "number",
+     "default": 8.2,
+     "min": 0
+    },
+    "CanJump": {
+     "type": "bool",
+     "default": true
+    },
+    "AutoHeal": {
+     "type": "bool",
+     "default": true
+    },
+    "HealthRegen": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0
+    },
+    "EmotesEnabled": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [
+    "Died",
+    "HealthChanged"
+   ],
+   "icon": "heart"
+  },
+  "Folder": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "icon": "folder",
+   "category": "Logic",
+   "creatable": true
+  },
+  "Model": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "icon": "box",
+   "category": "3D",
+   "creatable": true
+  },
+  "BasePart": {
+   "base": "Instance",
+   "props": {
+    "Position": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0.5,
+       0
+      ]
+     }
+    },
+    "Rotation": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "Size": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       2,
+       1,
+       2
+      ]
+     },
+     "min": 0.05
+    },
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#b7b3c9"
+     }
+    },
+    "Material": {
+     "type": "enum:Material",
+     "default": "Plastic"
+    },
+    "Transparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "Anchored": {
+     "type": "bool",
+     "default": true
+    },
+    "CanCollide": {
+     "type": "bool",
+     "default": true
+    },
+    "CanTouch": {
+     "type": "bool",
+     "default": true
+    },
+    "CastShadow": {
+     "type": "bool",
+     "default": true
+    },
+    "Texture": {
+     "type": "asset",
+     "default": ""
+    },
+    "TextureScale": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0.05
+    }
+   },
+   "events": [
+    "Touched",
+    "TouchEnded"
+   ],
+   "abstract": true
+  },
+  "Part": {
+   "base": "BasePart",
+   "props": {
+    "Shape": {
+     "type": "enum:PartShape",
+     "default": "Block"
+    }
+   },
+   "events": [],
+   "icon": "cube",
+   "category": "3D",
+   "creatable": true
+  },
+  "SpawnLocation": {
+   "base": "BasePart",
+   "props": {
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "spawn",
+   "category": "3D",
+   "creatable": true,
+   "overrides": {
+    "Size": {
+     "$v3": [
+      4,
+      0.4,
+      4
+     ]
+    },
+    "Color": {
+     "$c3": "#7ee0c3"
+    },
+    "Position": {
+     "$v3": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   }
+  },
+  "Text3D": {
+   "base": "Instance",
+   "props": {
+    "Position": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0.5,
+       0
+      ]
+     }
+    },
+    "Rotation": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "Text": {
+     "type": "string",
+     "default": "Hello!"
+    },
+    "TextColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "OutlineColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#1c1a22"
+     }
+    },
+    "TextSize": {
+     "type": "number",
+     "default": 64,
+     "min": 4,
+     "max": 512
+    },
+    "Font": {
+     "type": "enum:Font",
+     "default": "Black"
+    },
+    "Billboard": {
+     "type": "bool",
+     "default": false
+    },
+    "Visible": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "text",
+   "category": "3D",
+   "creatable": true,
+   "overrides": {
+    "Position": {
+     "$v3": [
+      0,
+      3,
+      0
+     ]
+    }
+   }
+  },
+  "PointLight": {
+   "base": "Instance",
+   "props": {
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffe9b0"
+     }
+    },
+    "Brightness": {
+     "type": "number",
+     "default": 1.5,
+     "min": 0,
+     "max": 16
+    },
+    "Range": {
+     "type": "number",
+     "default": 12.0,
+     "min": 0.5,
+     "max": 100
+    },
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "Offset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "events": [],
+   "icon": "bulb",
+   "category": "3D",
+   "creatable": true
+  },
+  "ClickDetector": {
+   "base": "Instance",
+   "props": {
+    "MaxDistance": {
+     "type": "number",
+     "default": 16.0,
+     "min": 1,
+     "max": 100
+    }
+   },
+   "events": [
+    "MouseClick"
+   ],
+   "icon": "pointer",
+   "category": "3D",
+   "creatable": true
+  },
+  "Sound": {
+   "base": "Instance",
+   "props": {
+    "SoundId": {
+     "type": "enum:BuiltinSound",
+     "default": "pop"
+    },
+    "Volume": {
+     "type": "number",
+     "default": 0.8,
+     "min": 0,
+     "max": 2
+    },
+    "Pitch": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0.1,
+     "max": 4
+    },
+    "Looped": {
+     "type": "bool",
+     "default": false
+    },
+    "Playing": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [
+    "Ended"
+   ],
+   "icon": "music",
+   "category": "3D",
+   "creatable": true
+  },
+  "LuaSourceContainer": {
+   "base": "Instance",
+   "props": {
+    "Source": {
+     "type": "source",
+     "default": ""
+    }
+   },
+   "events": [],
+   "abstract": true
+  },
+  "Script": {
+   "base": "LuaSourceContainer",
+   "props": {
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "script",
+   "category": "Script",
+   "creatable": true,
+   "overrides": {
+    "Source": "print(\"Hello from the server!\")\n"
+   }
+  },
+  "LocalScript": {
+   "base": "LuaSourceContainer",
+   "props": {
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "script_local",
+   "category": "Script",
+   "creatable": true,
+   "overrides": {
+    "Source": "print(\"Hello from \" .. game.Players.LocalPlayer.Name)\n"
+   }
+  },
+  "ModuleScript": {
+   "base": "LuaSourceContainer",
+   "props": {},
+   "events": [],
+   "icon": "module",
+   "category": "Script",
+   "creatable": true,
+   "overrides": {
+    "Source": "local module = {}\n\nreturn module\n"
+   }
+  },
+  "RemoteEvent": {
+   "base": "Instance",
+   "props": {},
+   "events": [
+    "OnServerEvent",
+    "OnClientEvent"
+   ],
+   "icon": "remote",
+   "category": "Logic",
+   "creatable": true
+  },
+  "RemoteFunction": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "icon": "remote_fn",
+   "category": "Logic",
+   "creatable": true
+  },
+  "BindableEvent": {
+   "base": "Instance",
+   "props": {},
+   "events": [
+    "Event"
+   ],
+   "icon": "bolt",
+   "category": "Logic",
+   "creatable": true
+  },
+  "StringValue": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "string",
+     "default": ""
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "NumberValue": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "number",
+     "default": 0.0
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "BoolValue": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "ScreenGui": {
+   "base": "Instance",
+   "props": {
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "DisplayOrder": {
+     "type": "number",
+     "default": 0
+    }
+   },
+   "events": [],
+   "icon": "window",
+   "category": "GUI",
+   "creatable": true
+  },
+  "GuiObject": {
+   "base": "Instance",
+   "props": {
+    "Position": {
+     "type": "UDim2",
+     "default": {
+      "$u2": [
+       0,
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "Size": {
+     "type": "UDim2",
+     "default": {
+      "$u2": [
+       0,
+       200,
+       0,
+       100
+      ]
+     }
+    },
+    "AnchorPoint": {
+     "type": "Vector2",
+     "default": {
+      "$v2": [
+       0,
+       0
+      ]
+     }
+    },
+    "BackgroundColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "BackgroundTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "Visible": {
+     "type": "bool",
+     "default": true
+    },
+    "ZIndex": {
+     "type": "number",
+     "default": 1
+    },
+    "LayoutOrder": {
+     "type": "number",
+     "default": 0
+    },
+    "Rotation": {
+     "type": "number",
+     "default": 0.0
+    }
+   },
+   "events": [
+    "MouseEnter",
+    "MouseLeave"
+   ],
+   "abstract": true
+  },
+  "Frame": {
+   "base": "GuiObject",
+   "props": {},
+   "events": [],
+   "icon": "frame",
+   "category": "GUI",
+   "creatable": true
+  },
+  "ScrollingFrame": {
+   "base": "GuiObject",
+   "props": {
+    "CanvasSize": {
+     "type": "UDim2",
+     "default": {
+      "$u2": [
+       0,
+       0,
+       2,
+       0
+      ]
+     }
+    },
+    "ScrollingDirection": {
+     "type": "enum:ScrollingDirection",
+     "default": "Vertical"
+    },
+    "ScrollBarThickness": {
+     "type": "number",
+     "default": 6,
+     "min": 0,
+     "max": 30
+    }
+   },
+   "events": [],
+   "icon": "scroll",
+   "category": "GUI",
+   "creatable": true
+  },
+  "TextLabel": {
+   "base": "GuiObject",
+   "props": {
+    "Text": {
+     "type": "string",
+     "default": "Label"
+    },
+    "TextColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#1c1a22"
+     }
+    },
+    "TextSize": {
+     "type": "number",
+     "default": 20,
+     "min": 4,
+     "max": 200
+    },
+    "Font": {
+     "type": "enum:Font",
+     "default": "Bold"
+    },
+    "TextXAlignment": {
+     "type": "enum:TextXAlignment",
+     "default": "Center"
+    },
+    "TextYAlignment": {
+     "type": "enum:TextYAlignment",
+     "default": "Center"
+    },
+    "TextWrapped": {
+     "type": "bool",
+     "default": true
+    },
+    "TextTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    }
+   },
+   "events": [],
+   "icon": "text",
+   "category": "GUI",
+   "creatable": true
+  },
+  "TextButton": {
+   "base": "GuiObject",
+   "props": {
+    "Text": {
+     "type": "string",
+     "default": "Label"
+    },
+    "TextColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#1c1a22"
+     }
+    },
+    "TextSize": {
+     "type": "number",
+     "default": 20,
+     "min": 4,
+     "max": 200
+    },
+    "Font": {
+     "type": "enum:Font",
+     "default": "Bold"
+    },
+    "TextXAlignment": {
+     "type": "enum:TextXAlignment",
+     "default": "Center"
+    },
+    "TextYAlignment": {
+     "type": "enum:TextYAlignment",
+     "default": "Center"
+    },
+    "TextWrapped": {
+     "type": "bool",
+     "default": true
+    },
+    "TextTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "AutoButtonColor": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [
+    "Activated",
+    "MouseButton1Click"
+   ],
+   "icon": "button",
+   "category": "GUI",
+   "creatable": true,
+   "overrides": {
+    "Text": "Button",
+    "BackgroundColor": {
+     "$c3": "#b89cff"
+    }
+   }
+  },
+  "TextBox": {
+   "base": "GuiObject",
+   "props": {
+    "Text": {
+     "type": "string",
+     "default": "Label"
+    },
+    "TextColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#1c1a22"
+     }
+    },
+    "TextSize": {
+     "type": "number",
+     "default": 20,
+     "min": 4,
+     "max": 200
+    },
+    "Font": {
+     "type": "enum:Font",
+     "default": "Bold"
+    },
+    "TextXAlignment": {
+     "type": "enum:TextXAlignment",
+     "default": "Center"
+    },
+    "TextYAlignment": {
+     "type": "enum:TextYAlignment",
+     "default": "Center"
+    },
+    "TextWrapped": {
+     "type": "bool",
+     "default": true
+    },
+    "TextTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "PlaceholderText": {
+     "type": "string",
+     "default": "Type here..."
+    },
+    "ClearTextOnFocus": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [
+    "FocusLost",
+    "Focused"
+   ],
+   "icon": "input",
+   "category": "GUI",
+   "creatable": true,
+   "overrides": {
+    "Text": ""
+   }
+  },
+  "ImageLabel": {
+   "base": "GuiObject",
+   "props": {
+    "Image": {
+     "type": "asset",
+     "default": ""
+    },
+    "ImageColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "ImageTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "ScaleType": {
+     "type": "enum:ScaleType",
+     "default": "Fit"
+    }
+   },
+   "events": [],
+   "icon": "image",
+   "category": "GUI",
+   "creatable": true,
+   "overrides": {
+    "BackgroundTransparency": 1.0
+   }
+  },
+  "ImageButton": {
+   "base": "GuiObject",
+   "props": {
+    "Image": {
+     "type": "asset",
+     "default": ""
+    },
+    "ImageColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "ImageTransparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "ScaleType": {
+     "type": "enum:ScaleType",
+     "default": "Fit"
+    }
+   },
+   "events": [
+    "Activated",
+    "MouseButton1Click"
+   ],
+   "icon": "image",
+   "category": "GUI",
+   "creatable": true,
+   "overrides": {
+    "BackgroundTransparency": 1.0
+   }
+  },
+  "UICorner": {
+   "base": "Instance",
+   "props": {
+    "CornerRadius": {
+     "type": "number",
+     "default": 12,
+     "min": 0,
+     "max": 500
+    }
+   },
+   "events": [],
+   "icon": "corner",
+   "category": "GUI",
+   "creatable": true
+  },
+  "UIStroke": {
+   "base": "Instance",
+   "props": {
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#1c1a22"
+     }
+    },
+    "Thickness": {
+     "type": "number",
+     "default": 2,
+     "min": 0,
+     "max": 40
+    },
+    "Transparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    }
+   },
+   "events": [],
+   "icon": "stroke",
+   "category": "GUI",
+   "creatable": true
+  },
+  "UIPadding": {
+   "base": "Instance",
+   "props": {
+    "Left": {
+     "type": "number",
+     "default": 8
+    },
+    "Right": {
+     "type": "number",
+     "default": 8
+    },
+    "Top": {
+     "type": "number",
+     "default": 8
+    },
+    "Bottom": {
+     "type": "number",
+     "default": 8
+    }
+   },
+   "events": [],
+   "icon": "padding",
+   "category": "GUI",
+   "creatable": true
+  },
+  "UIListLayout": {
+   "base": "Instance",
+   "props": {
+    "FillDirection": {
+     "type": "enum:FillDirection",
+     "default": "Vertical"
+    },
+    "Padding": {
+     "type": "number",
+     "default": 8
+    },
+    "HorizontalAlignment": {
+     "type": "enum:HorizontalAlignment",
+     "default": "Left"
+    },
+    "VerticalAlignment": {
+     "type": "enum:VerticalAlignment",
+     "default": "Top"
+    },
+    "SortOrder": {
+     "type": "enum:SortOrder",
+     "default": "LayoutOrder"
+    }
+   },
+   "events": [],
+   "icon": "list",
+   "category": "GUI",
+   "creatable": true
+  },
+  "UIGridLayout": {
+   "base": "Instance",
+   "props": {
+    "CellSize": {
+     "type": "UDim2",
+     "default": {
+      "$u2": [
+       0,
+       100,
+       0,
+       100
+      ]
+     }
+    },
+    "CellPadding": {
+     "type": "UDim2",
+     "default": {
+      "$u2": [
+       0,
+       8,
+       0,
+       8
+      ]
+     }
+    },
+    "SortOrder": {
+     "type": "enum:SortOrder",
+     "default": "LayoutOrder"
+    }
+   },
+   "events": [],
+   "icon": "grid",
+   "category": "GUI",
+   "creatable": true
+  }
+ },
+ "services": [
+  "Workspace",
+  "Lighting",
+  "ReplicatedStorage",
+  "ServerScriptService",
+  "ServerStorage",
+  "StarterGui",
+  "StarterPlayer"
+ ]
+}

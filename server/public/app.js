@@ -78,11 +78,13 @@ const T = {
     r_chat: 'Rude chat or messages', r_name: 'Bad name or bio', r_avatar: 'Inappropriate avatar', r_cheating: 'Cheating', r_other: 'Something else',
     report_details: 'Details (optional)', report_send: 'Send report', reports: 'Reports', no_reports: 'No open reports', resolve: 'Resolve', reported_by: 'from {0}',
     friends_of: 'Friends', friends_hidden: 'Friends list is hidden', friends_online_n: '{0} online of {1}', no_friends_short: 'No friends yet',
-    search_places: 'Search places', no_places: 'Nothing found', birthdate: 'Date of birth', birthdate_why: 'We need it to set up chat safety. It can\'t be changed later.',
+    search_places: 'Search places', no_places: 'Nothing found', birthdate: 'Date of birth', birthdate_why: 'We need it to set up chat safety. After one free fix it can only be changed once every 6 months.',
     birthdate_title: 'When is your birthday?', birthdate_set: 'Set date of birth', continue: 'Continue', privacy: 'Privacy', hide_friends: 'Hide my friends list',
     face: 'Face', face_hint: 'Colors and hats are edited in the app. Faces work here too.',
     rules_kid: 'Under 13: chat and messages are turned off.', rules_teen: 'Chat and messages are filtered.',
     rules_older: 'Game chat is filtered, messages are not.', rules_adult: 'No filters.', rules_none: 'Add your date of birth to play and chat.',
+    bd_change_free: 'Fix date of birth (one free change)', bd_change: 'Change date of birth', bd_next_change: 'You can change it again on {0}.',
+    bd_change_why: 'Pick your real date of birth. After this change the next one is possible in 6 months.',
     search_everything: 'Search players and places', telegram: 'Telegram channel', lang_fallback: "The website isn't translated to this language yet, so it shows English. Places with their own translations will use it.", drag_to_spin: 'Drag to spin', admin_reset_bd: 'Reset birthdate', age_n: '{0} y.o.',
   },
   ru: {
@@ -134,11 +136,13 @@ const T = {
     r_chat: 'Грубит в чате или личке', r_name: 'Плохой ник или описание', r_avatar: 'Неприличный аватар', r_cheating: 'Читерит', r_other: 'Другое',
     report_details: 'Подробности (необязательно)', report_send: 'Отправить жалобу', reports: 'Жалобы', no_reports: 'Открытых жалоб нет', resolve: 'Закрыть', reported_by: 'от {0}',
     friends_of: 'Друзья', friends_hidden: 'Список друзей скрыт', friends_online_n: 'в сети {0} из {1}', no_friends_short: 'Друзей пока нет',
-    search_places: 'Поиск плейсов', no_places: 'Ничего не нашли', birthdate: 'Дата рождения', birthdate_why: 'Нужна, чтобы настроить безопасность чата. Поменять потом нельзя.',
+    search_places: 'Поиск плейсов', no_places: 'Ничего не нашли', birthdate: 'Дата рождения', birthdate_why: 'Нужна, чтобы настроить безопасность чата. После одного бесплатного исправления менять можно раз в полгода.',
     birthdate_title: 'Когда у тебя день рождения?', birthdate_set: 'Указать дату рождения', continue: 'Продолжить', privacy: 'Приватность', hide_friends: 'Скрыть мой список друзей',
     face: 'Лицо', face_hint: 'Цвета и шапки меняются в приложении. А лицо можно и тут.',
     rules_kid: 'До 13 лет чат и личные сообщения выключены.', rules_teen: 'Чат и личные сообщения фильтруются.',
     rules_older: 'Игровой чат фильтруется, личные сообщения нет.', rules_adult: 'Без фильтров.', rules_none: 'Укажи дату рождения, чтобы играть и общаться.',
+    bd_change_free: 'Исправить дату рождения (одна бесплатная смена)', bd_change: 'Сменить дату рождения', bd_next_change: 'Снова сменить можно будет {0}.',
+    bd_change_why: 'Выбери настоящую дату рождения. После этой смены следующая будет доступна через полгода.',
     search_everything: 'Поиск игроков и плейсов', telegram: 'Телеграм-канал', lang_fallback: 'Сайт пока не переведён на этот язык, поэтому он на английском. Плейсы со своими переводами будут на нём.', drag_to_spin: 'Потяни, чтобы покрутить', admin_reset_bd: 'Сбросить дату рождения', age_n: '{0} лет',
   },
 };
@@ -297,12 +301,12 @@ function renderNav(path) {
 }
 
 // Asks once per visit for a date of birth when the account has none. Resolves true once it's set.
-function askBirthdate(force = false) {
-  if (!state.me || state.me.birthdate) return Promise.resolve(true);
+function askBirthdate(force = false, changing = false) {
+  if (!state.me || (state.me.birthdate && !changing)) return Promise.resolve(true);
   if (!force && sessionStorage.getItem('bd_asked')) return Promise.resolve(false);
   sessionStorage.setItem('bd_asked', '1');
   return new Promise((resolve) => {
-    const bg = modal(`<h3>${t('birthdate_title')}</h3><p class="muted" style="margin:0">${t('birthdate_why')}</p>
+    const bg = modal(`<h3>${t('birthdate_title')}</h3><p class="muted" style="margin:0">${t(changing ? 'bd_change_why' : 'birthdate_why')}</p>
       <form class="stack" id="bdf"><input type="date" name="bd" required max="${new Date().toISOString().slice(0, 10)}">
       <div class="error"></div><button class="btn">${t('continue')}</button></form>`);
     const done = (ok) => { bg.remove(); resolve(ok); };
@@ -417,6 +421,8 @@ const pages = {
         <div><span class="muted">${t('birthdate')}:</span> ${me.birthdate
           ? `<b>${esc(new Date(me.birthdate + 'T00:00').toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US'))}</b>`
           : `<button class="btn small" id="setbd">${t('birthdate_set')}</button>`}</div>
+        ${me.birthdate && me.birthdate_change?.can ? `<button class="btn small ghost" id="changebd">${t(me.birthdate_change.free ? 'bd_change_free' : 'bd_change')}</button>` : ''}
+        ${me.birthdate && !me.birthdate_change?.can && me.birthdate_change?.next_at ? `<span class="muted" style="font-size:14px">${esc(t('bd_next_change', new Date(me.birthdate_change.next_at).toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US')))}</span>` : ''}
         <span class="muted">${t(rulesKey)}</span></div>
       <div class="card stack" style="grid-column:1/-1"><h3>${t('face')}</h3><span class="muted">${t('face_hint')}</span>
         <div class="faces">${Object.entries(FACE_SLUGS).map(([id, slug]) => `<button class="face ${me.face === id ? 'on' : ''}" data-face="${esc(id)}" title="${esc(id)}"><img src="/img/faces/${slug}.png" alt="${esc(id)}"></button>`).join('')}</div></div>
@@ -433,6 +439,7 @@ const pages = {
     };
     $('#hf').addEventListener('change', (e) => patch({ hide_friends: e.target.checked }));
     $('#setbd')?.addEventListener('click', async () => { if (await askBirthdate(true)) render(); });
+    $('#changebd')?.addEventListener('click', async () => { if (await askBirthdate(true, true)) render(); });
     root.querySelectorAll('[data-face]').forEach((b) => b.addEventListener('click', async () => {
       if (!(await patch({ face: b.dataset.face }))) return;
       root.querySelectorAll('[data-face]').forEach((x) => x.classList.toggle('on', x === b));

@@ -119,6 +119,21 @@ func _ready() -> void:
 	var bd := str(Session.user.get("birthdate", ""))
 	if bd != "":
 		privacy.add_child(UI.label(L.t("bd_is", [bd]), 16, UI.MUTED))
+		# One free change after sign-up, then one every six months.
+		var change: Dictionary = Session.user.get("birthdate_change", {})
+		if change.get("can", false):
+			var ch := UI.button(L.t("bd_change_free" if change.get("free", false) else "bd_change"), "ghost", 46)
+			ch.add_theme_font_size_override("font_size", 16)
+			ch.pressed.connect(func():
+				if await BirthdayInput.ask(self, true):
+					UI.toast(L.t("saved"), "ok")
+					get_meta("menu").reload_page())
+			privacy.add_child(ch)
+		elif float(change.get("next_at", 0)) > 0:
+			var when := Time.get_date_string_from_unix_time(int(float(change.next_at) / 1000.0))
+			var nl := UI.label(L.t("bd_next_change", [when]), 14, UI.MUTED)
+			nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			privacy.add_child(nl)
 	else:
 		var set_bd := UI.button(L.t("bd_title"), "primary", 48)
 		set_bd.pressed.connect(func():

@@ -216,10 +216,20 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
   }
 
   /** The signed-in user's own profile, with private fields. */
+  // One free change of the date of birth after it is first set, then one every six months.
+  const BIRTHDATE_COOLDOWN_MS = 182 * 24 * 3600 * 1000;
+  function birthdateChange(u) {
+    if (!u.birthdate) return { can: true, free: false, next_at: 0 };
+    if (!u.birthdate_changed_at) return { can: true, free: true, next_at: 0 };
+    const nextAt = u.birthdate_changed_at + BIRTHDATE_COOLDOWN_MS;
+    return { can: Date.now() >= nextAt, free: false, next_at: nextAt };
+  }
+
   function selfProfile(u) {
     return {
       ...publicProfile(u),
       birthdate: u.birthdate || '',
+      birthdate_change: birthdateChange(u),
       hide_friends: !!u.hide_friends,
       rules: chatRules(u.birthdate),
     };
@@ -367,9 +377,17 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         }
         next.colors = JSON.stringify(merged);
       }
+      let birthdateChanged = false;
       if (body.birthdate !== undefined && body.birthdate !== user.birthdate) {
-        if (user.birthdate) throw new HttpError(403, 'birthdate_locked');
         if (!validBirthdate(body.birthdate)) throw bad('bad_birthdate');
+        if (user.birthdate) {
+          const change = birthdateChange(user);
+          if (!change.can) {
+            const date = new Date(change.next_at).toISOString().slice(0, 10);
+            throw new HttpError(403, 'birthdate_locked', { d: date });
+          }
+          birthdateChanged = true;
+        }
         next.birthdate = body.birthdate;
       }
       if (body.face !== undefined) {
@@ -393,6 +411,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         next.hide_friends ? 1 : 0,
         user.id,
       );
+      if (birthdateChanged) db.prepare('UPDATE users SET birthdate_changed_at = ? WHERE id = ?').run(Date.now(), user.id);
       const fresh = q.userById.get(user.id);
       hub.updateUser(fresh);
       return { user: selfProfile(fresh) };
