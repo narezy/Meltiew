@@ -1,7 +1,11 @@
 # Meltiew
 
-Платформа в духе Roblox на Godot 4.7: аккаунты, друзья, профиль с редактором аватара Melly
-и мультиплеерная «Детская площадка» (до 10 игроков на сервер).
+Платформа в духе Roblox на Godot 4.7: аккаунты, друзья, блокировки, профиль с редактором
+аватара Melly (6 частей тела, шапки, 3D-бюсты), мультиплеерная «Детская площадка» (до 10 игроков
+на сервер) с эмоциями, здоровьем и внутриигровым меню, и сайт, с которого можно зайти в игру.
+Интерфейс на английском и русском.
+
+Скачать APK: ветка [`download`](https://github.com/narezy/Meltiew/tree/download).
 
 ```
 client/   Godot-проект (Android, пакет cat.narezany.meltiew)
@@ -31,7 +35,8 @@ curl -fsSL https://raw.githubusercontent.com/narezy/Meltiew/main/deploy/install.
 Открыть `client/` в Godot 4.7.2. Для локального сервера: запустить с аргументом
 `-- --server=http://127.0.0.1:7350`.
 
-Сборка APK (ключ подписи хранится вне репозитория):
+Сборка APK через Gradle (нужна для диплинка `meltiew://`, ключ подписи хранится вне репозитория).
+Нужны Android SDK (platforms;android-36, build-tools) и JDK 17+:
 
 ```bash
 GODOT=godot KEYSTORE=/path/meltiew-release.keystore KEYSTORE_PASS=... client/build_android.sh

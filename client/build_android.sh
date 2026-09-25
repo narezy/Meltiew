@@ -13,5 +13,6 @@ export GODOT_ANDROID_KEYSTORE_RELEASE_USER="${KEYSTORE_ALIAS:-meltiew}"
 export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$KEYSTORE_PASS"
 mkdir -p export
 "$GODOT" --headless --import >/dev/null 2>&1 || true
-"$GODOT" --headless --export-release "Android" export/meltiew.apk
+# Gradle build (needed for the meltiew:// deep link); installs res://android/build on first run.
+"$GODOT" --headless --install-android-build-template --export-release "Android" export/meltiew.apk
 echo "Built export/meltiew.apk"

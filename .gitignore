@@ -7,3 +7,4 @@ client/export/
 *.aab
 .DS_Store
 zz_*
+client/android/
