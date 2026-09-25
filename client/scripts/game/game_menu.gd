@@ -146,6 +146,7 @@ func show_tab(id: String) -> void:
 
 func _render_players() -> void:
 	_body.add_child(UI.label(L.t("players_on_server", [game.users.size(), 10]), 26, UI.TEXT, "black"))
+	_body.add_child(UI.label(L.field(game.server_info, "name"), 16, UI.MUTED, "bold"))
 	var list: Array = game.users.values()
 	list.sort_custom(func(a, b): return str(a.display_name) < str(b.display_name))
 	for u in list:
@@ -195,6 +196,10 @@ func _fill_actions(actions: HBoxContainer, u: Dictionary) -> void:
 			if is_instance_valid(actions):
 				_fill_actions(actions, u))
 		actions.add_child(fr)
+	var rep := UI.button(L.t("report"), "ghost", 44)
+	rep.add_theme_font_size_override("font_size", 16)
+	rep.pressed.connect(func(): UI.report(self, u))
+	actions.add_child(rep)
 	var blocked := rel == "blocked"
 	var bl := UI.button(L.t("unblock") if blocked else L.t("block"), "ghost" if blocked else "danger", 44)
 	bl.add_theme_font_size_override("font_size", 16)

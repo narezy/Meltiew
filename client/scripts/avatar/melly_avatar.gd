@@ -29,6 +29,8 @@ var _model: Node3D
 var _body_mat: ShaderMaterial
 var _hat_root: BoneAttachment3D
 var _hat_id := ""
+var _face_mat: StandardMaterial3D
+var _face_id := ":D"
 var _current := ""
 var _look_colors := {}
 
@@ -49,6 +51,15 @@ func _ready() -> void:
 	_body_mat = ShaderMaterial.new()
 	_body_mat.shader = BODY_SHADER
 	body.set_surface_override_material(0, _body_mat)
+	# Face lives on its own surface; swap its texture for the chosen kaomoji.
+	if body.mesh.get_surface_count() > 1:
+		var orig := body.mesh.surface_get_material(1) as StandardMaterial3D
+		_face_mat = orig.duplicate() if orig else StandardMaterial3D.new()
+		_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		_face_mat.alpha_scissor_threshold = 0.4
+		_face_mat.vertex_color_use_as_albedo = false
+		body.set_surface_override_material(1, _face_mat)
+		_apply_face()
 	var skeleton: Skeleton3D = _model.find_child("Skeleton3D", true, false)
 	_hat_root = BoneAttachment3D.new()
 	_hat_root.bone_name = "Head"
@@ -64,6 +75,21 @@ func _ready() -> void:
 func apply_user(u: Dictionary) -> void:
 	set_colors(Session.colors_of(u))
 	set_hat(str(u.get("hat", "none")))
+	set_face(str(u.get("face", ":D")))
+
+
+func set_face(id: String) -> void:
+	_face_id = id
+	_apply_face()
+
+
+func get_face() -> String:
+	return _face_id
+
+
+func _apply_face() -> void:
+	if _face_mat:
+		_face_mat.albedo_texture = Faces.texture(_face_id)
 
 
 func set_colors(colors: Dictionary) -> void:

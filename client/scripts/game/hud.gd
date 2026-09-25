@@ -13,8 +13,8 @@ var emote_btn: TouchButton
 var wheel: EmoteWheel
 
 var _root: Control
-var _server_label: Label
-var _count_label: Label
+const HP_W := 200.0
+
 var _hp_fill: Panel
 var _hp_label: Label
 var _hp_shown := 100.0
@@ -55,34 +55,38 @@ func _ready() -> void:
 	var menu := _icon_button("menu")
 	menu.pressed.connect(func(): menu_requested.emit())
 	info_row.add_child(menu)
-	var info := _pill()
-	var info_v := UI.vbox(2)
-	info.add_child(info_v)
-	_server_label = UI.label(L.t("connecting"), 16, UI.TEXT, "bold")
-	info_v.add_child(_server_label)
+	_blockers.append(info_row)
+
+	# Bottom-center: health bar, no backdrop.
 	var hp_row := UI.hbox(8)
+	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	hp_row.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hp_row.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	hp_row.offset_bottom = -18
+	hp_row.add_child(Icon.make("heart", 20, UI.PINK))
 	var hp_bg := Panel.new()
-	hp_bg.custom_minimum_size = Vector2(150, 10)
+	hp_bg.custom_minimum_size = Vector2(HP_W, 12)
 	hp_bg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hb := StyleBoxFlat.new()
-	hb.bg_color = Color(0, 0, 0, 0.45)
-	hb.set_corner_radius_all(5)
+	hb.bg_color = Color(0, 0, 0, 0.35)
+	hb.set_corner_radius_all(6)
 	hp_bg.add_theme_stylebox_override("panel", hb)
 	_hp_fill = Panel.new()
-	_hp_fill.size = Vector2(150, 10)
+	_hp_fill.size = Vector2(HP_W, 12)
+	_hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hf := StyleBoxFlat.new()
 	hf.bg_color = UI.ONLINE
-	hf.set_corner_radius_all(5)
+	hf.set_corner_radius_all(6)
 	_hp_fill.add_theme_stylebox_override("panel", hf)
 	hp_bg.add_child(_hp_fill)
 	hp_row.add_child(hp_bg)
-	_hp_label = UI.label("100", 13, UI.MUTED, "bold")
+	_hp_label = UI.label("100", 15, Color.WHITE, "black")
+	_hp_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
+	_hp_label.add_theme_constant_override("outline_size", 6)
 	hp_row.add_child(_hp_label)
-	_count_label = UI.label("", 13, UI.MUTED)
-	hp_row.add_child(_count_label)
-	info_v.add_child(hp_row)
-	info_row.add_child(info)
-	_blockers.append(info_row)
+	_root.add_child(hp_row)
 
 	_chat_log = UI.vbox(3)
 	_chat_log.custom_minimum_size.x = 430
@@ -118,6 +122,7 @@ func _ready() -> void:
 	var chat_btn := _icon_button("chat")
 	chat_btn.pressed.connect(toggle_chat)
 	tr.add_child(chat_btn)
+	_chat_btn = chat_btn
 	_blockers.append(tr)
 
 	# FPS/ping readout, top center where no control ever covers it.
@@ -158,14 +163,6 @@ func _ready() -> void:
 		wheel.open())
 	if not DisplayServer.is_touchscreen_available():
 		jump_btn.visible = false
-		var hint := UI.label(L.t("desktop_hint"), 14, Color(1, 1, 1, 0.75))
-		hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-		hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		hint.offset_top = -30
-		hint.offset_bottom = -10
-		hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
-		hint.add_theme_constant_override("outline_size", 6)
-		_root.add_child(hint)
 
 	wheel = EmoteWheel.new()
 	wheel.theme = UI.theme
@@ -214,19 +211,6 @@ func _place(c: Control, offset: Vector2) -> void:
 	c.offset_bottom = offset.y + c.custom_minimum_size.y
 
 
-func _pill() -> PanelContainer:
-	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(UI.BG_2, 0.8)
-	sb.set_corner_radius_all(16)
-	sb.content_margin_left = 16
-	sb.content_margin_right = 16
-	sb.content_margin_top = 7
-	sb.content_margin_bottom = 7
-	p.add_theme_stylebox_override("panel", sb)
-	return p
-
-
 func _icon_button(kind: String) -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(56, 56)
@@ -249,15 +233,28 @@ func _icon_button(kind: String) -> Button:
 
 # --- public API -------------------------------------------------------------
 
-func set_server(name: String, players: int, max_players: int) -> void:
-	_server_label.text = name
-	_count_label.text = "· %d/%d" % [players, max_players]
+func set_server(_name: String, _players: int, _max_players: int) -> void:
+	# The server name lives in the in-game menu now; the HUD stays clean.
+	pass
+
+
+var chat_enabled := true
+var _chat_btn: Button
+
+
+## Under-13 accounts have no chat: hide the log, the input and the button.
+func set_chat_enabled(on: bool) -> void:
+	chat_enabled = on
+	_chat_log.visible = on
+	_chat_btn.visible = on
+	if not on:
+		_chat_input_row.visible = false
 
 
 func set_health(hp: float) -> void:
 	var t := create_tween()
 	t.tween_method(func(v: float):
-		_hp_fill.size.x = 150.0 * clampf(v / 100.0, 0.0, 1.0)
+		_hp_fill.size.x = HP_W * clampf(v / 100.0, 0.0, 1.0)
 		var sb := _hp_fill.get_theme_stylebox("panel") as StyleBoxFlat
 		sb.bg_color = UI.ONLINE if v > 50.0 else (Color("#ffd166") if v > 25.0 else UI.DANGER), _hp_shown, hp, 0.2)
 	_hp_shown = hp
@@ -297,6 +294,8 @@ func add_chat(author: String, text: String, color := UI.TEXT) -> void:
 
 
 func toggle_chat() -> void:
+	if not chat_enabled:
+		return
 	_chat_input_row.visible = not _chat_input_row.visible
 	if _chat_input_row.visible:
 		_chat_input.grab_focus()

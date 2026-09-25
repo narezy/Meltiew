@@ -5,6 +5,8 @@ extends HBoxContainer
 var _stage: AvatarStage
 var _colors := {}
 var _hat := "none"
+var _face := ":D"
+var _face_buttons := {}
 var _selected_parts := ["torso"]
 var _part_buttons := {}
 var _swatch_buttons: Array[Button] = []
@@ -24,10 +26,14 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 24)
 	_colors = Session.colors_of(Session.user)
 	_hat = str(Session.user.get("hat", "none"))
+	_face = str(Session.user.get("face", ":D"))
 
+	var compact := UI.is_compact()
+	if compact:
+		add_theme_constant_override("separation", 16)
 	var left := UI.vbox(12)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.size_flags_stretch_ratio = 0.8
+	left.size_flags_stretch_ratio = 0.62 if compact else 0.8
 	add_child(left)
 	left.add_child(UI.label(L.t("nav_avatar"), 34, UI.TEXT, "black"))
 	var stage_card := UI.card(0, Color(UI.CARD, 0.55), 26)
@@ -51,19 +57,26 @@ func _ready() -> void:
 	reset.pressed.connect(func():
 		_colors = Session.DEFAULT_COLORS.duplicate()
 		_hat = "none"
+		_face = ":D"
 		_apply_preview())
 	tools.add_child(reset)
+	if compact:
+		for b in tools.get_children():
+			b.add_theme_font_size_override("font_size", 15)
+			b.custom_minimum_size.y = 44
 	left.add_child(tools)
 
 	var right := UI.vbox(14)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
 	var tabs := UI.hbox(8)
-	for t in [["colors", L.t("colors")], ["hats", L.t("hats")], ["profile", L.t("profile")]]:
+	for t in [["colors", L.t("colors")], ["faces", L.t("faces")], ["hats", L.t("hats")], ["profile", L.t("profile")]]:
 		var b := UI.button(t[1], "flat", 46)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if compact:
+			b.add_theme_font_size_override("font_size", 15)
 		b.pressed.connect(func(): _show_tab(t[0]))
 		tabs.add_child(b)
 		_tab_buttons[t[0]] = b
@@ -76,6 +89,7 @@ func _ready() -> void:
 	body.add_child(stack)
 	_tab_pages.colors = _build_colors_tab()
 	_tab_pages.hats = _build_hats_tab()
+	_tab_pages.faces = _build_faces_tab()
 	_tab_pages.profile = _build_profile_tab()
 	for k in _tab_pages:
 		var sc := ScrollContainer.new()
@@ -128,7 +142,7 @@ func _build_colors_tab() -> Control:
 
 	v.add_child(UI.label(L.t("color"), 18, UI.MUTED, "bold"))
 	var grid := GridContainer.new()
-	grid.columns = 8
+	grid.columns = 6 if UI.is_compact() else 8
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
 	for hex in UI.SWATCHES:
@@ -205,6 +219,48 @@ func _paint(hex: String) -> void:
 	_refresh_swatches()
 
 
+func _build_faces_tab() -> Control:
+	var grid := GridContainer.new()
+	grid.columns = 3 if UI.is_compact() else 4
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	for f in Faces.LIST:
+		var id: String = f[0]
+		var b := Button.new()
+		b.toggle_mode = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(84, 84)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.theme_type_variation = "ChipButton"
+		# Face on a little skin-colored tile, like it sits on Melly's head.
+		var tile := Panel.new()
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(str(_colors.get("head", "#f5f1ec")))
+		sb.set_corner_radius_all(14)
+		tile.add_theme_stylebox_override("panel", sb)
+		tile.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tile.offset_left = 10
+		tile.offset_top = 10
+		tile.offset_right = -10
+		tile.offset_bottom = -10
+		b.add_child(tile)
+		var img := TextureRect.new()
+		img.texture = Faces.texture(id)
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		img.set_anchors_preset(Control.PRESET_FULL_RECT)
+		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(img)
+		b.pressed.connect(func():
+			Sfx.click()
+			_face = id
+			_apply_preview())
+		grid.add_child(b)
+		_face_buttons[id] = b
+	return grid
+
+
 func _build_hats_tab() -> Control:
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -251,6 +307,9 @@ func _build_profile_tab() -> Control:
 func _apply_preview() -> void:
 	_stage.avatar.set_colors(_colors)
 	_stage.avatar.set_hat(_hat)
+	_stage.avatar.set_face(_face)
+	for id in _face_buttons:
+		_face_buttons[id].button_pressed = id == _face
 	for id in _hat_buttons:
 		_hat_buttons[id].button_pressed = id == _hat
 	_refresh_swatches()
@@ -272,6 +331,7 @@ func _randomize() -> void:
 		for part in ["head", "arm_l", "arm_r"]:
 			_colors[part] = skin
 	_hat = UI.HATS.pick_random().id
+	_face = Faces.LIST.pick_random()[0]
 	_apply_preview()
 	_stage.avatar.play("wave")
 
@@ -287,6 +347,7 @@ func _on_save() -> void:
 	var r := await Api.request("PATCH", "/api/me", {
 		"colors": _colors,
 		"hat": _hat,
+		"face": _face,
 		"display_name": name,
 		"bio": _bio_edit.text.strip_edges(),
 	})

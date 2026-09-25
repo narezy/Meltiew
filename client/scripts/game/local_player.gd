@@ -39,6 +39,10 @@ var spawn_point := Vector3(0, 1, 10)
 var hp := 100.0
 var dead := false
 var first_person := false
+var seated := false
+
+var _collision: CollisionShape3D
+var _unseat_time := 0.0
 
 var _camera_pivot: Node3D
 var _spring: SpringArm3D
@@ -65,6 +69,7 @@ func _ready() -> void:
 	col.shape = shape
 	col.position.y = 0.9
 	add_child(col)
+	_collision = col
 
 	avatar = MellyAvatar.new()
 	add_child(avatar)
@@ -93,8 +98,43 @@ func _ready() -> void:
 
 
 func request_jump() -> void:
-	if not dead:
-		_jump_buffer = JUMP_BUFFER
+	if dead:
+		return
+	if seated:
+		stand_up()
+		return
+	_jump_buffer = JUMP_BUFFER
+
+
+func can_sit() -> bool:
+	return not dead and Time.get_ticks_msec() - _unseat_time > 800.0
+
+
+## Sits on a bench seat. `seat` is the seat's top-center, `seat_basis` faces away from the backrest.
+func sit_on(seat: Vector3, seat_basis: Basis) -> void:
+	seated = true
+	_collision.disabled = true
+	velocity = Vector3.ZERO
+	# The Sit pose puts the hips ~0.17 m above the feet.
+	global_position = seat - Vector3(0, 0.17, 0) + seat_basis * Vector3(0, 0, 0.05)
+	reset_physics_interpolation()
+	var fwd := seat_basis * Vector3(0, 0, 1)
+	_facing = atan2(-fwd.x, -fwd.z)
+	avatar.rotation.y = _facing
+	_emote = "sit"
+	avatar.play("sit")
+
+
+func stand_up() -> void:
+	if not seated:
+		return
+	seated = false
+	_collision.disabled = false
+	_unseat_time = Time.get_ticks_msec()
+	_emote = ""
+	global_position += Vector3(0, 0.25, 0)
+	velocity = Basis(Vector3.UP, _facing) * Vector3(0, 0, -2.5) + Vector3(0, JUMP_VELOCITY * 0.8, 0)
+	jumped.emit()
 
 
 func rotate_camera(delta_px: Vector2) -> void:
@@ -161,13 +201,16 @@ func take_damage(amount: float) -> void:
 func die() -> void:
 	if dead:
 		return
+	if seated:
+		seated = false
+		_collision.disabled = false
 	dead = true
 	hp = 0.0
 	health_changed.emit(hp)
 	avatar.visible = false
-	velocity = Vector3.ZERO
 	_emote = ""
 	died.emit()
+	velocity = Vector3.ZERO
 	await get_tree().create_timer(RESPAWN_DELAY).timeout
 	respawn()
 
@@ -186,7 +229,7 @@ func respawn() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if dead:
+	if dead or seated:
 		return
 	var on_floor := is_on_floor()
 	if on_floor:

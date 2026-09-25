@@ -10,6 +10,8 @@ var _password: LineEdit
 var _password2: LineEdit
 var _display_row: Control
 var _password2_row: Control
+var _birthday: BirthdayInput
+var _birthday_row: Control
 var _submit: Button
 var _error: Label
 var _hint: Label
@@ -92,6 +94,12 @@ func _ready() -> void:
 	_password2.max_length = 128
 	_password2_row = _password2
 	form.add_child(_password2)
+	var bd := UI.vbox(6)
+	bd.add_child(UI.label(L.t("bd_label"), 15, UI.MUTED, "bold"))
+	_birthday = BirthdayInput.new()
+	bd.add_child(_birthday)
+	_birthday_row = bd
+	form.add_child(bd)
 
 	_error = UI.label("", 18, UI.DANGER)
 	_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -127,6 +135,7 @@ func _set_mode(mode: String) -> void:
 	_tab_register.button_pressed = reg
 	_display_row.visible = reg
 	_password2_row.visible = reg
+	_birthday_row.visible = reg
 	_submit.text = L.t("create_account") if reg else L.t("sign_in")
 	_hint.text = L.t("register_hint") if reg else L.t("login_hint")
 	_error.visible = false
@@ -170,6 +179,10 @@ func _on_submit() -> void:
 			return
 		var display := _display.text.strip_edges()
 		body.display_name = display if display.length() >= 2 else username
+		body.birthdate = _birthday.value()
+		if body.birthdate == "":
+			_show_error(L.t("bd_incomplete"))
+			return
 		path = "/api/register"
 	_submit.disabled = true
 	_submit.text = L.t("one_sec")

@@ -203,6 +203,8 @@ func _on_message(m: Dictionary) -> void:
 					hud.add_chat("", L.t("sys_left", [m.get("n", "")]))
 				"slow":
 					hud.add_chat("", L.t("sys_slow"))
+				"no_chat":
+					hud.add_chat("", L.t("sys_no_chat"))
 				"admin":
 					hud.add_chat("Meltiew", str(m.get("m", "")), Color("#ffd166"))
 					hud.big_message(str(m.get("m", "")), 3.5)
@@ -215,6 +217,11 @@ func _on_message(m: Dictionary) -> void:
 			if remotes.has(id):
 				remotes[id].shatter()
 		"error":
+			if str(m.get("code", "")) == "birthdate":
+				_leaving = true
+				Net.close()
+				hud.show_overlay(L.t("birthdate_needed"), [[L.t("to_menu"), _leave]])
+				return
 			if not _joined:
 				hud.show_overlay(str(m.get("m", "Error")), [
 					[L.t("other_server"), func():
@@ -257,6 +264,7 @@ func _on_welcome(m: Dictionary) -> void:
 	player.reset_physics_interpolation()
 	player.velocity = Vector3.ZERO
 	hud.hide_overlay()
+	hud.set_chat_enabled(bool(m.get("chat", true)))
 	_refresh_players()
 	Sfx.play("join")
 	hud.add_chat("", L.t("welcome_server", [L.field(server_info, "name")]))
@@ -339,7 +347,7 @@ func _emote(e: String) -> void:
 
 
 func _on_died() -> void:
-	Shatter.spawn(self, player.avatar.global_transform, player.avatar.get_colors())
+	Ragdoll.spawn(self, player.avatar.global_transform, player.avatar.get_colors(), player.velocity)
 	Net.send({"t": "dead"})
 	hud.big_message(L.t("you_fell_apart"), 2.4)
 

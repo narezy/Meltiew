@@ -15,6 +15,7 @@ const PINK := Color("#ff8fb1")
 const DANGER := Color("#ff6b7a")
 const ONLINE := Color("#5fe08e")
 const INK := Color("#17141f")
+const TELEGRAM := "https://t.me/meltiew"
 
 const HATS := [
 	{"id": "none", "name": "hat_none"},
@@ -69,6 +70,8 @@ func _ready() -> void:
 	_fade_layer.add_child(_toast_box)
 	Api.unauthorized.connect(_on_unauthorized)
 	Api.update_required.connect(show_update_required)
+	apply_ui_scale()
+	Session.settings_changed.connect(apply_ui_scale)
 
 
 func _on_unauthorized() -> void:
@@ -171,6 +174,11 @@ func toast(text: String, kind := "info") -> void:
 
 
 # --- widget factories -------------------------------------------------------
+
+## True when the logical window is narrow (phones, small windows): pages use tighter layouts.
+func is_compact() -> bool:
+	return get_viewport().get_visible_rect().size.x < 1120.0
+
 
 func label(text: String, size := 20, color := TEXT, weight := "regular") -> Label:
 	var l := Label.new()
@@ -520,3 +528,74 @@ func name_row(u: Dictionary, size := 20, color := TEXT, weight := "bold") -> HBo
 	if badge:
 		row.add_child(badge)
 	return row
+
+
+## Report dialog: pick a reason, optional details, sends to the admin queue.
+func report(parent: Node, u: Dictionary) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	parent.add_child(layer)
+	var dim := ColorRect.new()
+	dim.theme = theme
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(center)
+	var c := card(26, CARD, 26)
+	c.custom_minimum_size.x = 480
+	center.add_child(c)
+	var v := vbox(12)
+	c.add_child(v)
+	v.add_child(label(L.t("report_title", [u.get("display_name", "")]), 24, TEXT, "black"))
+	var reason := ["chat"]
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 8)
+	chips.add_theme_constant_override("v_separation", 8)
+	v.add_child(chips)
+	for r in ["chat", "name", "avatar", "cheating", "other"]:
+		var b := button(L.t("report_" + r), "flat", 42)
+		b.theme_type_variation = "ChipButton"
+		b.toggle_mode = true
+		b.button_pressed = r == reason[0]
+		b.add_theme_font_size_override("font_size", 16)
+		b.pressed.connect(func():
+			reason[0] = r
+			for other in chips.get_children():
+				other.button_pressed = other == b)
+		chips.add_child(b)
+	var details := input(L.t("report_details"))
+	details.max_length = 300
+	v.add_child(details)
+	var row := hbox(10)
+	v.add_child(row)
+	var cancel_b := button(L.t("cancel"), "ghost")
+	cancel_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cancel_b.pressed.connect(layer.queue_free)
+	row.add_child(cancel_b)
+	var send := button(L.t("report_send"), "danger")
+	send.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	send.pressed.connect(func():
+		send.disabled = true
+		var r := await Api.request("POST", "/api/report", {"user_id": u.get("id"), "reason": reason[0], "details": details.text})
+		toast(str(r.data.get("message", L.t("done"))) if r.ok else r.message, "ok" if r.ok else "error")
+		layer.queue_free())
+	row.add_child(send)
+
+
+## Interface size. Phones get bigger UI by default; the Settings slider overrides it.
+func apply_ui_scale() -> void:
+	var s := float(Session.settings.get("ui_scale", 0.0))
+	if s <= 0.0:
+		s = default_ui_scale()
+	get_tree().root.content_scale_factor = s
+
+
+func default_ui_scale() -> float:
+	if OS.has_feature("mobile"):
+		# Base layout is 1280x720; on a phone that reads tiny, so zoom it up.
+		var screen := DisplayServer.screen_get_size()
+		var inches := Vector2(screen).length() / maxf(float(DisplayServer.screen_get_dpi()), 1.0)
+		return 1.35 if inches < 7.5 else 1.15
+	return 1.0

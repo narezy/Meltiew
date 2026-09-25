@@ -48,6 +48,7 @@ var _swings: Array = []
 var _carousel: AnimatableBody3D
 var _seesaw: AnimatableBody3D
 var _slides: Array[Area3D] = []
+var _seats: Array = []
 var _clouds: Array[Node3D] = []
 var _balloons: Array[Node3D] = []
 var _ducks: Array[Node3D] = []
@@ -382,6 +383,16 @@ func _build_spawn_plaza() -> void:
 
 func _bench(p: Vector3, yaw: float) -> void:
 	var b := Basis(Vector3.UP, deg_to_rad(yaw))
+	# Standing on the seat sits you down; the backrest is on local -Z, so you face +Z.
+	var area := Area3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(2.1, 0.7, 0.62)
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	area.add_child(cs)
+	area.transform = Transform3D(b, p + b * Vector3(0, 0.9, 0))
+	add_child(area)
+	_seats.append({"area": area, "top": 0.54 + p.y, "basis": b, "center": p + b * Vector3(0, 0.54, 0.02)})
 	box(p + b * Vector3(0, 0.48, 0), Vector3(2.2, 0.12, 0.62), C_WOOD, Vector3(0, yaw, 0))
 	box(p + b * Vector3(0, 0.9, -0.3), Vector3(2.2, 0.48, 0.1), C_WOOD, Vector3(-8, yaw, 0))
 	for x in [-0.9, 0.9]:
@@ -470,18 +481,19 @@ func _build_play_structure(at: Vector3) -> void:
 
 
 func _tower(p: Vector3, h: float, post: Color, roof: Color, back_wall: bool) -> void:
+	# Roof sits 2.4 m above the deck so a standing Melly (1.8 m) fits inside.
 	for x in [-1.9, 1.9]:
 		for z in [-1.9, 1.9]:
-			box(p + Vector3(x, (h + 1.4) * 0.5, z), Vector3(0.32, h + 1.4, 0.32), post)
+			box(p + Vector3(x, (h + 2.5) * 0.5, z), Vector3(0.32, h + 2.5, 0.32), post)
 	box(p + Vector3(0, h - 0.1, 0), Vector3(4.2, 0.25, 4.2), C_WOOD)
 	if back_wall:
 		box(p + Vector3(0, h + 0.5, -1.95), Vector3(4.0, 0.9, 0.12), C_WHITE)
-	var roof_mesh_pos := p + Vector3(0, h + 2.2, 0)
+	var roof_mesh_pos := p + Vector3(0, h + 3.25, 0)
 	prism(roof_mesh_pos, Vector3(4.8, 1.6, 4.8), roof, Vector3.ZERO, true)
-	box(p + Vector3(0, h + 1.35, 0), Vector3(4.6, 0.12, 4.6), roof.darkened(0.15))
+	box(p + Vector3(0, h + 2.4, 0), Vector3(4.6, 0.12, 4.6), roof.darkened(0.15))
 	# Little flag on top.
-	cyl(p + Vector3(0, h + 3.6, 0), 0.04, 1.4, C_DARK, false)
-	prism(p + Vector3(0.35, h + 4.0, 0), Vector3(0.7, 0.5, 0.04), C_YELLOW, Vector3(0, 0, -90))
+	cyl(p + Vector3(0, h + 4.65, 0), 0.04, 1.4, C_DARK, false)
+	prism(p + Vector3(0.35, h + 5.05, 0), Vector3(0.7, 0.5, 0.04), C_YELLOW, Vector3(0, 0, -90))
 
 
 func _slide(top: Vector3, bottom: Vector3, color: Color) -> void:
@@ -1087,6 +1099,12 @@ func _physics_process(delta: float) -> void:
 		for area in _slides:
 			if area.overlaps_body(_player):
 				_player.external_push = area.get_meta("dir")
+		if not _player.seated and _player.can_sit() and _player.is_on_floor():
+			for seat in _seats:
+				# Only when actually standing on the seat, not brushing past the bench.
+				if seat.area.overlaps_body(_player) and _player.global_position.y > seat.top - 0.12:
+					_player.sit_on(seat.center, seat.basis)
+					break
 
 
 func _process(delta: float) -> void:

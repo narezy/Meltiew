@@ -3,6 +3,7 @@ extends ScrollContainer
 ## A place's page: cover, author, rating (likes/dislikes), stats, Play, and servers at the bottom.
 
 const LOCAL_COVERS := {"playground": "res://assets/playground_cover.png"}
+const LOCAL_SQUARES := {"playground": "res://assets/playground_square.png"}
 
 static var _cover_cache := {}
 
@@ -11,7 +12,7 @@ var _place: Dictionary = {}
 var _root: VBoxContainer
 var _vote_box: HBoxContainer
 var _servers_box: VBoxContainer
-var _stats_box: HBoxContainer
+var _stats_box: HFlowContainer
 var _cover: RoundedImage
 var _timer: Timer
 
@@ -87,7 +88,8 @@ func _build() -> void:
 	var top := UI.hbox(26)
 	_root.add_child(top)
 	_cover = RoundedImage.new(cover_for(_place), 22)
-	_cover.custom_minimum_size = Vector2(500, 281)
+	_cover.custom_minimum_size = Vector2(320, 180) if UI.is_compact() else Vector2(440, 248)
+	_cover.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	top.add_child(_cover)
 	if _cover.texture == null:
 		_fetch_cover()
@@ -95,7 +97,20 @@ func _build() -> void:
 	var info := UI.vbox(12)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(info)
-	info.add_child(UI.label(L.field(_place, "name"), 38, UI.TEXT, "black"))
+	# Square icon (1:1) next to the title when the place has one.
+	var title_row := UI.hbox(14)
+	var sq_path: String = LOCAL_SQUARES.get(place_id, "")
+	if sq_path != "" or str(_place.get("cover_square", "")) != "":
+		var sq := RoundedImage.new(load(sq_path) if sq_path != "" else null, 18)
+		sq.custom_minimum_size = Vector2(84, 84)
+		title_row.add_child(sq)
+		if sq.texture == null:
+			_fetch_image(str(_place.cover_square), sq)
+	var title := UI.label(L.field(_place, "name"), 36, UI.TEXT, "black")
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(title)
+	info.add_child(title_row)
 	var author: Dictionary = _place.get("author", {})
 	var by := UI.hbox(10)
 	by.add_child(UI.label(L.t("by"), 17, UI.MUTED))
@@ -105,7 +120,9 @@ func _build() -> void:
 	info.add_child(by)
 	if int(author.get("id", 0)) > 0:
 		UI.on_tap(by, func(): _menu().show_profile(str(author.username)))
-	_stats_box = UI.hbox(10)
+	_stats_box = HFlowContainer.new()
+	_stats_box.add_theme_constant_override("h_separation", 10)
+	_stats_box.add_theme_constant_override("v_separation", 8)
 	info.add_child(_stats_box)
 	_vote_box = UI.hbox(10)
 	info.add_child(_vote_box)
@@ -140,6 +157,21 @@ func _build() -> void:
 	_root.add_child(sh)
 	_servers_box = UI.vbox(10)
 	_root.add_child(_servers_box)
+
+
+func _fetch_image(url: String, target: TextureRect) -> void:
+	if url == "":
+		return
+	if url.begins_with("/"):
+		url = Api.BASE_URL + url
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request(url)
+	var res: Array = await http.request_completed
+	http.queue_free()
+	var img := Image.new()
+	if res[1] == 200 and img.load_png_from_buffer(res[3]) == OK and is_instance_valid(target):
+		target.texture = ImageTexture.create_from_image(img)
 
 
 func _fetch_cover() -> void:

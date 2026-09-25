@@ -101,6 +101,9 @@ func _render(u: Dictionary) -> void:
 	var joined := Time.get_date_dict_from_unix_time(int(float(u.get("created_at", 0)) / 1000.0))
 	stats.add_child(_stat("%02d.%02d.%d" % [joined.day, joined.month, joined.year], L.t("member_since")))
 	_box.add_child(stats)
+	var friends_row := UI.hbox(6)
+	_box.add_child(friends_row)
+	_load_friends(str(u.username), friends_row)
 	_box.add_child(UI.spacer(false))
 
 	var actions := UI.hbox(10)
@@ -118,6 +121,19 @@ func _render(u: Dictionary) -> void:
 	if is_me:
 		return
 	var rel := str(u.get("relation", "none"))
+	if rel != "blocked" and menu and menu.has_method("open_messages"):
+		var dm := UI.button(L.t("message"), "ghost", 56)
+		dm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		dm.pressed.connect(func():
+			_close()
+			menu.open_messages(u))
+		actions.add_child(dm)
+	var more := UI.hbox(10)
+	_box.add_child(more)
+	var report := UI.button(L.t("report"), "flat", 40)
+	report.add_theme_font_size_override("font_size", 15)
+	report.pressed.connect(func(): UI.report(self, u))
+	more.add_child(report)
 	if rel != "blocked":
 		var label: String = {"friends": L.t("remove_friend"), "outgoing": L.t("cancel_request"), "incoming": L.t("accept_request")}.get(rel, L.t("add_friend"))
 		var variant: String = {"friends": "ghost", "outgoing": "ghost", "incoming": "primary"}.get(rel, "primary")
@@ -126,7 +142,9 @@ func _render(u: Dictionary) -> void:
 	var block_path := "/api/blocks/remove" if rel == "blocked" else "/api/blocks/add"
 	var block := _action_button(L.t("unblock") if rel == "blocked" else L.t("block"), "ghost", block_path, u)
 	block.size_flags_horizontal = Control.SIZE_FILL
-	actions.add_child(block)
+	block.custom_minimum_size.y = 40
+	block.add_theme_font_size_override("font_size", 15)
+	more.add_child(block)
 
 
 func _action_button(text: String, variant: String, path: String, u: Dictionary) -> Button:
@@ -153,6 +171,32 @@ func _action_button(text: String, variant: String, path: String, u: Dictionary) 
 			b.disabled = false
 			UI.toast(r.message, "error"))
 	return b
+
+
+## Friends preview: up to 7 busts, or a note when the list is hidden.
+func _load_friends(username: String, row: HBoxContainer) -> void:
+	var r := await Api.request("GET", "/api/users/%s/friends" % username.uri_encode())
+	if not is_instance_valid(row) or not r.ok:
+		return
+	if r.data.hidden:
+		row.add_child(UI.label(L.t("friends_hidden"), 15, UI.MUTED))
+		return
+	var list: Array = r.data.friends
+	for i in mini(list.size(), 7):
+		var f: Dictionary = list[i]
+		var b := UI.avatar_badge(f, 40)
+		b.mouse_filter = Control.MOUSE_FILTER_STOP
+		b.tooltip_text = str(f.display_name)
+		b.gui_input.connect(func(e):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				username = str(f.username)
+				self.username = username
+				for c in _box.get_children():
+					c.queue_free()
+				_load())
+		row.add_child(b)
+	if list.size() > 7:
+		row.add_child(UI.label("+%d" % (list.size() - 7), 16, UI.MUTED, "bold"))
 
 
 func _stat(value: String, caption: String) -> Control:

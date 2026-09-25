@@ -4,18 +4,28 @@ extends Control
 const PAGES := [
 	{"id": "home", "title": "nav_home", "icon": "home"},
 	{"id": "friends", "title": "nav_friends", "icon": "friends"},
+	{"id": "messages", "title": "messages", "icon": "chat"},
 	{"id": "avatar", "title": "nav_avatar", "icon": "avatar"},
 	{"id": "settings", "title": "nav_settings", "icon": "settings"},
 ]
 
 static var last_page := "home"
 
+static var _asked_birthday := false
+
 var _nav_buttons := {}
 var _nav_icons := {}
 var _content: MarginContainer
 var _page: Control
 var _page_id := ""
-var _badge: Label
+var _badges := {}
+var _side: PanelContainer
+var _brand_label: Label
+var _nav_labels: Array[Label] = []
+var _tg: Button
+var _me_col: Control
+var _compact := false
+var _dm_user: Dictionary = {}
 var _me_box: HBoxContainer
 var _poll: Timer
 
@@ -41,16 +51,21 @@ func _ready() -> void:
 
 	Session.user_changed.connect(_refresh_me)
 	_refresh_me()
+	_apply_compact()
+	get_viewport().size_changed.connect(_apply_compact)
 	open_page(last_page)
 
 	_poll = Timer.new()
-	_poll.wait_time = 15.0
+	_poll.wait_time = 8.0
 	_poll.autostart = true
 	_poll.timeout.connect(_poll_requests)
 	add_child(_poll)
 	_poll_requests()
 	_check_launch()
 	L.changed.connect(func(): get_tree().reload_current_scene())
+	if str(Session.user.get("birthdate", "")) == "" and not _asked_birthday:
+		_asked_birthday = true
+		BirthdayInput.ask(self)
 
 
 func _notification(what: int) -> void:
@@ -83,7 +98,8 @@ func _build_sidebar() -> Control:
 	sb.content_margin_top = 24
 	sb.content_margin_bottom = 20
 	side.add_theme_stylebox_override("panel", sb)
-	side.custom_minimum_size.x = 250
+	side.custom_minimum_size.x = 232
+	_side = side
 	var v := UI.vbox(8)
 	side.add_child(v)
 
@@ -94,7 +110,8 @@ func _build_sidebar() -> Control:
 	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	brand.add_child(mark)
-	brand.add_child(UI.label("meltiew", 30, UI.TEXT, "black"))
+	_brand_label = UI.label("meltiew", 30, UI.TEXT, "black")
+	brand.add_child(_brand_label)
 	v.add_child(brand)
 	var gap := Control.new()
 	gap.custom_minimum_size.y = 18
@@ -117,23 +134,21 @@ func _build_sidebar() -> Control:
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l.size_flags_vertical = Control.SIZE_FILL
 		inner.add_child(l)
-		if p.id == "friends":
-			inner.add_child(UI.spacer())
-			_badge = UI.label("", 15, UI.INK, "black")
+		_nav_labels.append(l)
+		if p.id == "friends" or p.id == "messages":
+			# Floats over the button so it can sit beside the label or on the icon's corner.
+			var nav_badge := UI.label("", 15, UI.INK, "black")
+			_badges[p.id] = nav_badge
 			var badge_bg := StyleBoxFlat.new()
 			badge_bg.bg_color = UI.PINK
 			badge_bg.set_corner_radius_all(12)
-			badge_bg.content_margin_left = 9
-			badge_bg.content_margin_right = 9
-			badge_bg.content_margin_top = 1
-			badge_bg.content_margin_bottom = 1
-			_badge.add_theme_stylebox_override("normal", badge_bg)
-			_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			_badge.visible = false
-			inner.add_child(_badge)
-			var pad := Control.new()
-			pad.custom_minimum_size.x = 8
-			inner.add_child(pad)
+			badge_bg.content_margin_left = 8
+			badge_bg.content_margin_right = 8
+			nav_badge.add_theme_stylebox_override("normal", badge_bg)
+			nav_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			nav_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			nav_badge.visible = false
+			b.add_child(nav_badge)
 		b.add_child(inner)
 		b.pressed.connect(func():
 			Sfx.click()
@@ -143,6 +158,16 @@ func _build_sidebar() -> Control:
 		_nav_icons[p.id] = [ic, l]
 
 	v.add_child(UI.spacer(false))
+	var tg := UI.button("", "flat", 40)
+	_tg = tg
+	tg.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tg.add_theme_font_size_override("font_size", 15)
+	tg.tooltip_text = "t.me/meltiew"
+	var tg_icon := Icon.make("send", 20, UI.ACCENT)
+	tg_icon.name = "Icon"
+	tg.add_child(tg_icon)
+	tg.pressed.connect(func(): OS.shell_open(UI.TELEGRAM))
+	v.add_child(tg)
 	var me_card := UI.card(12, UI.CARD, 18)
 	_me_box = UI.hbox(12)
 	me_card.add_child(_me_box)
@@ -164,6 +189,44 @@ func _refresh_me() -> void:
 	handle.clip_text = true
 	col.add_child(handle)
 	_me_box.add_child(col)
+	_me_col = col
+	_me_col.visible = not _compact
+
+
+## Narrow screens (phones, big interface scale): the sidebar shrinks to icons.
+func _apply_compact() -> void:
+	var compact := get_viewport_rect().size.x < 1120.0
+	_compact = compact
+	_side.custom_minimum_size.x = 92 if compact else 232
+	var sb := _side.get_theme_stylebox("panel") as StyleBoxFlat
+	sb.content_margin_left = 12 if compact else 18
+	sb.content_margin_right = 12 if compact else 18
+	_brand_label.visible = not compact
+	for l in _nav_labels:
+		l.visible = not compact
+	_tg.text = "" if compact else "        t.me/meltiew"
+	(_tg.get_node("Icon") as Control).position = Vector2(24 if compact else 16, 10)
+	for id in _badges:
+		var nb: Label = _badges[id]
+		nb.add_theme_font_size_override("font_size", 13 if compact else 15)
+		nb.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		if compact:
+			nb.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+			nb.offset_right = -4
+			nb.offset_top = 4
+			nb.offset_bottom = 4 + nb.get_minimum_size().y
+		else:
+			nb.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+			nb.offset_right = -14
+			nb.offset_top = -nb.get_minimum_size().y / 2.0
+			nb.offset_bottom = nb.get_minimum_size().y / 2.0
+		nb.offset_left = nb.offset_right - nb.get_minimum_size().x
+	if _me_col:
+		_me_col.visible = not compact
+	var m := 18 if compact else 32
+	_content.add_theme_constant_override("margin_left", m)
+	_content.add_theme_constant_override("margin_right", 16 if compact else 28)
+	_content.add_theme_constant_override("margin_top", 16 if compact else 28)
 
 
 var _open_place_id := "playground"
@@ -203,6 +266,10 @@ func open_page(id: String) -> void:
 			_page = AvatarPage.new()
 		"settings":
 			_page = SettingsPage.new()
+		"messages":
+			_page = MessagesPage.new()
+			_page.open_user = _dm_user
+			_dm_user = {}
 		"place":
 			_page = PlacePage.new()
 			_page.place_id = _open_place_id
@@ -218,19 +285,37 @@ func open_page(id: String) -> void:
 
 
 func set_request_badge(n: int) -> void:
-	if _badge:
-		_badge.text = str(n)
-		_badge.visible = n > 0
+	_set_badge("friends", n)
+
+
+func _set_badge(id: String, n: int) -> void:
+	if _badges.has(id):
+		_badges[id].text = str(n)
+		_badges[id].visible = n > 0
+		_badges[id].offset_left = _badges[id].offset_right - _badges[id].get_minimum_size().x
 
 
 func _poll_requests() -> void:
-	var r := await Api.request("GET", "/api/friends")
+	var r := await Api.request("GET", "/api/notifications")
 	if r.ok and is_instance_valid(self):
-		set_request_badge(r.data.incoming.size())
+		_set_badge("friends", int(r.data.friend_requests))
+		_set_badge("messages", int(r.data.dm_unread) + int(r.data.dm_requests))
+
+
+## Opens Messages with a conversation to this user (from a profile).
+func open_messages(u: Dictionary) -> void:
+	_dm_user = u
+	_page_id = ""
+	open_page("messages")
 
 
 ## Starts the playground, optionally on a specific server ("auto", "new" or id).
 func play(server := "auto") -> void:
+	# No game without a date of birth (it decides the chat rules).
+	if str(Session.user.get("birthdate", "")) == "":
+		if not await BirthdayInput.ask(self):
+			UI.toast(L.t("birthdate_needed"), "error")
+			return
 	Session.pending_server = server
 	UI.goto("res://scenes/game.tscn")
 

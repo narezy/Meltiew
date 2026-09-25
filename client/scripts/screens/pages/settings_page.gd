@@ -29,6 +29,36 @@ func _ready() -> void:
 	var game := _section(left, L.t("game"))
 	SettingsWidgets.game_block(game)
 
+	var look := _section(left, L.t("interface"))
+	var scale_row := UI.hbox(8)
+	scale_row.add_child(UI.label(L.t("ui_size"), 19, UI.TEXT))
+	scale_row.add_child(UI.spacer())
+	var scale_val := UI.label("", 17, UI.MUTED, "bold")
+	scale_row.add_child(scale_val)
+	look.add_child(scale_row)
+	var slider := HSlider.new()
+	slider.min_value = 0.8
+	slider.max_value = 1.7
+	slider.step = 0.05
+	var cur := float(Session.settings.get("ui_scale", 0.0))
+	slider.value = cur if cur > 0.0 else UI.default_ui_scale()
+	slider.custom_minimum_size.y = 36
+	slider.focus_mode = Control.FOCUS_NONE
+	scale_val.text = "%d%%" % roundi(slider.value * 100.0)
+	slider.value_changed.connect(func(x): scale_val.text = "%d%%" % roundi(x * 100.0))
+	# Applied on release, otherwise the slider jumps under your finger while it rescales.
+	slider.drag_ended.connect(func(_c):
+		Session.settings.ui_scale = slider.value
+		Session.save_settings())
+	look.add_child(slider)
+	var auto := UI.button(L.t("ui_size_auto"), "ghost", 44)
+	auto.add_theme_font_size_override("font_size", 16)
+	auto.pressed.connect(func():
+		Session.settings.ui_scale = 0.0
+		Session.save_settings()
+		slider.value = UI.default_ui_scale())
+	look.add_child(auto)
+
 	var lang := _section(left, L.t("language"))
 	var opts := []
 	for code in L.LANGS:
@@ -36,6 +66,9 @@ func _ready() -> void:
 	SettingsWidgets.chips(lang, L.t("language"), "lang", opts, func(code): L.set_lang(code))
 
 	var about := _section(left, L.t("about"))
+	var tg := UI.button("  " + L.t("telegram"), "mint", 50)
+	tg.pressed.connect(func(): OS.shell_open(UI.TELEGRAM))
+	about.add_child(tg)
 	about.add_child(UI.label("Meltiew %s" % ProjectSettings.get_setting("application/config/version", "1.0.0"), 19, UI.TEXT, "bold"))
 	about.add_child(UI.label(L.t("server_is", [Api.BASE_URL.replace("https://", "")]), 17, UI.MUTED))
 	_server_status = UI.label(L.t("checking_server"), 17, UI.MUTED)
@@ -59,10 +92,48 @@ func _ready() -> void:
 	logout.pressed.connect(_logout)
 	acc.add_child(logout)
 
+	var privacy := _section(right, L.t("privacy"))
+	var hide := CheckButton.new()
+	hide.text = L.t("hide_friends")
+	hide.button_pressed = bool(Session.user.get("hide_friends", false))
+	hide.add_theme_font_size_override("font_size", 19)
+	hide.focus_mode = Control.FOCUS_NONE
+	hide.toggled.connect(func(on):
+		var r := await Api.request("PATCH", "/api/me", {"hide_friends": on})
+		if r.ok:
+			Session.set_user(r.data.user)
+		else:
+			UI.toast(r.message, "error"))
+	privacy.add_child(hide)
+	var bd := str(Session.user.get("birthdate", ""))
+	if bd != "":
+		privacy.add_child(UI.label(L.t("bd_is", [bd]), 16, UI.MUTED))
+	else:
+		var set_bd := UI.button(L.t("bd_title"), "primary", 48)
+		set_bd.pressed.connect(func():
+			if await BirthdayInput.ask(self):
+				UI.toast(L.t("saved"), "ok"))
+		privacy.add_child(set_bd)
+	var rules: Dictionary = Session.user.get("rules", {})
+	if rules.get("age") != null:
+		var note := UI.label(L.t("rules_" + _rules_key(rules)), 15, UI.MUTED)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		privacy.add_child(note)
+
 	var blocked := _section(right, L.t("blocked_players"))
 	_blocked_box = UI.vbox(8)
 	blocked.add_child(_blocked_box)
 	_load_blocked()
+
+
+func _rules_key(rules: Dictionary) -> String:
+	if not rules.get("chat", false):
+		return "kid"
+	if rules.get("filter_dm", true):
+		return "teen"
+	if rules.get("filter_chat", true):
+		return "older_teen"
+	return "adult"
 
 
 func _section(parent: Control, title: String) -> VBoxContainer:

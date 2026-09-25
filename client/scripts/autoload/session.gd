@@ -22,6 +22,8 @@ var settings := {
 	"quality": "high",
 	"show_fps": false,
 	"lang": "en",
+	# 0 = automatic (bigger on phones).
+	"ui_scale": 0.0,
 }
 ## Where the game scene should go when it opens: "auto", "new" or a server id.
 var pending_server := "auto"
@@ -78,7 +80,8 @@ static func look_hash(u: Dictionary) -> String:
 	for part in BODY_PARTS:
 		parts.append(str(c[part]))
 	parts.append(str(u.get("hat", "none")))
-	parts.append("v1")
+	parts.append(str(u.get("face", ":D")))
+	parts.append("v2")
 	return "|".join(parts).md5_text().substr(0, 16)
 
 

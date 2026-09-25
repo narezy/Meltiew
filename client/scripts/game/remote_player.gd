@@ -75,7 +75,7 @@ func shatter() -> void:
 	if _dead:
 		return
 	_dead = true
-	Shatter.spawn(get_parent(), avatar.global_transform, avatar.get_colors())
+	Ragdoll.spawn(get_parent(), avatar.global_transform, avatar.get_colors())
 	avatar.visible = false
 	_name_tag.visible = false
 	_role_tag.visible = false
