@@ -17,17 +17,6 @@ const ONLINE := Color("#5fe08e")
 const INK := Color("#17141f")
 const TELEGRAM := "https://t.me/meltiew"
 
-const HATS := [
-	{"id": "none", "name": "hat_none"},
-	{"id": "catears", "name": "hat_catears"},
-	{"id": "cap", "name": "hat_cap"},
-	{"id": "crown", "name": "hat_crown"},
-	{"id": "halo", "name": "hat_halo"},
-	{"id": "tophat", "name": "hat_tophat"},
-	{"id": "flower", "name": "hat_flower"},
-	{"id": "headphones", "name": "hat_headphones"},
-]
-
 const SWATCHES := [
 	"#f5f1ec", "#ffd9c2", "#e8b48f", "#b07852", "#6b4431", "#302d38",
 	"#baa4e2", "#8f6ff0", "#6c8cff", "#4cc9f0", "#7ee0c3", "#5fe08e",

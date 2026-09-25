@@ -64,20 +64,16 @@ items.append({"id": "flower", "name": {"en": "Flower", "ru": "Цветочек"}
 ]})
 
 # --- back ------------------------------------------------------------------------
-# Cat tail: from the lower back, out and curling up, dark with a pink tip; it sways.
-def bezier(p0, p1, p2, p3, t):
-    u = 1 - t
-    return [u**3 * a + 3 * u * u * t * b + 3 * u * t * t * c + t**3 * d for a, b, c, d in zip(p0, p1, p2, p3)]
-tail = []
-n = 16
-for i in range(n):
-    t = i / (n - 1)
-    p = bezier([0, 0.45, -0.38], [0, 0.1, -1.1], [0, 1.0, -1.45], [0.12, 1.55, -1.05], t)
-    r = 0.15 - 0.05 * t
-    tail.append(part("sphere", p, "#ff8fb1" if i >= n - 2 else "#302d38", r=round(r, 3), h=round(r * 2, 3)))
+# Cat tail: one smooth tapering tube in the ears' fur color, from the lower back:
+# out and slightly down first, then curving up with the tip hooked a little.
+# "tube": a curve through `points` with `r` at the base narrowing to `r_end`.
 items.append({"id": "cattail", "name": {"en": "Cat tail", "ru": "Кошачий хвост"}, "slot": "back", "bone": "Torso", "parts": [
-    {"shape": "group", "pos": [0, 0.45, -0.38], "anim": {"type": "sway", "axis": "y", "deg": 14, "period": 1.8},
-     "parts": [dict(p, pos=[round(p["pos"][0], 3), round(p["pos"][1] - 0.45, 3), round(p["pos"][2] + 0.38, 3)]) for p in tail]},
+    {"shape": "group", "pos": [0, 0.3, -0.36], "anim": {"type": "sway", "axis": "y", "deg": 12, "period": 2.2}, "parts": [
+        part("tube", [0, 0, 0], "#302d38", r=0.1, r_end=0.065, points=[
+            [0, 0, 0], [0, -0.12, -0.35], [0, -0.1, -0.75], [0, 0.2, -1.05],
+            [0, 0.65, -1.15], [0, 1.05, -1.02], [0, 1.25, -0.8],
+        ]),
+    ]},
 ]})
 
 catalog = {

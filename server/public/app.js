@@ -651,104 +651,128 @@ async function loadThree() {
 
 // Hats, ported from client/scripts/avatar/hats.gd. Built in melly.glb units relative to the
 // Head bone: the head box spans x ±0.69, z ±0.67 and y 0..1.33 above the bone.
-function buildHat(THREE, id) {
-  const TOP = 1.33;
+// Accessories come from the server's catalog: primitives placed on a bone, the same
+// data the app builds from (units: melly.glb model units, +Y up, +Z front).
+let accessoryCatalog = null;
+async function loadAccessories() {
+  accessoryCatalog ??= api('GET', '/api/accessories').catch(() => ({ items: [] }));
+  return accessoryCatalog;
+}
+
+function buildAccessory(THREE, def) {
   const D = Math.PI / 180;
-  const root = new THREE.Group();
-  const mat = (color, rough = 0.7, metal = 0, emission = 0) => new THREE.MeshStandardMaterial({
-    color, roughness: rough, metalness: metal, emissive: emission ? color : 0x000000, emissiveIntensity: emission * 0.6,
-  });
-  const part = (parent, geo, m, pos, rot = [0, 0, 0]) => {
-    const mesh = new THREE.Mesh(geo, m);
-    mesh.position.set(...pos);
-    mesh.rotation.set(rot[0] * D, rot[1] * D, rot[2] * D, 'YXZ');
-    parent.add(mesh);
-    return mesh;
+  const mats = new Map();
+  const mat = (p) => {
+    const key = [p.color, p.rough, p.metal, p.glow].join('|');
+    if (!mats.has(key)) {
+      const glow = p.glow || 0;
+      mats.set(key, new THREE.MeshStandardMaterial({
+        color: p.color || '#ffffff', roughness: p.rough ?? 0.7, metalness: p.metal ?? 0,
+        emissive: glow ? p.color : 0x000000, emissiveIntensity: glow * 0.6,
+      }));
+    }
+    return mats.get(key);
+  };
+  const place = (o, p) => {
+    const [x, y, z] = p.pos || [0, 0, 0];
+    const [rx, ry, rz] = p.rot || [0, 0, 0];
+    o.position.set(x, y, z);
+    o.rotation.set(rx * D, ry * D, rz * D, 'YXZ'); // Godot's rotation order
   };
   // Godot primitives: prism with the apex on top, ellipsoid spheres, Y-axis tori.
-  const prism = (w, h, d) => {
-    const shape = new THREE.Shape([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(w / 2, -h / 2), new THREE.Vector2(0, h / 2)]);
-    return new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2);
+  const geo = (p) => {
+    switch (p.shape) {
+      case 'box': return new THREE.BoxGeometry(...p.size);
+      case 'prism': {
+        const [w, h, d] = p.size;
+        const shape = new THREE.Shape([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(w / 2, -h / 2), new THREE.Vector2(0, h / 2)]);
+        return new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2);
+      }
+      case 'sphere': {
+        const r = p.r ?? 0.5;
+        const h = p.h ?? r * 2;
+        return p.half
+          ? new THREE.SphereGeometry(r, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, h / r, 1)
+          : new THREE.SphereGeometry(r, 24, 12).scale(1, h / 2 / r, 1);
+      }
+      case 'cylinder': return new THREE.CylinderGeometry(p.top ?? 0.5, p.bottom ?? 0.5, p.h ?? 1, 32);
+      case 'cone': return new THREE.CylinderGeometry(0, p.bottom ?? 0.5, p.h ?? 1, 32);
+      case 'torus': {
+        const inner = p.inner ?? 0.4;
+        const outer = p.outer ?? 0.5;
+        return new THREE.TorusGeometry((inner + outer) / 2, (outer - inner) / 2, 16, 48).rotateX(Math.PI / 2);
+      }
+      case 'capsule': return new THREE.CapsuleGeometry(p.r ?? 0.2, Math.max((p.h ?? 0.8) - 2 * (p.r ?? 0.2), 0), 8, 16);
+      case 'tube': return tubeGeometry(THREE, p.points.map((q) => new THREE.Vector3(...q)), p.r ?? 0.1, p.r_end ?? p.r ?? 0.1);
+      default: return null;
+    }
   };
-  const sphere = (r, h, hemi = false) => (hemi
-    ? new THREE.SphereGeometry(r, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, h / r, 1)
-    : new THREE.SphereGeometry(r, 24, 12).scale(1, h / 2 / r, 1));
-  const cyl = (top, bottom, h) => new THREE.CylinderGeometry(top, bottom, h, 32);
-  const torus = (inner, outer) => new THREE.TorusGeometry((inner + outer) / 2, (outer - inner) / 2, 16, 48).rotateX(Math.PI / 2);
-
-  switch (id) {
-    case 'catears': {
-      const fur = mat('#302d38');
-      const pink = mat('#ff8fb1');
-      for (const side of [-1, 1]) {
-        const x = side * 0.42;
-        part(root, prism(0.5, 0.55, 0.2), fur, [x, TOP + 0.2, -0.05], [0, 0, -side * 14]);
-        part(root, prism(0.3, 0.34, 0.06), pink, [x + side * 0.02, TOP + 0.16, 0.06], [0, 0, -side * 14]);
-      }
-      break;
+  const animated = [];
+  const add = (parent, p) => {
+    let o;
+    if (p.shape === 'group') {
+      o = new THREE.Group();
+      (p.parts || []).forEach((c) => add(o, c));
+    } else {
+      const g = geo(p);
+      if (!g) return;
+      o = new THREE.Mesh(g, mat(p));
     }
-    case 'cap': {
-      const red = mat('#ff6b6b');
-      part(root, sphere(0.74, 0.8, true), red, [0, TOP - 0.2, 0]);
-      part(root, new THREE.BoxGeometry(1.1, 0.07, 0.6), red, [0, TOP - 0.17, 0.85], [-6, 0, 0]);
-      part(root, sphere(0.08, 0.16), mat('#f4f1ec'), [0, TOP + 0.2, 0]);
-      break;
+    place(o, p);
+    if (p.anim) {
+      o.userData.anim = { ...p.anim, y: o.position.y, rot: o.rotation.clone() };
+      animated.push(o);
     }
-    case 'crown': {
-      const gold = mat('#ffd166', 0.3, 0.8);
-      part(root, cyl(0.5, 0.47, 0.28), gold, [0, TOP + 0.12, 0]);
-      const gems = ['#ff6b6b', '#4cc9f0', '#7ee0c3', '#e056fd', '#ff8fb1'];
-      for (let i = 0; i < 5; i++) {
-        const a = (Math.PI * 2 * i) / 5;
-        const dx = Math.sin(a), dz = Math.cos(a);
-        const spike = part(root, prism(0.22, 0.3, 0.08), gold, [dx * 0.47, TOP + 0.4, dz * 0.47]);
-        spike.rotation.y = a;
-        part(root, sphere(0.06, 0.12), mat(gems[i], 0.2, 0, 0.6), [dx * 0.51, TOP + 0.12, dz * 0.51]);
-      }
-      break;
-    }
-    case 'halo': {
-      const ring = part(root, torus(0.42, 0.55), mat('#fff3b0', 0.2, 0, 2.2), [0, TOP + 0.45, 0]);
-      ring.userData.bob = [TOP + 0.45, TOP + 0.58];
-      break;
-    }
-    case 'tophat': {
-      const black = mat('#1f1c27', 0.5);
-      part(root, cyl(0.82, 0.82, 0.06), black, [0, TOP + 0.03, 0]);
-      part(root, cyl(0.5, 0.46, 0.85), black, [0, TOP + 0.48, 0]);
-      part(root, cyl(0.475, 0.47, 0.14), mat('#b89cff'), [0, TOP + 0.16, 0]);
-      root.rotation.z = -6 * D;
-      break;
-    }
-    case 'flower': {
-      const flower = new THREE.Group();
-      flower.position.set(0.5, TOP - 0.05, 0.25);
-      flower.rotation.set(20 * D, 0, -35 * D, 'YXZ');
-      root.add(flower);
-      const pink = mat('#ff8fb1');
-      for (let i = 0; i < 5; i++) {
-        const a = (Math.PI * 2 * i) / 5;
-        part(flower, sphere(0.16, 0.12), pink, [Math.cos(a) * 0.17, 0, Math.sin(a) * 0.17]);
-      }
-      part(flower, sphere(0.12, 0.18), mat('#ffd166'), [0, 0.04, 0]);
-      break;
-    }
-    case 'headphones': {
-      const dark = mat('#2e2940', 0.4);
-      part(root, torus(0.72, 0.82), dark, [0, 0.62, 0], [90, 0, 0]);
-      for (const side of [-1, 1]) {
-        part(root, cyl(0.26, 0.26, 0.2), dark, [side * 0.78, 0.62, 0], [0, 0, 90]);
-        part(root, cyl(0.18, 0.18, 0.22), mat('#7ee0c3'), [side * 0.8, 0.62, 0], [0, 0, 90]);
-      }
-      break;
-    }
-    default:
-      return null;
-  }
+    parent.add(o);
+  };
+  const root = new THREE.Group();
+  place(root, def);
+  (def.parts || []).forEach((p) => add(root, p));
+  // Same loops as the app: bob up and down, sway around an axis, spin.
+  root.userData.animate = (t) => animated.forEach((o) => {
+    const a = o.userData.anim;
+    const k = (t % a.period) / a.period;
+    if (a.type === 'bob') o.position.y = a.y + a.amp * (0.5 - 0.5 * Math.cos(k * Math.PI * 2));
+    else if (a.type === 'sway') o.rotation[a.axis || 'y'] = a.rot[a.axis || 'y'] + Math.sin(k * Math.PI * 2) * (a.deg || 10) * D;
+    else if (a.type === 'spin') o.rotation.y = a.rot.y + k * Math.PI * 2;
+  });
   return root;
 }
 
-// Loads melly.glb dressed as this player: body colors by bone, face texture and hat.
+// Tapering tube along a Catmull-Rom curve with a rounded tip (tails and the like).
+function tubeGeometry(THREE, points, r0, r1) {
+  const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.5);
+  const steps = (points.length - 1) * 8;
+  const frames = curve.computeFrenetFrames(steps, false);
+  const sides = 12;
+  const pos = [];
+  const rings = [];
+  for (let i = 0; i <= steps; i++) rings.push({ c: curve.getPointAt(i / steps), r: r0 + (r1 - r0) * (i / steps), n: frames.normals[i], b: frames.binormals[i] });
+  const end = rings[rings.length - 1];
+  const dir = curve.getTangentAt(1);
+  for (let k = 1; k <= 4; k++) {
+    const a = (Math.PI / 2) * (k / 4);
+    rings.push({ c: end.c.clone().addScaledVector(dir, r1 * Math.sin(a)), r: r1 * Math.cos(a), n: end.n, b: end.b });
+  }
+  const ring = (R) => Array.from({ length: sides + 1 }, (_, s) => {
+    const ang = (Math.PI * 2 * s) / sides;
+    return R.c.clone().addScaledVector(R.n, Math.cos(ang) * R.r).addScaledVector(R.b, Math.sin(ang) * R.r);
+  });
+  const all = rings.map(ring);
+  for (let i = 0; i < all.length - 1; i++) {
+    for (let s = 0; s < sides; s++) {
+      for (const v of [all[i][s], all[i + 1][s], all[i][s + 1], all[i][s + 1], all[i + 1][s], all[i + 1][s + 1]]) pos.push(v.x, v.y, v.z);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// What someone wears: `accessories` from the API, else the old single hat.
+const wornOf = (u) => (Array.isArray(u.accessories) ? u.accessories : u.hat && u.hat !== 'none' ? [u.hat] : []);
+
 async function buildMelly(u) {
   const { THREE, GLTFLoader } = await loadThree();
   const gltf = await new GLTFLoader().loadAsync('/models/melly.glb');
@@ -758,9 +782,9 @@ async function buildMelly(u) {
   const faceTex = await new THREE.TextureLoader().loadAsync(`/img/faces/${FACE_SLUGS[u.face] || 'grin'}.png`);
   faceTex.flipY = false;
   faceTex.colorSpace = THREE.SRGBColorSpace;
-  let head = null;
+  const bones = {};
   model.traverse((o) => {
-    if (o.isBone && o.name === 'Head') head = o;
+    if (o.isBone) bones[o.name] = o;
     if (!o.isMesh) return;
     if (o.material.name === 'Face') {
       o.material = new THREE.MeshLambertMaterial({ map: faceTex, transparent: true, alphaTest: 0.4 });
@@ -782,15 +806,18 @@ async function buildMelly(u) {
     g.setAttribute('color', new THREE.BufferAttribute(out, 3));
     o.material = new THREE.MeshLambertMaterial({ vertexColors: true });
   });
-  const hat = buildHat(THREE, u.hat);
-  if (hat && head) head.add(hat);
-  const bobbers = [];
-  hat?.traverse((o) => { if (o.userData.bob) bobbers.push(o); });
-  // Halo floats up and down like in the game.
-  const animateHat = (t) => bobbers.forEach((o) => {
-    const [lo, hi] = o.userData.bob;
-    o.position.y = lo + (hi - lo) * (0.5 - 0.5 * Math.cos((t / 1.2) * Math.PI));
-  });
+  const catalog = await loadAccessories();
+  const worn = [];
+  for (const id of wornOf(u)) {
+    const def = catalog.items?.find((it) => it.id === id);
+    const bone = def && bones[def.bone || 'Head'];
+    if (!bone) continue;
+    const acc = buildAccessory(THREE, def);
+    bone.add(acc);
+    worn.push(acc);
+  }
+  // Halos bob, tails sway, like in the game.
+  const animateHat = (t) => worn.forEach((acc) => acc.userData.animate(t));
   return { THREE, gltf, model, animateHat };
 }
 

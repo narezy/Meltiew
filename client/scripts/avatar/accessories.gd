@@ -171,7 +171,75 @@ static func _mesh(shape: String, p: Dictionary) -> Mesh:
 			m.radius = float(p.get("r", 0.2))
 			m.height = float(p.get("h", 0.8))
 			return m
+		"tube":
+			var pts: Array = p.get("points", [])
+			if pts.size() < 2:
+				return null
+			return tube_mesh(pts.map(func(a): return _v3(a)), float(p.get("r", 0.1)), float(p.get("r_end", p.get("r", 0.1))))
 	return null
+
+
+## A smooth tube along a Catmull-Rom curve through `points`, narrowing from `r0`
+## to `r1`, with a rounded tip (tails, cables, horns...).
+static func tube_mesh(points: Array, r0: float, r1: float, sides := 12, per_segment := 8) -> ArrayMesh:
+	# Sample the curve.
+	var path: Array[Vector3] = []
+	var n := points.size()
+	for i in n - 1:
+		var p0: Vector3 = points[maxi(i - 1, 0)]
+		var p1: Vector3 = points[i]
+		var p2: Vector3 = points[i + 1]
+		var p3: Vector3 = points[mini(i + 2, n - 1)]
+		for k in per_segment:
+			var t := float(k) / per_segment
+			path.append(0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t))
+	path.append(points[n - 1])
+	# A rounded tip: a few more rings shrinking to a point past the end.
+	var tip_dir: Vector3 = (path[-1] - path[-2]).normalized()
+	var rings: Array = []  # [center, radius]
+	for i in path.size():
+		rings.append([path[i], lerpf(r0, r1, float(i) / (path.size() - 1))])
+	for k in range(1, 5):
+		var a := PI * 0.5 * k / 4.0
+		rings.append([path[-1] + tip_dir * r1 * sin(a), r1 * cos(a)])
+	# Frames that don't twist along the curve (parallel transport).
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tangent: Vector3 = (rings[1][0] - rings[0][0]).normalized()
+	var normal := tangent.cross(Vector3.RIGHT if absf(tangent.x) < 0.9 else Vector3.UP).normalized()
+	var ring_verts: Array = []
+	for i in rings.size():
+		var c: Vector3 = rings[i][0]
+		var t_new: Vector3 = ((rings[mini(i + 1, rings.size() - 1)][0] - rings[maxi(i - 1, 0)][0]) as Vector3).normalized()
+		if t_new.length() > 0.0:
+			var axis := tangent.cross(t_new)
+			if axis.length() > 0.0001:
+				normal = normal.rotated(axis.normalized(), tangent.signed_angle_to(t_new, axis.normalized()))
+			tangent = t_new
+		var binormal := tangent.cross(normal).normalized()
+		var verts: Array = []
+		for s in sides + 1:
+			var ang := TAU * s / sides
+			var dir := normal * cos(ang) + binormal * sin(ang)
+			verts.append([c + dir * float(rings[i][1]), dir])
+		ring_verts.append(verts)
+	for i in ring_verts.size() - 1:
+		for s in sides:
+			var a: Array = ring_verts[i][s]
+			var b: Array = ring_verts[i][s + 1]
+			var c2: Array = ring_verts[i + 1][s]
+			var d: Array = ring_verts[i + 1][s + 1]
+			for v in [a, c2, b, b, c2, d]:
+				st.set_normal(v[1])
+				st.add_vertex(v[0])
+	# Close the base (it sits against the body anyway).
+	var base: Vector3 = rings[0][0]
+	var back: Vector3 = -((rings[1][0] - rings[0][0]) as Vector3).normalized()
+	for s in sides:
+		for v in [[base, back], ring_verts[0][s + 1], ring_verts[0][s]]:
+			st.set_normal(back)
+			st.add_vertex(v[0])
+	return st.commit()
 
 
 static func _v3(a: Array) -> Vector3:
