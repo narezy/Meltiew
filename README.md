@@ -1,6 +1,13 @@
 # Meltiew: download
 
-**[meltiew.apk](https://github.com/narezy/Meltiew/raw/refs/heads/download/meltiew.apk)** is the Android build, version 1.1.0, package `cat.narezany.meltiew`, Android 7+.
+Version 1.2.0. Same account and friends on every platform.
 
-Open the file on your phone and allow installing from your browser if Android asks.
+| Platform | File |
+| --- | --- |
+| Android 7+ | [meltiew.apk](https://github.com/narezy/Meltiew/raw/refs/heads/download/meltiew.apk) |
+| Windows (64-bit) | [meltiew-windows.zip](https://github.com/narezy/Meltiew/raw/refs/heads/download/meltiew-windows.zip) |
+| Linux (x86_64) | [meltiew-linux.zip](https://github.com/narezy/Meltiew/raw/refs/heads/download/meltiew-linux.zip) |
+
+Android: open the APK and allow installing from your browser if asked.
+Windows/Linux: unzip and run `Meltiew.exe` / `Meltiew.x86_64`.
 The source code lives on the `main` branch.
