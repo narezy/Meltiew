@@ -10,8 +10,7 @@ var avatar: MellyAvatar
 var _snaps: Array = []  # [local_ms, pos, yaw, anim]
 var _name_tag: Label3D
 var _role_tag: Label3D
-var _bubble: Label3D
-var _bubble_time := 0.0
+var _bubble: GameBubble
 var _dead := false
 
 
@@ -39,7 +38,8 @@ func _ready() -> void:
 	_role_tag.outline_modulate = Color(0.08, 0.07, 0.1, 0.85)
 	_role_tag.pixel_size = 0.0045
 	add_child(_role_tag)
-	_bubble = GameBubble.make()
+	_bubble = GameBubble.new()
+	_bubble.avatar = avatar
 	add_child(_bubble)
 	refresh_look()
 
@@ -67,8 +67,7 @@ func set_state(p: Vector3, yaw: float, anim: String) -> void:
 
 
 func show_bubble(text: String) -> void:
-	GameBubble.show(_bubble, text)
-	_bubble_time = 6.0
+	_bubble.show_text(text)
 
 
 func shatter() -> void:
@@ -82,6 +81,13 @@ func shatter() -> void:
 
 
 func _process(delta: float) -> void:
+	# Name tags ride on the head (lower when sitting) and step aside for a chat bubble.
+	var top := avatar.top_y() - global_position.y
+	_name_tag.position.y = top + 0.3
+	_role_tag.position.y = top + 0.52
+	var talking := _bubble.visible
+	_name_tag.transparency = 1.0 if talking else 0.0
+	_role_tag.transparency = 1.0 if talking else 0.0
 	if not _snaps.is_empty():
 		var render_t := Time.get_ticks_msec() - DELAY_MS
 		# Drop snapshots we have fully passed, keeping one before render time.
@@ -107,7 +113,3 @@ func _process(delta: float) -> void:
 				_name_tag.visible = true
 				refresh_look()
 			avatar.play(anim)
-	if _bubble_time > 0.0:
-		_bubble_time -= delta
-		if _bubble_time <= 0.0:
-			_bubble.visible = false

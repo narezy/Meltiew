@@ -390,9 +390,9 @@ func _send_chat() -> void:
 	_chat_input.text = ""
 	if text != "":
 		chat_submitted.emit(text)
-	# Phones: hide the keyboard but keep the chat open to read replies.
-	if DisplayServer.is_touchscreen_available():
-		_chat_input.release_focus()
+	# Back to playing: the chat stays open to read replies, but WASD moves again
+	# (and phones hide the keyboard). Enter, T or / jumps back into typing.
+	_chat_input.release_focus()
 
 
 func set_stats(fps: int, ping: int) -> void:

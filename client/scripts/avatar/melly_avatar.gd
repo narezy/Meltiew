@@ -29,6 +29,9 @@ var anim_player: AnimationPlayer
 var _model: Node3D
 var _body_mat: ShaderMaterial
 var _hat_root: BoneAttachment3D
+var _head_top_above_bone := 0.35
+## Rest-pose height of the top of Melly's head (metres, avatar space).
+const HEAD_TOP := 1.81
 var _hat_id := ""
 var _face_mat: StandardMaterial3D
 var _face_id := ":D"
@@ -65,6 +68,10 @@ func _ready() -> void:
 	_hat_root = BoneAttachment3D.new()
 	_hat_root.bone_name = "Head"
 	skeleton.add_child(_hat_root)
+	# Top of the head measured from the head bone in the rest pose, in avatar space.
+	var head := skeleton.find_bone("Head")
+	if head >= 0:
+		_head_top_above_bone = HEAD_TOP - (_model.transform * skeleton.get_bone_global_rest(head).origin).y
 	# Looks may have been set before we entered the tree.
 	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
 	var hat := _hat_id
@@ -101,6 +108,19 @@ func set_colors(colors: Dictionary) -> void:
 		arr.append(Color(str(colors.get(part, Session.DEFAULT_COLORS[part]))))
 	if _body_mat:
 		_body_mat.set_shader_parameter("part_colors", arr)
+
+
+## World height of the highest point of the character right now: the top of the head
+## (it follows emotes like sitting) or whatever is worn higher up.
+func top_y() -> float:
+	if _hat_root == null:
+		return global_position.y + HEAD_TOP * scale.y
+	var top := _hat_root.global_position.y + _head_top_above_bone * global_basis.get_scale().y
+	for n in _hat_root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.visible:
+			top = maxf(top, (mi.global_transform * mi.get_aabb()).end.y)
+	return top
 
 
 func get_colors() -> Dictionary:

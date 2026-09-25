@@ -29,8 +29,7 @@ var _stats_timer := 0.0
 var _joined := false
 var _leaving := false
 var _retries := 0
-var _my_bubble: Label3D
-var _my_bubble_time := 0.0
+var _my_bubble: GameBubble
 var _heart_tex: Texture2D
 var _last_heart := -100000
 const HEART_COOLDOWN_MS := 2500
@@ -72,7 +71,8 @@ func _ready() -> void:
 		player.server_health = true
 		player.set_physics_process(false)
 
-	_my_bubble = GameBubble.make()
+	_my_bubble = GameBubble.new()
+	_my_bubble.avatar = player.avatar
 	player.add_child(_my_bubble)
 
 	hud = GameHud.new()
@@ -228,8 +228,7 @@ func _on_message(m: Dictionary) -> void:
 			var is_me := id == my_id
 			hud.add_chat(str(m.name), str(m.m), UI.ACCENT if is_me else UI.MINT)
 			if is_me:
-				GameBubble.show(_my_bubble, str(m.m))
-				_my_bubble_time = 6.0
+				_my_bubble.show_text(str(m.m))
 			elif remotes.has(id):
 				remotes[id].show_bubble(str(m.m))
 			Sfx.play("pop", 1.4)
@@ -512,10 +511,6 @@ func _process(delta: float) -> void:
 	if _stats_timer <= 0.0:
 		_stats_timer = 0.5
 		hud.set_stats(int(Engine.get_frames_per_second()), _ping_ms)
-	if _my_bubble_time > 0.0:
-		_my_bubble_time -= delta
-		if _my_bubble_time <= 0.0:
-			_my_bubble.visible = false
 
 
 # --- actions ----------------------------------------------------------------
