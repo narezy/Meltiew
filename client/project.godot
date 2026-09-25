@@ -24,6 +24,7 @@ config/icon="res://assets/icon.png"
 Api="*res://scripts/autoload/api.gd"
 Session="*res://scripts/autoload/session.gd"
 Net="*res://scripts/autoload/net.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
 UI="*res://scripts/autoload/ui.gd"
 
 [display]
