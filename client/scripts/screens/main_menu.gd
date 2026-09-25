@@ -6,6 +6,7 @@ const PAGES := [
 	{"id": "friends", "title": "nav_friends", "icon": "friends"},
 	{"id": "messages", "title": "messages", "icon": "chat"},
 	{"id": "avatar", "title": "nav_avatar", "icon": "avatar"},
+	{"id": "studio", "title": "nav_studio", "icon": "code"},
 	{"id": "settings", "title": "nav_settings", "icon": "settings"},
 ]
 
@@ -245,7 +246,7 @@ func _apply_compact() -> void:
 	var m := 18 if compact else 32
 	_content.add_theme_constant_override("margin_left", m)
 	_content.add_theme_constant_override("margin_right", 16 if compact else 28)
-	_content.add_theme_constant_override("margin_top", 12 if short else (16 if compact else 28))
+	_content.add_theme_constant_override("margin_top", 18 if short else (16 if compact else 28))
 	_content.add_theme_constant_override("margin_bottom", 12 if short else 28)
 
 
@@ -299,6 +300,8 @@ func open_page(id: String) -> void:
 			_page = AvatarPage.new()
 		"settings":
 			_page = SettingsPage.new()
+		"studio":
+			_page = StudioPage.new()
 		"messages":
 			_page = MessagesPage.new()
 			_page.open_user = _dm_user
@@ -310,11 +313,17 @@ func open_page(id: String) -> void:
 			_page = HomePage.new()
 	_page.set_meta("menu", self)
 	_content.add_child(_page)
-	_page.modulate.a = 0.0
-	_page.position.y = 12
-	var t := _page.create_tween().set_parallel()
-	t.tween_property(_page, "modulate:a", 1.0, 0.2)
-	t.tween_property(_page, "position:y", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var page := _page
+	page.modulate.a = 0.0
+	# Slide in from where the container puts the page (its margins), once it's laid out.
+	await get_tree().process_frame
+	if not is_instance_valid(page):
+		return
+	var y := page.position.y
+	page.position.y = y + 12
+	var t := page.create_tween().set_parallel()
+	t.tween_property(page, "modulate:a", 1.0, 0.2)
+	t.tween_property(page, "position:y", y, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func set_request_badge(n: int) -> void:

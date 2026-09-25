@@ -159,7 +159,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       name_ru: studio ? i18n.name?.ru || name : p.name_ru,
       description,
       description_ru: studio ? i18n.description?.ru || description : p.description_ru,
-      cover: p.cover || '/img/place-default.png',
+      cover: p.cover || '/img/place-cover.png',
       cover_square: p.cover_square || '',
       visits: p.visits,
       created_at: p.created_at,

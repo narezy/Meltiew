@@ -2469,6 +2469,12 @@ G.__step = hostCall(function(t)
 	RunService.Heartbeat:_fire(dt)
 end)
 
+-- Studio: compile a script without running it; returns "" or the error message.
+G.__check = function(source)
+	local fn, err = compile(source, "=script")
+	return fn and "" or tostring(err)
+end
+
 G.__snapshot = function()
 	return json.encode(snapshotOps())
 end

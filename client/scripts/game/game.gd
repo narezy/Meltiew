@@ -6,6 +6,8 @@ const SEND_HZ := 15.0
 ## The built-in Playground, or a PlaceWorld stand-in for studio places
 ## (their world is drawn by place_host.scene).
 var world: Node3D
+## The connection: the Net autoload, or a LocalNet during a Studio play test.
+var net: Node
 var place_host: PlaceHost
 var console_lines: Array = []
 var _is_place := false
@@ -38,6 +40,11 @@ func _ready() -> void:
 	get_tree().quit_on_go_back = false
 	get_tree().set_auto_accept_quit(false)
 	_is_place = Session.pending_game != "playground"
+	if not Session.test_marp.is_empty():
+		net = LocalNet.new(Session.test_marp)
+		add_child(net)
+	else:
+		net = Net
 	world = PlaceWorld.new() if _is_place else Playground.new()
 	add_child(world)
 	player = LocalPlayer.new()
@@ -70,7 +77,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind_player(player)
 	hud.menu_requested.connect(_open_menu)
-	hud.chat_submitted.connect(func(t): Net.send({"t": "chat", "m": t}))
+	hud.chat_submitted.connect(func(t): net.send({"t": "chat", "m": t}))
 	hud.emote_picked.connect(_emote)
 
 	menu = GameMenu.new()
@@ -82,15 +89,15 @@ func _ready() -> void:
 	Session.settings_changed.connect(_on_settings_changed)
 	_apply_quality()
 
-	Net.connected.connect(_on_connected)
-	Net.disconnected.connect(_on_disconnected)
-	Net.message.connect(_on_message)
+	net.connected.connect(_on_connected)
+	net.disconnected.connect(_on_disconnected)
+	net.message.connect(_on_message)
 	hud.show_overlay(L.t("loading_place") if _is_place else L.t("joining_playground"))
-	Net.connect_to_game()
+	net.connect_to_game()
 
 
 func _exit_tree() -> void:
-	Net.close()
+	net.close()
 	if place_host:
 		place_host.close()
 	var vp := get_viewport()
@@ -151,7 +158,7 @@ func _open_menu() -> void:
 
 func _on_connected() -> void:
 	_retries = 0
-	Net.send({"t": "join", "game": Session.pending_game, "server": Session.pending_server})
+	net.send({"t": "join", "game": Session.pending_game, "server": Session.pending_server})
 
 
 func _on_disconnected(reason: String) -> void:
@@ -167,13 +174,13 @@ func _on_disconnected(reason: String) -> void:
 		if not _leaving and is_inside_tree():
 			if server_info.has("id"):
 				Session.pending_server = str(server_info.id)
-			Net.connect_to_game()
+			net.connect_to_game()
 		return
 	hud.show_overlay(reason, [
 		[L.t("retry"), func():
 			_retries = 0
 			hud.show_overlay(L.t("connecting"))
-			Net.connect_to_game()],
+			net.connect_to_game()],
 		[L.t("to_menu"), _leave, "ghost"],
 	])
 
@@ -238,7 +245,7 @@ func _on_message(m: Dictionary) -> void:
 		"error":
 			if str(m.get("code", "")) == "birthdate":
 				_leaving = true
-				Net.close()
+				net.close()
 				hud.show_overlay(L.t("birthdate_needed"), [[L.t("to_menu"), _leave]])
 				return
 			if not _joined:
@@ -246,12 +253,12 @@ func _on_message(m: Dictionary) -> void:
 					[L.t("other_server"), func():
 						Session.pending_server = "auto"
 						hud.show_overlay(L.t("finding_server"))
-						Net.send({"t": "join", "game": Session.pending_game, "server": "auto"})],
+						net.send({"t": "join", "game": Session.pending_game, "server": "auto"})],
 					[L.t("to_menu"), _leave, "ghost"],
 				])
 		"kicked":
 			_leaving = true
-			Net.close()
+			net.close()
 			match str(m.get("code", "")):
 				"update":
 					UI.show_update_required(str(m.get("m", "")), Api.BASE_URL + "/download")
@@ -305,7 +312,7 @@ func _start_place(p: Dictionary) -> void:
 			place_host.scene.queue_free()
 	place_host = PlaceHost.new()
 	add_child(place_host)
-	place_host.send.connect(func(msg): Net.send(msg))
+	place_host.send.connect(func(msg): net.send(msg))
 	place_host.output.connect(_on_output)
 	place_host.spawn_requested.connect(func(pos: Vector3):
 		player.set_physics_process(true)
@@ -322,6 +329,11 @@ func _start_place(p: Dictionary) -> void:
 
 func _on_output(line: Dictionary) -> void:
 	console_lines.append(line)
+	# A Studio play test hands its output back to the editor.
+	if not Session.test_marp.is_empty():
+		var out: Array = Session.get_meta("test_output", [])
+		out.append(line)
+		Session.set_meta("test_output", out)
 	if console_lines.size() > 300:
 		console_lines.pop_front()
 	# Script errors also show in the console tab; F9 toggles a quick view in the chat.
@@ -412,7 +424,7 @@ func _click_at(screen: Vector2) -> void:
 	var part := PlaceScene.id_of(hit.collider)
 	var det := place_host.tree.child_of_class(part, "ClickDetector") if part != "" else ""
 	if det != "" and hit.position.distance_to(player.global_position) <= float(place_host.tree.prop(det, "MaxDistance")) + 2.0:
-		Net.send({"t": "click", "id": det})
+		net.send({"t": "click", "id": det})
 		Sfx.click()
 
 
@@ -462,7 +474,7 @@ func _physics_process(delta: float) -> void:
 		# Resend at least once a second so late joiners and interpolation stay fresh.
 		var now := Time.get_ticks_msec()
 		if state != _last_sent or now - _last_sent_at > 1000:
-			Net.send(state)
+			net.send(state)
 			_last_sent = state
 			_last_sent_at = now
 
@@ -471,7 +483,7 @@ func _process(delta: float) -> void:
 	_ping_timer -= delta
 	if _ping_timer <= 0.0 and _joined:
 		_ping_timer = 3.0
-		Net.send({"t": "ping", "c": Time.get_ticks_msec()})
+		net.send({"t": "ping", "c": Time.get_ticks_msec()})
 	_stats_timer -= delta
 	if _stats_timer <= 0.0:
 		_stats_timer = 0.5
@@ -489,14 +501,14 @@ func _emote(e: String) -> void:
 		return
 	if e == "heart":
 		_spawn_heart(player)
-		Net.send({"t": "emote", "e": "heart"})
+		net.send({"t": "emote", "e": "heart"})
 		return
 	player.play_emote(e)
 
 
 func _on_died() -> void:
 	Ragdoll.spawn(self, player.avatar.global_transform, player.avatar.get_colors(), player.velocity)
-	Net.send({"t": "dead"})
+	net.send({"t": "dead"})
 	hud.big_message(L.t("you_fell_apart"), 2.4)
 
 
@@ -550,5 +562,10 @@ func _confirm_leave() -> void:
 
 func _leave() -> void:
 	_leaving = true
-	Net.close()
+	net.close()
+	# A Studio play test goes back to the editor.
+	if not Session.test_marp.is_empty():
+		Session.test_marp = {}
+		UI.goto("res://scenes/studio.tscn")
+		return
 	UI.goto("res://scenes/main_menu.tscn")

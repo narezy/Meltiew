@@ -32,6 +32,10 @@ var settings := {
 var pending_server := "auto"
 ## Which place the game scene joins: "playground" or a studio place id.
 var pending_game := "playground"
+## Studio: the place being edited (id and its unsaved state), and the place being play-tested.
+var studio_place_id := ""
+var studio_marp: Dictionary = {}
+var test_marp: Dictionary = {}
 
 
 func _ready() -> void:
