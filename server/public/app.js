@@ -58,7 +58,7 @@ const T = {
     download_title: 'Get Meltiew', download_text: 'Android: open the APK and allow installing from your browser if asked. Windows and Linux: unzip and run.',
     server_up: 'Server online', server_down: 'Server offline', signed_out: 'Signed out', sign_in_to_play: 'Sign in to play',
     blocked: 'Blocked', done: 'Done',
-    places: 'Places', by: 'by', playing_n: '{0} playing', visits_n: '{0} visits', liked: '{0} liked', about: 'About',
+    by: 'by', playing_n: '{0} playing', visits_n: '{0} visits', liked: '{0} liked', about: 'About',
     created: 'Created {0}', back: '← Back', play_hint: 'Play puts you on a server with your friends if any are playing.',
     owner: 'OWNER', admin: 'ADMIN', admin_panel: 'Admin', overview: 'Overview', users: 'Users', places_admin: 'Places',
     st_users: 'Accounts', st_new: 'New today', st_active: 'Active today', st_online: 'Online now', st_banned: 'Banned',
@@ -101,6 +101,9 @@ const T = {
     report_place: 'Report this place', report_comment: 'Report this comment', r_place: 'Inappropriate place', r_comment: 'Rude or spam comment',
     report_about_place: 'Place:', report_open_place: 'Open the place',
     doc_start: 'Getting started', doc_scripting: 'Scripting', doc_ui: 'User interface', doc_strings: 'Translations', doc_melt: 'The .melt file', doc_classes: 'Class reference',
+    place_name: 'Name', place_description: 'Description', translations: 'Translations', add_language: '+ Add a language',
+    no_translations: 'No translations yet: everyone sees the texts above.', max_players: 'Max players per server (up to 30)',
+    covers: 'Covers', cover_wide: 'Wide 16:9', cover_square: 'Icon 1:1', stats: 'Stats', bad_image: 'That image did not work',
   },
   ru: {
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
@@ -131,7 +134,7 @@ const T = {
     download_title: 'Скачать Meltiew', download_text: 'Android: открой APK и разреши установку из браузера, если спросит. Windows и Linux: распакуй и запусти.',
     server_up: 'Сервер онлайн', server_down: 'Сервер недоступен', signed_out: 'Ты вышел(ла)', sign_in_to_play: 'Войди, чтобы играть',
     blocked: 'Заблокирован', done: 'Готово',
-    places: 'Плейсы', by: 'от', playing_n: 'играют: {0}', visits_n: 'посещений: {0}', liked: '{0} лайков', about: 'Описание',
+    by: 'от', playing_n: 'играют: {0}', visits_n: 'посещений: {0}', liked: '{0} лайков', about: 'Описание',
     created: 'Создан {0}', back: '← Назад', play_hint: '«Играть» закинет тебя на сервер к друзьям, если они играют.',
     owner: 'ОВНЕР', admin: 'АДМИН', admin_panel: 'Админка', overview: 'Обзор', users: 'Игроки', places_admin: 'Плейсы',
     st_users: 'Аккаунтов', st_new: 'Новых за сутки', st_active: 'Активных за сутки', st_online: 'Онлайн', st_banned: 'Забанено',
@@ -174,6 +177,9 @@ const T = {
     report_place: 'Пожаловаться на плейс', report_comment: 'Пожаловаться на комментарий', r_place: 'Неприемлемый плейс', r_comment: 'Грубость или спам',
     report_about_place: 'Плейс:', report_open_place: 'Открыть плейс',
     doc_start: 'С чего начать', doc_scripting: 'Скрипты', doc_ui: 'Интерфейс', doc_strings: 'Переводы', doc_melt: 'Файл .melt', doc_classes: 'Справочник классов',
+    place_name: 'Название', place_description: 'Описание', translations: 'Переводы', add_language: '+ Добавить язык',
+    no_translations: 'Переводов пока нет: все видят тексты выше.', max_players: 'Максимум игроков на сервере (до 30)',
+    covers: 'Обложки', cover_wide: 'Широкая 16:9', cover_square: 'Иконка 1:1', stats: 'Статистика', bad_image: 'Картинка не подошла',
   },
 };
 
@@ -1005,24 +1011,84 @@ async function placePage(root, id) {
   await draw();
 }
 
-// Your own place: who can play, comments on/off and the numbers. Editing is in the app's Studio.
+// Your own place: everything about it except the world itself (that's the app's Studio),
+// and the numbers.
 async function ownerPanel(box, p, redraw) {
   const vis = ['private', 'friends', 'public'];
-  box.innerHTML = `<div class="card stack">
+  const ed = p.edit || { name: p.name, description: p.description, i18n: { name: {}, description: {} } };
+  const tr = { name: { ...(ed.i18n?.name || {}) }, description: { ...(ed.i18n?.description || {}) } };
+  const langs = () => [...new Set([...Object.keys(tr.name), ...Object.keys(tr.description)])];
+  const langName = (code) => (window.LANGUAGES || []).find(([c]) => c === code)?.[1] || code;
+  box.innerHTML = `<div class="card stack owner-panel">
     <div class="row"><h3 class="grow" style="margin:0">${t('your_place')}</h3><a class="link" href="/docs/studio" data-link>${t('studio_docs')}</a></div>
     <span class="muted">${t('edit_in_studio')}</span>
-    <div class="row" style="flex-wrap:wrap;gap:14px">
-      <label class="stack" style="gap:6px"><span class="muted">${t('who_can_play')}</span>
-        <select id="vis">${vis.map((v) => `<option value="${v}" ${p.visibility === v ? 'selected' : ''}>${t('vis_' + v)}</option>`).join('')}</select></label>
-      <label class="radio" style="align-self:flex-end"><input type="checkbox" id="cm" ${p.comments_enabled ? 'checked' : ''}>${t('comments_on')}</label>
-    </div>
+    <form class="stack" id="pe">
+      <label class="stack" style="gap:6px"><span class="muted">${t('place_name')}</span><input name="name" maxlength="60" required value="${esc(ed.name)}"></label>
+      <label class="stack" style="gap:6px"><span class="muted">${t('place_description')}</span><textarea name="description" maxlength="1000" rows="4">${esc(ed.description)}</textarea></label>
+      <div class="stack" style="gap:8px"><span class="muted">${t('translations')}</span><div class="stack" id="trs" style="gap:8px"></div>
+        <select id="addlang"><option value="">${t('add_language')}</option>${(window.LANGUAGES || []).map(([c, n]) => `<option value="${c}">${esc(n)}</option>`).join('')}</select></div>
+      <div class="row" style="flex-wrap:wrap;gap:14px;align-items:flex-end">
+        <label class="stack" style="gap:6px"><span class="muted">${t('who_can_play')}</span>
+          <select name="visibility">${vis.map((v) => `<option value="${v}" ${p.visibility === v ? 'selected' : ''}>${t('vis_' + v)}</option>`).join('')}</select></label>
+        <label class="stack" style="gap:6px"><span class="muted">${t('max_players')}</span>
+          <input name="max_players" type="number" min="1" max="30" value="${p.max_players || 10}" style="width:110px"></label>
+        <label class="radio"><input type="checkbox" name="comments" ${p.comments_enabled ? 'checked' : ''}>${t('comments_on')}</label>
+      </div>
+      <button class="btn">${t('save')}</button>
+    </form>
+    <div class="stack" style="gap:8px"><span class="muted">${t('covers')}</span>
+      <div class="row covers" style="flex-wrap:wrap;gap:14px">
+        <label class="cover-pick wide"><img src="${esc(p.cover)}" alt=""><span>${t('cover_wide')}</span><input type="file" accept="image/png,image/jpeg" data-kind="wide" hidden></label>
+        <label class="cover-pick square"><img src="${esc(p.cover_square || p.cover)}" alt=""><span>${t('cover_square')}</span><input type="file" accept="image/png,image/jpeg" data-kind="square" hidden></label>
+      </div></div>
     <div id="pstats"><div class="loader"><i></i></div></div></div>`;
-  const patch = async (body) => {
-    try { await api('PATCH', `/api/studio/places/${encodeURIComponent(p.id)}`, body); toast(t('saved')); redraw(); }
-    catch (e) { toast(e.message, 'error'); }
+  const drawTr = () => {
+    $('#trs', box).innerHTML = langs().map((code) => `<div class="row tr-row" data-lang="${code}"><b class="lang-tag">${esc(langName(code))}</b>
+      <input class="grow" data-k="name" maxlength="60" placeholder="${t('place_name')}" value="${esc(tr.name[code] || '')}">
+      <input class="grow" data-k="description" maxlength="1000" placeholder="${t('place_description')}" value="${esc(tr.description[code] || '')}">
+      <button type="button" class="btn small ghost" data-rm="${code}">✕</button></div>`).join('') || `<span class="muted" style="font-size:14px">${t('no_translations')}</span>`;
+    $('#trs', box).querySelectorAll('input').forEach((i) => i.addEventListener('input', () => {
+      const code = i.closest('[data-lang]').dataset.lang;
+      tr[i.dataset.k][code] = i.value;
+    }));
+    $('#trs', box).querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+      delete tr.name[b.dataset.rm];
+      delete tr.description[b.dataset.rm];
+      drawTr();
+    }));
   };
-  $('#vis', box).addEventListener('change', (e) => patch({ visibility: e.target.value }));
-  $('#cm', box).addEventListener('change', (e) => patch({ comments_enabled: e.target.checked }));
+  drawTr();
+  $('#addlang', box).addEventListener('change', (e) => {
+    const code = e.target.value;
+    e.target.value = '';
+    if (code && !langs().includes(code)) { tr.name[code] = ''; drawTr(); }
+  });
+  $('#pe', box).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v.trim() !== ''));
+    try {
+      await api('PATCH', `/api/studio/places/${encodeURIComponent(p.id)}`, {
+        name: f.name.value, description: f.description.value,
+        i18n: { name: clean(tr.name), description: clean(tr.description) },
+        visibility: f.visibility.value, max_players: Number(f.max_players.value), comments_enabled: f.comments.checked,
+      });
+      toast(t('saved'));
+      redraw();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+  // Covers: cropped to 16:9 or 1:1 here, like the app does, then uploaded.
+  box.querySelectorAll('input[data-kind]').forEach((input) => input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const image = await cropImage(file, input.dataset.kind === 'wide' ? [800, 450] : [512, 512]);
+      await api('POST', `/api/studio/places/${encodeURIComponent(p.id)}/cover`, { kind: input.dataset.kind, image });
+      toast(t('saved'));
+      redraw();
+    } catch (err) { toast(err.message || t('bad_image'), 'error'); }
+  }));
   try {
     const { stats: s } = await api('GET', `/api/studio/places/${encodeURIComponent(p.id)}/stats`);
     const hours = s.playtime_ms / 3600000;
@@ -1035,10 +1101,30 @@ async function ownerPanel(box, p, redraw) {
       days.push({ d, v: s.daily.find((x) => x.day === d)?.visits || 0 });
     }
     const max = Math.max(1, ...days.map((x) => x.v));
-    $('#pstats', box).innerHTML = `<div class="tiles">${tiles.map(([k, v]) => `<div class="card tile"><span class="muted">${t(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+    $('#pstats', box).innerHTML = `<h3 style="margin:10px 0">${t('stats')}</h3><div class="tiles">${tiles.map(([k, v]) => `<div class="card tile"><span class="muted">${t(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
       <div class="muted" style="margin:14px 0 6px;font-weight:800">${t('visits_30')}</div>
       <div class="bars">${days.map((x) => `<i style="height:${Math.max(3, (x.v / max) * 100)}%" title="${x.d}: ${x.v}"></i>`).join('')}</div>`;
   } catch { $('#pstats', box).innerHTML = ''; }
+}
+
+// Reads an image file and center-crops it to w×h; returns base64 PNG without the prefix.
+function cropImage(file, [w, h]) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.max(w / img.width, h / img.height);
+      const sw = w / scale;
+      const sh = h / scale;
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d').drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/png').split(',')[1]);
+    };
+    img.onerror = () => reject(new Error(t('bad_image')));
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 function commentRow(c) {

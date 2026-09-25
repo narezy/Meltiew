@@ -172,6 +172,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       my_vote: viewerId ? pq.myVote.get(p.id, viewerId)?.value || 0 : 0,
       playing: hub.playerCount(p.id),
       max_players: studio ? p.max_players : MAX_PLAYERS,
+      // The owner gets the untranslated texts and every translation to edit.
+      ...(studio && viewerId && p.owner_id === viewerId ? { edit: { name: p.name, description: p.description, i18n } } : {}),
       author: author
         ? authorCard(author)
         : { id: 0, username: p.author_username, display_name: p.author_username, role: 'owner', render: '' },

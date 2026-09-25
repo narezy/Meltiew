@@ -420,10 +420,12 @@ func _comment_row(c: Dictionary, enabled: bool, can_post: bool) -> Control:
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(body)
 	row.add_child(col)
-	var actions := UI.vbox(2)
+	# Small actions in a row, top right, so the comment stays as tall as its text.
+	var actions := UI.hbox(4)
+	actions.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	if c.get("can_delete", false):
-		var del := UI.button(L.t("delete"), "flat", 32)
-		del.add_theme_font_size_override("font_size", 14)
+		var del := UI.button(L.t("delete"), "flat", 28)
+		del.add_theme_font_size_override("font_size", 13)
 		del.pressed.connect(func():
 			if not await UI.confirm(self, L.t("delete_comment_q"), str(c.body).left(80), L.t("delete"), true):
 				return
@@ -435,8 +437,8 @@ func _comment_row(c: Dictionary, enabled: bool, can_post: bool) -> Control:
 				UI.toast(r.message, "error"))
 		actions.add_child(del)
 	if int(author.get("id", 0)) != int(Session.user.get("id", -1)):
-		var rep := UI.button(L.t("report"), "flat", 32)
-		rep.add_theme_font_size_override("font_size", 14)
+		var rep := UI.button(L.t("report"), "flat", 28)
+		rep.add_theme_font_size_override("font_size", 13)
 		rep.add_theme_color_override("font_color", UI.DANGER)
 		rep.pressed.connect(func(): UI.report(self, author, {"comment_id": int(c.id)}))
 		actions.add_child(rep)
