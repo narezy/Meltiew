@@ -8,6 +8,8 @@ import { filterText } from './filter.js';
 import { PlaceVM } from './studio/vm.js';
 
 export const MAX_PLAYERS = 10;
+// Studio places can take more (the owner sets it; new places start at 10).
+export const MAX_PLACE_PLAYERS = 30;
 export const GAMES = {
   playground: {
     id: 'playground',
@@ -115,7 +117,7 @@ export class GameHub {
       players: new Map(),
       createdAt: Date.now(),
       emptySince: Date.now(),
-      maxPlayers: Math.max(1, Math.min(MAX_PLAYERS, row.max_players || MAX_PLAYERS)),
+      maxPlayers: Math.max(1, Math.min(MAX_PLACE_PLAYERS, row.max_players || MAX_PLAYERS)),
       ownerId: row.owner_id,
       chat: starter.ChatEnabled !== false,
       emotes: starter.EmotesEnabled !== false,

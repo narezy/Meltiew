@@ -349,7 +349,7 @@ const TABLE := {
 	"st_vis_private": ["Only me", "Только я"],
 	"st_vis_friends": ["Friends", "Друзья"],
 	"st_vis_public": ["Everyone", "Все"],
-	"st_max_players": ["Max players per server", "Максимум игроков на сервере"],
+	"st_max_players": ["Max players per server: {0}", "Максимум игроков на сервере: {0}"],
 	"st_comments": ["Comments", "Комментарии"],
 	"st_covers": ["Covers", "Обложки"],
 	"st_cover_wide": ["Wide 16:9", "Широкая 16:9"],

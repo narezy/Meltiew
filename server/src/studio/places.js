@@ -87,7 +87,7 @@ function cleanNode(node, depth, counter) {
   return out;
 }
 
-function cleanI18n(obj) {
+export function cleanI18n(obj) {
   const out = {};
   for (const [lang, text] of Object.entries(obj || {})) {
     if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(lang) && typeof text === 'string') out[lang] = text.slice(0, 2000);

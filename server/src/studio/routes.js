@@ -3,8 +3,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chatRules } from '../age.js';
+import { MAX_PLACE_PLAYERS } from '../game.js';
 import { filterText } from '../filter.js';
-import { VISIBILITIES, decodeImage, templatePlace, validateMarp } from './places.js';
+import { VISIBILITIES, cleanI18n, decodeImage, templatePlace, validateMarp } from './places.js';
 
 export const ASSET_LIMIT_COUNT = 100;
 export const ASSET_LIMIT_BYTES = 25 * 1024 * 1024;
@@ -153,8 +154,25 @@ export function createStudioRoutes(ctx) {
       if (body.comments_enabled !== undefined || body.max_players !== undefined) {
         const cur = q.one.get(row.id);
         const comments = body.comments_enabled !== undefined ? (body.comments_enabled ? 1 : 0) : cur.comments_enabled;
-        const maxPlayers = body.max_players !== undefined ? Math.max(1, Math.min(10, Math.round(Number(body.max_players) || 10))) : cur.max_players;
+        const maxPlayers = body.max_players !== undefined ? Math.max(1, Math.min(MAX_PLACE_PLAYERS, Math.round(Number(body.max_players) || 10))) : cur.max_players;
         q.setOptions.run(comments, maxPlayers, row.id);
+      }
+      // Name, description and their translations (the website edits these without
+      // the whole place): the place file's meta and the list columns move together.
+      if (body.name !== undefined || body.description !== undefined || body.i18n !== undefined) {
+        const marp = store.load(row.id);
+        const m = marp.meta;
+        if (body.name !== undefined) {
+          const name = cleanText(body.name, 60);
+          if (name.length < 1) throw bad('bad_name');
+          m.name = name;
+        }
+        if (body.description !== undefined) m.description = String(body.description).slice(0, 1000);
+        if (body.i18n !== undefined) {
+          m.i18n = { name: cleanI18n(body.i18n?.name), description: cleanI18n(body.i18n?.description) };
+        }
+        store.write(row.id, marp);
+        q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
       }
       return { place: studioView(q.one.get(row.id), user, pickLang(req)) };
     },

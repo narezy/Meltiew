@@ -131,7 +131,7 @@ func _render() -> void:
 	access.add_child(vis)
 	var maxp := HSlider.new()
 	maxp.min_value = 1
-	maxp.max_value = 10
+	maxp.max_value = 30
 	maxp.step = 1
 	maxp.value = int(place.get("max_players", 10))
 	var maxl := UI.label(L.t("st_max_players", [int(maxp.value)]), 15, UI.TEXT)

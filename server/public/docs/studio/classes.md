@@ -174,7 +174,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 
 | Property | Type | Default | Notes |
 |---|---|---|---|
-| MaxPlayers | number | 10 | read-only, min 1, max 10 |
+| MaxPlayers | number | 10 | read-only, min 1, max 30 |
 
 **Methods:** `GetPlayers()`, `GetPlayerByUserId(id)`, `GetPlayerFromCharacter(model)`
 

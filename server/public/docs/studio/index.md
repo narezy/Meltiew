@@ -97,7 +97,7 @@ Studio saves by itself every two minutes. A dot next to the name means there are
 
 - **Name and description**, plus translations of both for other languages.
 - **Who can play**: only you, your friends or everyone. Only "everyone" places show up in search.
-- **Max players** per server (1 to 10).
+- **Max players** per server (1 to 30; new places start at 10).
 - **Comments** on the place page, on or off.
 - **Covers**: a 16:9 one for lists and the place page and a 1:1 icon. Take them from the current view or upload an image.
 - **Stats**: visits, unique and returning players, total and average playtime, who's playing now and a 30-day chart.
@@ -118,4 +118,4 @@ Players can like places, leave comments and report places or comments that break
 | One script | 200 KB |
 | Script memory (per server) | 64 MB |
 | One script run without yielding | 0.25 s, then it's stopped with an error |
-| Players per server | 10 |
+| Players per server | 30 (10 by default) |
