@@ -60,6 +60,7 @@ func _ready() -> void:
 	_fade.modulate.a = 0.0
 	_fade_layer.add_child(_fade)
 	_toast_box = VBoxContainer.new()
+	_toast_box.theme = theme
 	_toast_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_toast_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_toast_box.position.y = 24
@@ -227,6 +228,7 @@ func confirm(parent: Node, title: String, text: String, ok_text := "Да", dange
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(dim)
 	var center := CenterContainer.new()
+	center.theme = theme
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(center)
 	var c := card(28, CARD, 26)

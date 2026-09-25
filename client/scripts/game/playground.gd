@@ -144,11 +144,12 @@ func _build_environment() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.9
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color("#c4d4f0")
+	env.ambient_light_energy = 0.42
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
-	env.fog_enabled = true
+	env.tonemap_exposure = 1.0
+	env.fog_enabled = false
 	env.fog_light_color = Color("#cfe4ff")
 	env.fog_density = 0.0035
 	env.fog_sky_affect = 0.0
@@ -158,7 +159,7 @@ func _build_environment() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -38, 0)
-	sun.light_energy = 1.25
+	sun.light_energy = 0.5
 	sun.light_color = Color("#fff4e0")
 	sun.shadow_enabled = Session.settings.quality != "low"
 	sun.directional_shadow_max_distance = 55.0

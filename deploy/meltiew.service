@@ -1,0 +1,26 @@
+[Unit]
+Description=Meltiew game backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meltiew
+Group=meltiew
+WorkingDirectory=/opt/meltiew
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=7350
+Environment=MELTIEW_DB=/var/lib/meltiew/meltiew.db
+Environment=NODE_NO_WARNINGS=1
+ExecStart=/opt/meltiew-node/bin/node /opt/meltiew/src/index.js
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/meltiew
+
+[Install]
+WantedBy=multi-user.target

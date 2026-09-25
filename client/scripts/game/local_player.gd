@@ -43,7 +43,6 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50)
 	floor_snap_length = 0.35
 	floor_constant_speed = true
-	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_ADD_UPPER_VELOCITY
 	var shape := CapsuleShape3D.new()
 	shape.radius = 0.42
 	shape.height = 1.8

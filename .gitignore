@@ -6,3 +6,4 @@ client/export/
 *.apk
 *.aab
 .DS_Store
+zz_*

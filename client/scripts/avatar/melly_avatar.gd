@@ -39,7 +39,11 @@ func _ready() -> void:
 	_hat_root = BoneAttachment3D.new()
 	_hat_root.bone_name = "Head"
 	skeleton.add_child(_hat_root)
-	set_colors(Session.DEFAULT_COLORS)
+	# Looks may have been set before we entered the tree.
+	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
+	var hat := _hat_id
+	_hat_id = ""
+	set_hat(hat if hat != "" else "none")
 	play("idle")
 
 
@@ -58,7 +62,10 @@ func set_colors(colors: Dictionary) -> void:
 
 
 func set_hat(id: String) -> void:
-	if id == _hat_id or _hat_root == null:
+	if _hat_root == null:
+		_hat_id = id
+		return
+	if id == _hat_id:
 		return
 	_hat_id = id
 	for c in _hat_root.get_children():
@@ -70,6 +77,8 @@ func set_hat(id: String) -> void:
 
 ## Accepts network animation names: idle, walk, run, jump, fall, wave.
 func play(state: String) -> void:
+	if anim_player == null:
+		return
 	if _one_shot and state == "idle":
 		return
 	if state == _current and state != "wave":

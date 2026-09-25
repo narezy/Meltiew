@@ -2,8 +2,8 @@ shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
 
 // Mown-lawn stripes plus a little value noise so the big ground plane isn't flat.
-uniform vec3 grass_a : source_color = vec3(0.49, 0.78, 0.42);
-uniform vec3 grass_b : source_color = vec3(0.44, 0.73, 0.38);
+uniform vec3 grass_a : source_color = vec3(0.45, 0.72, 0.39);
+uniform vec3 grass_b : source_color = vec3(0.41, 0.67, 0.35);
 varying vec3 world_pos;
 
 float hash(vec2 p) {

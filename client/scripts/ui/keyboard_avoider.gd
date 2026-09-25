@@ -15,7 +15,9 @@ func _process(delta: float) -> void:
 	if target == null or not is_instance_valid(target):
 		return
 	var want := 0.0
-	var kb := DisplayServer.virtual_keyboard_get_height()
+	var kb := 0
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		kb = DisplayServer.virtual_keyboard_get_height()
 	if kb > 0:
 		var focus := target.get_viewport().gui_get_focus_owner()
 		if (focus is LineEdit or focus is TextEdit) and target.is_ancestor_of(focus):

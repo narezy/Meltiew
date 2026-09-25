@@ -12,6 +12,7 @@ var _card: Control
 func _ready() -> void:
 	layer = 40
 	var dim := ColorRect.new()
+	dim.theme = UI.theme
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.gui_input.connect(func(e):
@@ -19,6 +20,7 @@ func _ready() -> void:
 			_close())
 	add_child(dim)
 	var center := CenterContainer.new()
+	center.theme = UI.theme
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
@@ -114,9 +116,9 @@ func _render(u: Dictionary) -> void:
 	if is_me:
 		return
 	var rel := str(u.get("relation", "none"))
-	var label := {"friends": "Удалить из друзей", "outgoing": "Отменить заявку", "incoming": "Принять заявку"}.get(rel, "Добавить в друзья")
-	var variant := {"friends": "ghost", "outgoing": "ghost", "incoming": "primary"}.get(rel, "primary")
-	var path := {"friends": "/api/friends/remove", "outgoing": "/api/friends/remove", "incoming": "/api/friends/accept"}.get(rel, "/api/friends/request")
+	var label: String = {"friends": "Удалить из друзей", "outgoing": "Отменить заявку", "incoming": "Принять заявку"}.get(rel, "Добавить в друзья")
+	var variant: String = {"friends": "ghost", "outgoing": "ghost", "incoming": "primary"}.get(rel, "primary")
+	var path: String = {"friends": "/api/friends/remove", "outgoing": "/api/friends/remove", "incoming": "/api/friends/accept"}.get(rel, "/api/friends/request")
 	var b := UI.button(label, variant, 56)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.pressed.connect(func():

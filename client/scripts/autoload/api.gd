@@ -2,10 +2,19 @@ extends Node
 ## Thin async wrapper over the Meltiew REST API.
 ## Usage: var r := await Api.request("GET", "/api/me"); if r.ok: ...
 
-const BASE_URL := "https://meltiew.narez.xyz"
+const DEFAULT_URL := "https://meltiew.narez.xyz"
 const TIMEOUT_SEC := 12.0
 
 signal unauthorized
+
+## Override with `-- --server=http://127.0.0.1:7350` for local testing.
+var BASE_URL := DEFAULT_URL
+
+
+func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--server="):
+			BASE_URL = arg.trim_prefix("--server=").trim_suffix("/")
 
 
 func request(method: String, path: String, body: Variant = null) -> Dictionary:

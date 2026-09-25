@@ -32,7 +32,7 @@ func _init() -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#d9d0ff")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.3
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -40,12 +40,12 @@ func _init() -> void:
 
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-35, 35, 0)
-	key.light_energy = 1.15
+	key.light_energy = 0.8
 	key.shadow_enabled = true
 	_vp.add_child(key)
 	var rim := DirectionalLight3D.new()
 	rim.rotation_degrees = Vector3(-20, 200, 0)
-	rim.light_energy = 0.6
+	rim.light_energy = 0.3
 	rim.light_color = Color("#b89cff")
 	_vp.add_child(rim)
 
@@ -76,8 +76,8 @@ func _init() -> void:
 
 func _place_camera() -> void:
 	var dist := 5.2 / zoom
-	_cam.position = Vector3(0, 1.05 + 0.25 / zoom, dist)
-	_cam.look_at(Vector3(0, 0.95, 0))
+	var pos := Vector3(0, 1.05 + 0.25 / zoom, dist)
+	_cam.transform = Transform3D(Basis.looking_at(Vector3(0, 0.95, 0) - pos), pos)
 
 
 func _process(delta: float) -> void:
