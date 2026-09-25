@@ -21,6 +21,8 @@ var cam_pitch := -0.32
 var cam_distance := 7.0
 var move_input := Vector2.ZERO
 var run := false
+## True while typing in chat, so WASD goes to the text field only.
+var keyboard_blocked := false
 ## Extra horizontal push from slides/conveyors, set by world areas each frame.
 var external_push := Vector3.ZERO
 var spawn_point := Vector3(0, 1, 8)
@@ -119,7 +121,9 @@ func _physics_process(delta: float) -> void:
 		jumped.emit()
 
 	var input := move_input
-	var kb := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var kb := Vector2.ZERO
+	if not keyboard_blocked:
+		kb = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if kb.length() > input.length():
 		input = kb
 	if input.length() > 1.0:
