@@ -46,9 +46,10 @@ img { display: block; }
 .nav-links a { padding: 9px 14px; border-radius: 12px; color: var(--muted); font-weight: 800; }
 .nav-links a.on, .nav-links a:hover { color: var(--text); background: var(--card2); }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.lang { display: flex; background: var(--bg2); border-radius: 12px; padding: 3px; }
-.lang button { border: 0; background: none; color: var(--muted); padding: 6px 10px; border-radius: 9px; font-weight: 800; }
-.lang button.on { background: var(--card2); color: var(--text); }
+.lang, select { background: var(--bg2); color: var(--text); border: 2px solid var(--line); border-radius: 12px; padding: 7px 10px;
+  font: inherit; font-weight: 800; font-size: 15px; outline: none; max-width: 160px; }
+select { max-width: none; padding: 12px 14px; }
+.lang:focus, select:focus { border-color: var(--accent); }
 .me-chip { display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; background: var(--card); }
 .me-chip span { font-weight: 800; }
 main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 70px; }

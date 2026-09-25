@@ -62,9 +62,11 @@ func _ready() -> void:
 	_fade_layer.add_child(_fade)
 	_toast_box = VBoxContainer.new()
 	_toast_box.theme = theme
-	_toast_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	# Bottom center, like Android snackbars: never covers page tabs or titles.
+	_toast_box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_toast_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_toast_box.position.y = 24
+	_toast_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_toast_box.offset_bottom = -28
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_box.add_theme_constant_override("separation", 8)
 	_fade_layer.add_child(_toast_box)
@@ -332,6 +334,10 @@ func relative_time(ms: float) -> String:
 
 func _build_fonts() -> void:
 	var base: FontFile = load("res://assets/fonts/Nunito.ttf")
+	# Nunito covers Latin and Cyrillic; CJK, Arabic, Indic, Thai... come from the system fonts.
+	var system := SystemFont.new()
+	system.font_names = PackedStringArray(["sans-serif", "Noto Sans", "Noto Sans CJK SC", "Noto Sans Arabic", "Noto Sans Devanagari", "Roboto"])
+	base.fallbacks = [system]
 	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
 	font_regular = FontVariation.new()
 	font_regular.base_font = base

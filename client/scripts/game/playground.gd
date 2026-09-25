@@ -87,6 +87,14 @@ func _ready() -> void:
 	_build_clouds()
 	_build_balloons()
 	_batch.build(self, _batch_mat)
+	_simplify_meshes(self)
+
+
+func _simplify_meshes(n: Node) -> void:
+	if n is MeshInstance3D and n.mesh is PrimitiveMesh:
+		MeshBatch.simplify(n.mesh)
+	for c in n.get_children():
+		_simplify_meshes(c)
 
 
 func attach_player(p: LocalPlayer) -> void:
@@ -1042,23 +1050,19 @@ func _build_fence_and_backdrop() -> void:
 
 
 func _build_clouds() -> void:
-	var mat := toon_mat(Color("#ffffff"))
 	for i in 16:
 		var cloud := Node3D.new()
 		cloud.position = Vector3(_rng.randf_range(-110, 110), _rng.randf_range(30, 48), _rng.randf_range(-110, 110))
 		add_child(cloud)
+		# One merged mesh per cloud: five puffs, one draw call.
+		var puffs := MeshBatch.new()
 		for k in 5:
 			var sm := SphereMesh.new()
 			sm.radius = _rng.randf_range(2.0, 3.2)
 			sm.height = sm.radius * 1.6
-			sm.radial_segments = 12
-			sm.rings = 6
-			var mi := MeshInstance3D.new()
-			mi.mesh = sm
-			mi.material_override = mat
-			mi.position = Vector3(k * 2.4 - 4.8, _rng.randf_range(-0.4, 0.8), _rng.randf_range(-1.2, 1.2))
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			cloud.add_child(mi)
+			var at := Vector3(k * 2.4 - 4.8, _rng.randf_range(-0.4, 0.8), _rng.randf_range(-1.2, 1.2))
+			puffs.add(sm, Transform3D(Basis(), at), Color("#ffffff"))
+		puffs.build(cloud, _batch_mat, false)
 		cloud.set_meta("speed", _rng.randf_range(0.5, 1.2))
 		_clouds.append(cloud)
 
@@ -1074,10 +1078,12 @@ func _build_balloons() -> void:
 		var sm := SphereMesh.new()
 		sm.radius = 0.6
 		sm.height = 1.4
-		node_mesh(b, sm, colors[i % colors.size()])
 		var str_mesh := BoxMesh.new()
 		str_mesh.size = Vector3(0.02, 1.6, 0.02)
-		node_mesh(b, str_mesh, C_WHITE, Vector3(0, -1.5, 0))
+		var parts := MeshBatch.new()
+		parts.add(sm, Transform3D(), colors[i % colors.size()])
+		parts.add(str_mesh, Transform3D(Basis(), Vector3(0, -1.5, 0)), C_WHITE)
+		parts.build(b, _batch_mat, false)
 		b.set_meta("phase", _rng.randf() * TAU)
 		b.set_meta("base", b.position)
 		_balloons.append(b)

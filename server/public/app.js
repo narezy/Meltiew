@@ -83,7 +83,7 @@ const T = {
     face: 'Face', face_hint: 'Colors and hats are edited in the app. Faces work here too.',
     rules_kid: 'Under 13: chat and messages are turned off.', rules_teen: 'Chat and messages are filtered.',
     rules_older: 'Game chat is filtered, messages are not.', rules_adult: 'No filters.', rules_none: 'Add your date of birth to play and chat.',
-    telegram: 'Telegram channel', drag_to_spin: 'Drag to spin', admin_reset_bd: 'Reset birthdate', age_n: '{0} y.o.',
+    search_everything: 'Search players and places', telegram: 'Telegram channel', lang_fallback: "The website isn't translated to this language yet, so it shows English. Places with their own translations will use it.", drag_to_spin: 'Drag to spin', admin_reset_bd: 'Reset birthdate', age_n: '{0} y.o.',
   },
   ru: {
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
@@ -139,19 +139,25 @@ const T = {
     face: 'Лицо', face_hint: 'Цвета и шапки меняются в приложении. А лицо можно и тут.',
     rules_kid: 'До 13 лет чат и личные сообщения выключены.', rules_teen: 'Чат и личные сообщения фильтруются.',
     rules_older: 'Игровой чат фильтруется, личные сообщения нет.', rules_adult: 'Без фильтров.', rules_none: 'Укажи дату рождения, чтобы играть и общаться.',
-    telegram: 'Телеграм-канал', drag_to_spin: 'Потяни, чтобы покрутить', admin_reset_bd: 'Сбросить дату рождения', age_n: '{0} лет',
+    search_everything: 'Поиск игроков и плейсов', telegram: 'Телеграм-канал', lang_fallback: 'Сайт пока не переведён на этот язык, поэтому он на английском. Плейсы со своими переводами будут на нём.', drag_to_spin: 'Потяни, чтобы покрутить', admin_reset_bd: 'Сбросить дату рождения', age_n: '{0} лет',
   },
 };
 
 // English by default; the EN/RU switch in the header is remembered.
+const LANG_CODES = new Set((window.LANGUAGES || []).map(([c]) => c));
+// First visit follows the browser language; the interface falls back to English past EN/RU.
+const firstLang = () => {
+  const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  return LANG_CODES.has(nav) ? nav : 'en';
+};
 const state = {
-  lang: localStorage.getItem('lang') === 'ru' ? 'ru' : 'en',
+  lang: LANG_CODES.has(localStorage.getItem('lang')) ? localStorage.getItem('lang') : firstLang(),
   token: localStorage.getItem('token') || '',
   me: null,
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const t = (key, ...args) => (T[state.lang][key] ?? T.en[key] ?? key).replace(/\{(\d)\}/g, (_, i) => args[i]);
+const t = (key, ...args) => (T[state.lang]?.[key] ?? T.en[key] ?? key).replace(/\{(\d)\}/g, (_, i) => args[i]);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const field = (o, key) => (state.lang === 'ru' && o[key + '_ru']) || o[key] || '';
 const badge = (u) => (u && (u.role === 'owner' || u.role === 'admin') ? `<span class="badge ${u.role}">${t(u.role)}</span>` : '');
@@ -274,12 +280,13 @@ function renderNav(path) {
     <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
     <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${t(key)}${count(key)}</a>`).join('')}</div>
     <div class="nav-right">
-      <div class="lang">${['en', 'ru'].map((l) => `<button data-lang="${l}" class="${state.lang === l ? 'on' : ''}">${l.toUpperCase()}</button>`).join('')}</div>
+      <select class="lang" id="langsel" aria-label="${t('language')}">${(window.LANGUAGES || [['en', 'English']]).map(([c, n]) => `<option value="${c}" ${state.lang === c ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       ${state.me
         ? `<a class="me-chip" href="/u/${encodeURIComponent(state.me.username)}" data-link>${bust(state.me)}<span>${nameHtml(state.me)}</span></a>`
         : `<a class="btn small" href="/login" data-link>${t('sign_in')}</a>`}
     </div>`;
   $('#nav').querySelectorAll('.me-chip .bust').forEach((b) => { b.style.width = b.style.height = '34px'; });
+  $('#langsel').addEventListener('change', (e) => setLang(e.target.value));
   // Phones get an app-style tab bar at the bottom instead of a row of links.
   const bar = $('#tabbar');
   const tabs = state.me ? links.filter(([href]) => href !== '/download') : links;
@@ -320,11 +327,18 @@ const pages = {
     if (!state.me) return landing(root);
     root.innerHTML = `<h1>${esc(t('hi', state.me.display_name))}</h1><div id="fo"></div>
       <div class="row section-head"><h2 class="grow">${t('places')}</h2>
-        <input id="pq" class="search" type="search" placeholder="${t('search_places')}" autocomplete="off"></div>
+        <input id="pq" class="search" type="search" placeholder="${t('search_everything')}" autocomplete="off"></div>
+      <div id="people"></div>
       <div class="places" id="places"></div>`;
     const loadPlaces = async () => {
       const q = $('#pq').value.trim();
-      const r = await api('GET', '/api/places' + (q ? '?q=' + encodeURIComponent(q) : ''));
+      const [r, people] = await Promise.all([
+        api('GET', '/api/places' + (q ? '?q=' + encodeURIComponent(q) : '')),
+        q.length >= 2 ? api('GET', '/api/users/search?q=' + encodeURIComponent(q)) : { users: [] },
+      ]);
+      // Strangers open their profile; only friends are joined with one tap.
+      $('#people').innerHTML = people.users.length ? `<div class="muted" style="font-weight:800;margin-bottom:8px">${t('users')}</div>
+        <div class="carousel" style="margin-bottom:18px">${people.users.map((u) => friendChip(u.relation === 'friends' ? u : { ...u, playing: null })).join('')}</div>` : '';
       $('#places').innerHTML = r.places.length ? r.places.map(placeCard).join('') : `<div class="empty">${t('no_places')}</div>`;
     };
     let timer;
@@ -391,7 +405,8 @@ const pages = {
     const rulesKey = !me.birthdate ? 'rules_none' : !rules.chat ? 'rules_kid' : rules.filter_dm ? 'rules_teen' : rules.filter_chat ? 'rules_older' : 'rules_adult';
     root.innerHTML = `<h1>${t('settings')}</h1><div class="grid2">
       <div class="card stack"><h3>${t('language')}</h3>
-        <div class="tabs">${['en', 'ru'].map((l) => `<button data-lang="${l}" class="${state.lang === l ? 'on' : ''}">${l === 'en' ? 'English' : 'Русский'}</button>`).join('')}</div></div>
+        <select id="langsel2">${(window.LANGUAGES || []).map(([c, n]) => `<option value="${c}" ${state.lang === c ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+        ${state.lang !== 'en' && state.lang !== 'ru' ? `<span class="muted">${t('lang_fallback')}</span>` : ''}</div>
       <div class="card stack"><h3>${t('privacy')}</h3>
         <label class="switch"><input type="checkbox" id="hf" ${me.hide_friends ? 'checked' : ''}><i></i>${t('hide_friends')}</label>
         <div><span class="muted">${t('birthdate')}:</span> ${me.birthdate
@@ -406,6 +421,7 @@ const pages = {
         <div class="error"></div><button class="btn ghost">${t('change_password')}</button>
         <button type="button" class="btn danger" id="logout">${t('sign_out')}</button></form>
       <a class="card stack tg" href="${TELEGRAM}" target="_blank" rel="noopener"><h3>${icon('telegram')} ${t('telegram')}</h3><span class="muted">t.me/meltiew</span></a></div>`;
+    $('#langsel2').addEventListener('change', (e) => setLang(e.target.value));
     const patch = async (body) => {
       try { const r = await api('PATCH', '/api/me', body); state.me = r.user; toast(t('saved')); return true; }
       catch (e) { toast(e.message, 'error'); return false; }
@@ -1119,6 +1135,13 @@ async function adminPage(root) {
 
 // --- router -----------------------------------------------------------------
 
+function setLang(code) {
+  if (!LANG_CODES.has(code)) return;
+  state.lang = code;
+  localStorage.setItem('lang', code);
+  render();
+}
+
 function go(path) {
   history.pushState({}, '', path);
   render();
@@ -1150,12 +1173,6 @@ document.addEventListener('click', (e) => {
   if (link && !e.metaKey && !e.ctrlKey) {
     e.preventDefault();
     return go(link.getAttribute('href'));
-  }
-  const lang = e.target.closest('[data-lang]');
-  if (lang) {
-    state.lang = lang.dataset.lang;
-    localStorage.setItem('lang', state.lang);
-    return render();
   }
   const play = e.target.closest('[data-play]');
   if (play) launch(play.dataset.play);

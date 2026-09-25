@@ -60,10 +60,21 @@ func _ready() -> void:
 	look.add_child(auto)
 
 	var lang := _section(left, L.t("language"))
-	var opts := []
-	for code in L.LANGS:
-		opts.append([code, L.LANGS[code]])
-	SettingsWidgets.chips(lang, L.t("language"), "lang", opts, func(code): L.set_lang(code))
+	var picker := OptionButton.new()
+	picker.custom_minimum_size.y = 52
+	picker.add_theme_font_size_override("font_size", 18)
+	picker.focus_mode = Control.FOCUS_NONE
+	for i in Languages.LIST.size():
+		picker.add_item(Languages.LIST[i][1], i)
+		if Languages.LIST[i][0] == L.lang:
+			picker.select(i)
+	picker.get_popup().add_theme_font_size_override("font_size", 18)
+	picker.item_selected.connect(func(i): L.set_lang(Languages.LIST[i][0]))
+	lang.add_child(picker)
+	if L.lang != "en" and L.lang != "ru":
+		var note := UI.label(L.t("lang_fallback_note"), 15, UI.MUTED)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lang.add_child(note)
 
 	var about := _section(left, L.t("about"))
 	var tg := UI.button("  " + L.t("telegram"), "mint", 50)

@@ -9,6 +9,7 @@ var _buckets := {}  # Vector2i -> {verts, normals, colors, indices}
 
 
 func add(mesh: PrimitiveMesh, xform: Transform3D, color: Color) -> void:
+	MeshBatch.simplify(mesh, 12, 6, 16)
 	var arrays := mesh.get_mesh_arrays()
 	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -52,3 +53,20 @@ func build(parent: Node3D, material: Material, cast_shadows := true) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mi)
 	_buckets.clear()
+
+
+## Caps the tessellation of Godot primitives (spheres default to 64x32 = 4k triangles):
+## at playground scale nobody sees the difference, phones do.
+static func simplify(mesh: Mesh, sphere_segments := 16, sphere_rings := 8, cyl_segments := 24) -> void:
+	if mesh is SphereMesh:
+		mesh.radial_segments = mini(mesh.radial_segments, sphere_segments)
+		mesh.rings = mini(mesh.rings, sphere_rings)
+	elif mesh is CylinderMesh:
+		mesh.radial_segments = mini(mesh.radial_segments, cyl_segments)
+		mesh.rings = 0
+	elif mesh is CapsuleMesh:
+		mesh.radial_segments = mini(mesh.radial_segments, sphere_segments)
+		mesh.rings = mini(mesh.rings, sphere_rings / 2)
+	elif mesh is TorusMesh:
+		mesh.rings = mini(mesh.rings, cyl_segments)
+		mesh.ring_segments = mini(mesh.ring_segments, 10)

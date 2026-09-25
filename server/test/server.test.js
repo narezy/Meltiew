@@ -2,6 +2,11 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { startServer } from '../src/index.js';
+import { LATEST_CLIENT } from '../src/version.js';
+
+// The tests act as the current app; NEXT is a version that doesn't exist yet.
+const CLIENT = LATEST_CLIENT;
+const NEXT = LATEST_CLIENT.replace(/\.(\d+)\.\d+$/, (_, minor) => `.${Number(minor) + 1}.0`);
 
 let app;
 const PORT = 17350;
@@ -10,7 +15,7 @@ const base = `http://127.0.0.1:${PORT}`;
 async function call(method, path, body, token) {
   const res = await fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json', 'x-client': 'app', 'x-client-version': '1.2.0', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    headers: { 'content-type': 'application/json', 'x-client': 'app', 'x-client-version': CLIENT, ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, data: await res.json() };
@@ -18,7 +23,7 @@ async function call(method, path, body, token) {
 
 function connect(token) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}&v=1.2.0`);
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}&v=${CLIENT}`);
     const inbox = [];
     const waiters = [];
     ws.on('message', (raw) => {
@@ -260,13 +265,13 @@ test('outdated apps are turned away, the website is not', async () => {
   assert.equal(browser.status, 401);
   const web = await fetch(base + '/api/me', { headers: { 'x-client': 'web' } });
   assert.equal(web.status, 401);
-  assert.equal((await call('POST', '/api/admin/min-version', { version: '1.3.0' }, users.alice)).status, 403);
-  assert.equal((await call('POST', '/api/admin/min-version', { version: '1.3.0' }, users.nrz)).status, 200);
+  assert.equal((await call('POST', '/api/admin/min-version', { version: NEXT }, users.alice)).status, 403);
+  assert.equal((await call('POST', '/api/admin/min-version', { version: NEXT }, users.nrz)).status, 200);
   assert.equal((await call('GET', '/api/me', null, users.alice)).status, 426);
   const reset = await fetch(base + '/api/admin/min-version', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-client': 'web', authorization: `Bearer ${users.nrz}` },
-    body: JSON.stringify({ version: '1.2.0' }),
+    body: JSON.stringify({ version: CLIENT }),
   });
   assert.equal(reset.status, 200);
 });
@@ -355,4 +360,12 @@ test('birthdate is set once, faces, friends privacy, place search and reports', 
   assert.equal(reports.data.reports[0].target.username, 'bob');
   await call('POST', `/api/admin/reports/${reports.data.reports[0].id}/resolve`, null, users.nrz);
   assert.equal((await call('GET', '/api/admin/reports', null, users.nrz)).data.reports.length, 0);
+});
+
+test('website language list matches the server one', async () => {
+  const { LANGUAGES } = await import('../src/languages.js');
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../public/languages.js', import.meta.url), 'utf8');
+  const site = JSON.parse(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
+  assert.deepEqual(site, LANGUAGES);
 });

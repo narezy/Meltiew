@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Meltiew"
 config/description="Meltiew — play together"
-config/version="1.3.0"
+config/version="1.3.1"
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 boot_splash/bg_color=Color(0.105882, 0.0941176, 0.137255, 1)
@@ -91,4 +91,6 @@ renderer/rendering_method.mobile="mobile"
 rendering_device/fallback_to_opengl3=true
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/size.mobile=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality.mobile=1
 environment/defaults/default_clear_color=Color(0.105882, 0.0941176, 0.137255, 1)

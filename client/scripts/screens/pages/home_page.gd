@@ -3,6 +3,8 @@ extends ScrollContainer
 ## Home: friends who are online, and the grid of places to play.
 
 var _places_box: HFlowContainer
+var _people_section: Control
+var _people_box: HBoxContainer
 var _friends_box: HBoxContainer
 var _friends_section: Control
 var _friends_count: Label
@@ -44,7 +46,7 @@ func _ready() -> void:
 	var pt := UI.label(L.t("places"), 24, UI.TEXT, "black")
 	pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ph.add_child(pt)
-	_search = UI.input(L.t("search_places"))
+	_search = UI.input(L.t("search_everything"))
 	_search.custom_minimum_size = Vector2(260 if UI.is_compact() else 320, 48)
 	_search.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_search.text_changed.connect(func(_t): _search_timer.start())
@@ -55,6 +57,17 @@ func _ready() -> void:
 	_search_timer.wait_time = 0.3
 	_search_timer.timeout.connect(refresh_data)
 	add_child(_search_timer)
+	# Players matching the search, shown above the places.
+	_people_section = UI.vbox(10)
+	_people_section.add_child(UI.label(L.t("players"), 20, UI.MUTED, "bold"))
+	var pscroll := ScrollContainer.new()
+	pscroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pscroll.custom_minimum_size.y = 128
+	_people_box = UI.hbox(14)
+	pscroll.add_child(_people_box)
+	_people_section.add_child(pscroll)
+	_people_section.visible = false
+	root.add_child(_people_section)
 	_places_box = HFlowContainer.new()
 	_places_box.add_theme_constant_override("h_separation", 18)
 	_places_box.add_theme_constant_override("v_separation", 18)
@@ -83,9 +96,13 @@ func refresh_data() -> void:
 	var q := _search.text.strip_edges() if _search else ""
 	var pr := await Api.request("GET", "/api/places" + ("?q=" + q.uri_encode() if q != "" else ""))
 	var fr := await Api.request("GET", "/api/friends")
+	var ur: Dictionary = {}
+	if q.length() >= 2:
+		ur = await Api.request("GET", "/api/users/search?q=" + q.uri_encode())
 	_loading = false
 	if not is_inside_tree():
 		return
+	_render_people(ur.data.users if ur.get("ok", false) else [])
 	if pr.ok:
 		_render_places(pr.data.places)
 	if fr.ok:
@@ -143,6 +160,15 @@ static func _stat_chip(icon: String, text: String) -> Control:
 	return h
 
 
+func _render_people(users: Array) -> void:
+	for c in _people_box.get_children():
+		c.queue_free()
+	_people_section.visible = not users.is_empty()
+	for u in users:
+		# Strangers open their profile; only friends are joined with one tap.
+		_people_box.add_child(_friend_chip(u, str(u.get("relation", "")) == "friends"))
+
+
 ## Carousel of all friends: playing first, then online, then offline.
 ## Tapping someone who is playing joins them; anyone else opens their profile.
 func _render_friends(friends: Array) -> void:
@@ -162,8 +188,8 @@ func _render_friends(friends: Array) -> void:
 		_friends_box.add_child(_friend_chip(f))
 
 
-func _friend_chip(f: Dictionary) -> Control:
-	var playing: Variant = f.get("playing")
+func _friend_chip(f: Dictionary, can_join := true) -> Control:
+	var playing: Variant = f.get("playing") if can_join else null
 	var v := UI.vbox(4)
 	v.custom_minimum_size.x = 92
 	v.mouse_filter = Control.MOUSE_FILTER_PASS

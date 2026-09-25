@@ -21,9 +21,12 @@ var settings := {
 	"music": 0.5,
 	"quality": "high",
 	"show_fps": false,
-	"lang": "en",
+	# Empty until the first run picks the phone's language.
+	"lang": "",
 	# 0 = automatic (bigger on phones).
 	"ui_scale": 0.0,
+	# Bumped when the graphics presets change, to re-pick the default.
+	"gfx_v": 2,
 }
 ## Where the game scene should go when it opens: "auto", "new" or a server id.
 var pending_server := "auto"
@@ -33,10 +36,18 @@ func _ready() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SESSION_FILE) == OK:
 		token = str(cfg.get_value("auth", "token", ""))
+	if OS.has_feature("mobile"):
+		settings.quality = "medium"
 	var s := ConfigFile.new()
 	if s.load(SETTINGS_FILE) == OK:
+		var old_gfx := int(s.get_value("settings", "gfx_v", 1))
 		for key in settings.keys():
 			settings[key] = s.get_value("settings", key, settings[key])
+		# 1.3 and older defaulted phones to "high"; start them on the lighter preset.
+		if old_gfx < 2:
+			settings.gfx_v = 2
+			if OS.has_feature("mobile") and settings.quality == "high":
+				settings.quality = "medium"
 	apply_settings()
 
 
@@ -81,7 +92,7 @@ static func look_hash(u: Dictionary) -> String:
 		parts.append(str(c[part]))
 	parts.append(str(u.get("hat", "none")))
 	parts.append(str(u.get("face", ":D")))
-	parts.append("v2")
+	parts.append("v3")
 	return "|".join(parts).md5_text().substr(0, 16)
 
 

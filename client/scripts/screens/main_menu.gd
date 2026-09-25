@@ -28,6 +28,8 @@ var _compact := false
 var _dm_user: Dictionary = {}
 var _me_box: HBoxContainer
 var _poll: Timer
+var _side_box: VBoxContainer
+var _side_gap: Control
 
 
 func _ready() -> void:
@@ -100,8 +102,16 @@ func _build_sidebar() -> Control:
 	side.add_theme_stylebox_override("panel", sb)
 	side.custom_minimum_size.x = 232
 	_side = side
+	# Scrolls instead of stretching the window when the screen is short (20:9 phones).
+	var side_scroll := ScrollContainer.new()
+	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	side.add_child(side_scroll)
 	var v := UI.vbox(8)
-	side.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side_scroll.add_child(v)
+	_side_box = v
 
 	var brand := UI.hbox(12)
 	var mark := TextureRect.new()
@@ -116,6 +126,7 @@ func _build_sidebar() -> Control:
 	var gap := Control.new()
 	gap.custom_minimum_size.y = 18
 	v.add_child(gap)
+	_side_gap = gap
 
 	for p in PAGES:
 		var b := Button.new()
@@ -162,7 +173,7 @@ func _build_sidebar() -> Control:
 	_tg = tg
 	tg.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	tg.add_theme_font_size_override("font_size", 15)
-	tg.tooltip_text = "t.me/meltiew"
+	tg.tooltip_text = L.t("telegram")
 	var tg_icon := Icon.make("send", 20, UI.ACCENT)
 	tg_icon.name = "Icon"
 	tg.add_child(tg_icon)
@@ -195,8 +206,16 @@ func _refresh_me() -> void:
 
 ## Narrow screens (phones, big interface scale): the sidebar shrinks to icons.
 func _apply_compact() -> void:
-	var compact := get_viewport_rect().size.x < 1120.0
+	var vp_size := get_viewport_rect().size
+	var compact := vp_size.x < 1120.0
+	# Short screens (wide phones in landscape) get tighter rows, whatever the width.
+	var short := vp_size.y < 760.0
 	_compact = compact
+	for id in _nav_buttons:
+		_nav_buttons[id].custom_minimum_size.y = 46 if short else 56
+	_side_box.add_theme_constant_override("separation", 4 if short else 8)
+	_side_gap.custom_minimum_size.y = 4 if short else 18
+	sb_top_bottom(short)
 	_side.custom_minimum_size.x = 92 if compact else 232
 	var sb := _side.get_theme_stylebox("panel") as StyleBoxFlat
 	sb.content_margin_left = 12 if compact else 18
@@ -204,7 +223,7 @@ func _apply_compact() -> void:
 	_brand_label.visible = not compact
 	for l in _nav_labels:
 		l.visible = not compact
-	_tg.text = "" if compact else "        t.me/meltiew"
+	_tg.text = "" if compact else "        " + L.t("telegram")
 	(_tg.get_node("Icon") as Control).position = Vector2(24 if compact else 16, 10)
 	for id in _badges:
 		var nb: Label = _badges[id]
@@ -226,7 +245,14 @@ func _apply_compact() -> void:
 	var m := 18 if compact else 32
 	_content.add_theme_constant_override("margin_left", m)
 	_content.add_theme_constant_override("margin_right", 16 if compact else 28)
-	_content.add_theme_constant_override("margin_top", 16 if compact else 28)
+	_content.add_theme_constant_override("margin_top", 12 if short else (16 if compact else 28))
+	_content.add_theme_constant_override("margin_bottom", 12 if short else 28)
+
+
+func sb_top_bottom(short: bool) -> void:
+	var sb := _side.get_theme_stylebox("panel") as StyleBoxFlat
+	sb.content_margin_top = 14 if short else 24
+	sb.content_margin_bottom = 12 if short else 20
 
 
 var _open_place_id := "playground"

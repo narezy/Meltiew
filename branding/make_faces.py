@@ -9,9 +9,9 @@ FACES = {
  '-_-':('meh',False), '<3':('love',False),
 }
 INK=(28,26,34,255)
-SIZE=152
+SIZE=198
 WEIGHT=800
-MAXW=226
+MAXW=236
 def render(text, rotate):
     font=ImageFont.truetype(FONT, SIZE*4)
     font.set_variation_by_axes([WEIGHT])

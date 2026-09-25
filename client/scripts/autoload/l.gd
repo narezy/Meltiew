@@ -1,22 +1,24 @@
 extends Node
 ## Localization: L.t("key") or L.t("key", [arg1, arg2]) using "{0}", "{1}" placeholders.
-## English is the default; Russian is picked in Settings.
+## Any language from Languages.LIST can be picked; the interface itself is English and
+## Russian, everything else falls back to English. The first run follows the phone's language.
 
 signal changed
-
-const LANGS := {"en": "English", "ru": "Русский"}
 
 var lang := "en"
 
 
 func _ready() -> void:
-	lang = str(Session.settings.get("lang", "en"))
-	if not LANGS.has(lang):
+	lang = str(Session.settings.get("lang", ""))
+	if lang == "":
+		lang = OS.get_locale_language()
+		Session.settings.lang = lang if Languages.has(lang) else "en"
+	if not Languages.has(lang):
 		lang = "en"
 
 
 func set_lang(code: String) -> void:
-	if not LANGS.has(code) or code == lang:
+	if not Languages.has(code) or code == lang:
 		return
 	lang = code
 	Session.settings.lang = code

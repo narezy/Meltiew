@@ -99,22 +99,23 @@ func _apply_quality() -> void:
 		return
 	_applied_quality = q
 	var vp := get_viewport()
+	var mobile := OS.has_feature("mobile")
+	# No FPS cap: vsync already follows the display (60/90/120 Hz).
+	Engine.max_fps = 0
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 	match q:
 		"low":
-			vp.scaling_3d_scale = 0.6
+			vp.scaling_3d_scale = 0.75 if mobile else 1.0
 			vp.msaa_3d = Viewport.MSAA_DISABLED
 			player.camera.far = 140.0
-			Engine.max_fps = 40
 		"medium":
-			vp.scaling_3d_scale = 0.8
-			vp.msaa_3d = Viewport.MSAA_2X
-			player.camera.far = 400.0
-			Engine.max_fps = 60
+			vp.scaling_3d_scale = 1.0
+			vp.msaa_3d = Viewport.MSAA_DISABLED if mobile else Viewport.MSAA_2X
+			player.camera.far = 300.0
 		_:
 			vp.scaling_3d_scale = 1.0
-			vp.msaa_3d = Viewport.MSAA_4X
+			vp.msaa_3d = Viewport.MSAA_2X if mobile else Viewport.MSAA_4X
 			player.camera.far = 700.0
-			Engine.max_fps = 60
 	world.apply_quality(q)
 
 

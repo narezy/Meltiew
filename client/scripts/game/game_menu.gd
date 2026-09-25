@@ -14,6 +14,7 @@ var _card: Control
 var _body: Control
 var _tabs := {}
 var _tab := "players"
+var _margin: MarginContainer
 
 
 func _ready() -> void:
@@ -25,6 +26,7 @@ func _ready() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	var margin := MarginContainer.new()
+	_margin = margin
 	margin.theme = UI.theme
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -38,10 +40,16 @@ func _ready() -> void:
 	var row := UI.hbox(22)
 	_card.add_child(row)
 
-	# Left column: brand, tabs, actions.
+	# Left column: brand, tabs, actions. Scrolls on short screens instead of spilling out.
+	var side_scroll := ScrollContainer.new()
+	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	side_scroll.custom_minimum_size.x = 230
+	row.add_child(side_scroll)
 	var side := UI.vbox(10)
-	side.custom_minimum_size.x = 230
-	row.add_child(side)
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side_scroll.add_child(side)
 	var brand := UI.hbox(10)
 	var mark := TextureRect.new()
 	mark.texture = load("res://assets/logo_mark.png")
@@ -104,7 +112,17 @@ func _tab_button(id: String, icon: String, text: String) -> Button:
 	return b
 
 
+## Fits the card into the screen: full size on tablets and PCs, edge to edge on short phones.
+func _fit() -> void:
+	var vp := _card.get_viewport_rect().size
+	var m := 12 if vp.y < 700.0 else 40
+	for side in ["left", "right", "top", "bottom"]:
+		_margin.add_theme_constant_override("margin_" + side, m)
+	_card.custom_minimum_size = Vector2(minf(980.0, vp.x - 2 * m), minf(560.0, vp.y - 2 * m))
+
+
 func open() -> void:
+	_fit()
 	visible = true
 	show_tab(_tab)
 	_card.modulate.a = 0.0

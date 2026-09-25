@@ -1,3 +1,5 @@
+import { LANGUAGE_CODES } from './languages.js';
+
 // Server-side strings in English (default) and Russian.
 export const MESSAGES = {
   too_large: ['Request is too large', 'Слишком большой запрос'],
@@ -42,9 +44,10 @@ export const MESSAGES = {
   duplicate: ['You joined from another device', 'Ты зашёл(ла) в игру с другого устройства'],
 };
 
+// Server messages exist in English and Russian; any other language the player picked gets English.
 export function pickLang(req) {
   const explicit = String(req.headers['x-lang'] || '').toLowerCase();
-  if (explicit === 'ru' || explicit === 'en') return explicit;
+  if (LANGUAGE_CODES.has(explicit)) return explicit === 'ru' ? 'ru' : 'en';
   const accept = String(req.headers['accept-language'] || '').toLowerCase();
   return accept.startsWith('ru') ? 'ru' : 'en';
 }
