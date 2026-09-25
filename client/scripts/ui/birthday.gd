@@ -2,9 +2,9 @@ class_name BirthdayInput
 extends HBoxContainer
 ## Day / month / year pickers. value() returns "YYYY-MM-DD" or "" if incomplete.
 
-var _day: OptionButton
-var _month: OptionButton
-var _year: OptionButton
+var _day: Picker
+var _month: Picker
+var _year: Picker
 
 
 func _init() -> void:
@@ -25,32 +25,17 @@ func _init() -> void:
 	_month.size_flags_stretch_ratio = 1.6
 
 
-func _picker(placeholder: String) -> OptionButton:
-	var o := OptionButton.new()
-	o.custom_minimum_size.y = 52
+func _picker(placeholder: String) -> Picker:
+	var o := Picker.new(placeholder, placeholder)
 	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	o.focus_mode = Control.FOCUS_NONE
-	o.add_theme_font_size_override("font_size", 18)
-	o.add_item(placeholder, 0)
-	o.set_item_disabled(0, true)
-	o.select(0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = UI.BG_2
-	sb.set_corner_radius_all(14)
-	sb.set_border_width_all(2)
-	sb.border_color = UI.LINE
-	sb.content_margin_left = 14
-	sb.content_margin_right = 14
-	for st in ["normal", "hover", "pressed", "focus"]:
-		o.add_theme_stylebox_override(st, sb)
-	o.add_theme_color_override("font_color", UI.TEXT)
+	o.custom_minimum_size.x = 60
 	return o
 
 
 func value() -> String:
-	var d := _day.get_selected_id()
-	var m := _month.get_selected_id()
-	var y := _year.get_selected_id()
+	var d: int = _day.get_selected_id() if _day.get_selected_id() != null else 0
+	var m: int = _month.get_selected_id() if _month.get_selected_id() != null else 0
+	var y: int = _year.get_selected_id() if _year.get_selected_id() != null else 0
 	if d <= 0 or m <= 0 or y <= 0:
 		return ""
 	return "%04d-%02d-%02d" % [y, m, d]

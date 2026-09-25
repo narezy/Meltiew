@@ -176,3 +176,5 @@ func _draw() -> void:
 			_circle(Vector2(12, 12), 3.0, true)
 		"back":
 			_line([Vector2(15, 4), Vector2(7, 12), Vector2(15, 20)])
+		"down":
+			_line([Vector2(5, 9), Vector2(12, 16), Vector2(19, 9)])

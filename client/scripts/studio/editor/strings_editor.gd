@@ -8,7 +8,7 @@ var doc: EditDoc
 var _table: VBoxContainer
 var _langs: Array = ["en", "ru"]
 var _new_key: LineEdit
-var _add_lang: OptionButton
+var _add_lang: Picker
 
 
 func setup(d: EditDoc) -> void:
@@ -44,18 +44,16 @@ func setup(d: EditDoc) -> void:
 	add.pressed.connect(_add_key)
 	tools.add_child(add)
 	tools.add_child(UI.spacer())
-	_add_lang = OptionButton.new()
+	_add_lang = Picker.new(L.t("st_add_language"), L.t("st_add_language"))
+	_add_lang.custom_minimum_size = Vector2(200, 40)
 	_add_lang.add_theme_font_size_override("font_size", 15)
-	_add_lang.add_item(L.t("st_add_language"), 0)
 	for i in Languages.LIST.size():
-		_add_lang.add_item(Languages.LIST[i][1], i + 1)
-	_add_lang.item_selected.connect(func(i):
-		if i > 0:
-			var code: String = Languages.LIST[i - 1][0]
-			if not code in _langs:
-				_langs.append(code)
-				_render()
-		_add_lang.select(0))
+		_add_lang.add_item(Languages.LIST[i][1], Languages.LIST[i][0])
+	_add_lang.picked.connect(func(code):
+		if not code in _langs:
+			_langs.append(code)
+			_render()
+		_add_lang.select_id(null))
 	tools.add_child(_add_lang)
 	v.add_child(tools)
 	var sc := ScrollContainer.new()

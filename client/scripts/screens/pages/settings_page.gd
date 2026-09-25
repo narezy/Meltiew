@@ -17,8 +17,14 @@ func _ready() -> void:
 	add_child(root)
 	root.add_child(UI.label(L.t("nav_settings"), 34, UI.TEXT, "black"))
 
-	var cols := UI.hbox(18)
+	# Two columns on wide screens, one on narrow ones (and when long texts need it).
+	var cols := BoxContainer.new()
+	cols.add_theme_constant_override("separation", 18)
 	root.add_child(cols)
+	var fit := func():
+		cols.vertical = size.x < 900.0
+	resized.connect(fit)
+	fit.call_deferred()
 	var left := UI.vbox(18)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cols.add_child(left)
@@ -60,16 +66,11 @@ func _ready() -> void:
 	look.add_child(auto)
 
 	var lang := _section(left, L.t("language"))
-	var picker := OptionButton.new()
-	picker.custom_minimum_size.y = 52
-	picker.add_theme_font_size_override("font_size", 18)
-	picker.focus_mode = Control.FOCUS_NONE
+	var picker := Picker.new(L.t("language"))
 	for i in Languages.LIST.size():
-		picker.add_item(Languages.LIST[i][1], i)
-		if Languages.LIST[i][0] == L.lang:
-			picker.select(i)
-	picker.get_popup().add_theme_font_size_override("font_size", 18)
-	picker.item_selected.connect(func(i): L.set_lang(Languages.LIST[i][0]))
+		picker.add_item(Languages.LIST[i][1], Languages.LIST[i][0])
+	picker.select_id(L.lang)
+	picker.picked.connect(func(code): L.set_lang(code))
 	lang.add_child(picker)
 	if L.lang != "en" and L.lang != "ru":
 		var note := UI.label(L.t("lang_fallback_note"), 15, UI.MUTED)
@@ -123,6 +124,7 @@ func _ready() -> void:
 		var bd_change: Dictionary = Session.user.get("birthdate_change", {})
 		if bd_change.get("can", false):
 			var ch := UI.button(L.t("bd_change_free" if bd_change.get("free", false) else "bd_change"), "ghost", 46)
+			ch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			ch.add_theme_font_size_override("font_size", 16)
 			ch.pressed.connect(func():
 				if await BirthdayInput.ask(self, true):

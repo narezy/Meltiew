@@ -110,17 +110,13 @@ func _render() -> void:
 				doc._set_dirty(true))
 			row.add_child(le)
 		tr.add_child(row)
-	var add_lang := OptionButton.new()
-	add_lang.add_theme_font_size_override("font_size", 15)
-	add_lang.add_item(L.t("st_add_language"), 0)
+	var add_lang := Picker.new(L.t("st_add_language"), L.t("st_add_language"))
 	for i in Languages.LIST.size():
-		add_lang.add_item(Languages.LIST[i][1], i + 1)
-	add_lang.item_selected.connect(func(i):
-		if i > 0:
-			var code: String = Languages.LIST[i - 1][0]
-			if not i18n.name.has(code):
-				i18n.name[code] = ""
-			_render())
+		add_lang.add_item(Languages.LIST[i][1], Languages.LIST[i][0])
+	add_lang.picked.connect(func(code):
+		if not i18n.name.has(code):
+			i18n.name[code] = ""
+		_render())
 	tr.add_child(add_lang)
 
 	var access := _section(L.t("st_access"))

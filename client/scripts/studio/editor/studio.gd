@@ -6,6 +6,7 @@ extends Control
 const AUTOSAVE_SEC := 120.0
 const SNAPS := [0.0, 0.25, 0.5, 1.0, 2.0]
 const DESKTOP_DENSITY := 0.78
+const MOBILE_DENSITY := 0.85
 
 var doc := EditDoc.new()
 var place_id := ""
@@ -34,9 +35,8 @@ var _menus := {}
 
 func _ready() -> void:
 	# A pro tool: denser than the rest of the app on a PC screen.
-	if not OS.has_feature("mobile"):
-		UI.apply_ui_scale()
-		get_tree().root.content_scale_factor *= DESKTOP_DENSITY
+	UI.apply_ui_scale()
+	get_tree().root.content_scale_factor *= MOBILE_DENSITY if OS.has_feature("mobile") else DESKTOP_DENSITY
 	var bg := ColorRect.new()
 	bg.color = Color("#141219")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -192,26 +192,34 @@ func _build_top_bar() -> Control:
 	bar.add_theme_stylebox_override("panel", sb)
 	var h := UI.hbox(6)
 	bar.add_child(h)
+	# Menus and tools scroll sideways on narrow screens; Test/Publish/Save stay put.
+	var strip := ScrollContainer.new()
+	strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	strip.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	strip.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	h.add_child(strip)
+	var left := UI.hbox(6)
+	strip.add_child(left)
 	var mark := TextureRect.new()
 	mark.texture = load("res://assets/logo_mark.png")
 	mark.custom_minimum_size = Vector2(30, 30)
 	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	h.add_child(mark)
-	h.add_child(UI.label("studio", 18, UI.ACCENT, "black"))
+	left.add_child(mark)
+	left.add_child(UI.label("studio", 18, UI.ACCENT, "black"))
 	_title = UI.label("", 16, UI.TEXT, "bold")
 	_title.custom_minimum_size.x = 140
 	_title.clip_text = true
-	h.add_child(_title)
+	left.add_child(_title)
 
-	h.add_child(_menu("file", L.t("st_file"), [
+	left.add_child(_menu("file", L.t("st_file"), [
 		[L.t("st_save") + "   Ctrl+S", func(): save()],
 		[L.t("st_export"), _export],
 		[L.t("st_import"), _import],
 		[],
 		[L.t("st_close"), _close],
 	]))
-	h.add_child(_menu("edit", L.t("st_edit"), [
+	left.add_child(_menu("edit", L.t("st_edit"), [
 		[L.t("st_undo") + "   Ctrl+Z", doc.undo],
 		[L.t("st_redo") + "   Ctrl+Y", doc.redo],
 		[],
@@ -223,13 +231,13 @@ func _build_top_bar() -> Control:
 		[L.t("st_group") + "   Ctrl+G", doc.group_selection],
 		[L.t("st_ungroup"), func(): doc.ungroup(doc.primary())],
 	]))
-	h.add_child(_insert_menu())
-	h.add_child(_menu("place", L.t("st_place"), [
+	left.add_child(_insert_menu())
+	left.add_child(_menu("place", L.t("st_place"), [
 		[L.t("st_images"), func(): assets.open()],
 		[L.t("st_strings"), func(): strings_ed.open()],
 		[L.t("st_settings"), _open_settings],
 	]))
-	h.add_child(VSeparator.new())
+	left.add_child(VSeparator.new())
 	for t in [["select", "pointer", "1"], ["move", "move", "2"], ["scale", "scale", "3"], ["rotate", "rotate", "4"]]:
 		var b := UI.button(L.t("st_tool_" + t[0]), "flat", 34)
 		b.theme_type_variation = "ChipButton"
@@ -237,7 +245,7 @@ func _build_top_bar() -> Control:
 		b.add_theme_font_size_override("font_size", 14)
 		b.tooltip_text = L.t("st_tool_" + t[0]) + " (" + t[2] + ")"
 		b.pressed.connect(func(): _set_tool(t[0]))
-		h.add_child(b)
+		left.add_child(b)
 		_tool_buttons[t[0]] = b
 	var snap := OptionButton.new()
 	for i in SNAPS.size():
@@ -247,15 +255,14 @@ func _build_top_bar() -> Control:
 		view.snap = SNAPS[i] > 0.0
 		view.move_snap = SNAPS[i])
 	snap.add_theme_font_size_override("font_size", 14)
-	h.add_child(snap)
+	left.add_child(snap)
 	_ui_button = UI.button("UI", "flat", 34)
 	_ui_button.theme_type_variation = "ChipButton"
 	_ui_button.toggle_mode = true
 	_ui_button.tooltip_text = L.t("st_ui_mode")
 	_ui_button.add_theme_font_size_override("font_size", 14)
 	_ui_button.toggled.connect(func(on): gui_layer.visible = on)
-	h.add_child(_ui_button)
-	h.add_child(UI.spacer())
+	left.add_child(_ui_button)
 	var test := UI.button("▶ " + L.t("st_test"), "mint", 36)
 	test.add_theme_font_size_override("font_size", 15)
 	test.pressed.connect(play_test)

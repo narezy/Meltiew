@@ -30,6 +30,12 @@ func _ready() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 36)
 	content.add_child(margin)
+	var fit := func():
+		var short := get_viewport_rect().size.y < 760.0
+		for side in ["top", "bottom"]:
+			margin.add_theme_constant_override("margin_" + side, 14 if short else 36)
+	get_viewport().size_changed.connect(fit)
+	fit.call()
 	var row := UI.hbox(32)
 	margin.add_child(row)
 
@@ -62,12 +68,20 @@ func _ready() -> void:
 	add_child(look_timer)
 
 	# Right: form card.
-	var right := CenterContainer.new()
+	# Scrolls when the sign-up form is taller than the screen (short phones, keyboard up).
+	var right := ScrollContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	row.add_child(right)
+	var center := VBoxContainer.new()
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(center)
 	var card := UI.card(28, UI.CARD, 28)
 	card.custom_minimum_size.x = 470
-	right.add_child(card)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	center.add_child(card)
 	var form := UI.vbox(14)
 	card.add_child(form)
 
