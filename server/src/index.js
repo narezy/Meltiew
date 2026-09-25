@@ -26,6 +26,7 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.apk': 'application/vnd.android.package-archive',
   '.json': 'application/json',
+  '.glb': 'model/gltf-binary',
 };
 
 function serveStatic(req, res) {

@@ -70,6 +70,20 @@ const T = {
     save: 'Save', name_en: 'Name (EN)', name_ru: 'Name (RU)', desc_en: 'Description (EN)', desc_ru: 'Description (RU)',
     download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Also on', desktop_note: 'Unzip and run Meltiew. Same account, same friends.',
     last_seen: 'last seen {0}',
+    messages: 'Messages', chats: 'Chats', dm_requests: 'Requests', no_chats: 'No chats yet. Open a profile and say hi!',
+    no_dm_requests: 'No message requests', pick_chat: 'Pick a chat on the left', type_message: 'Message...',
+    dm_request_from: '{0} wants to chat with you. Accept to reply.', dm_waiting: 'Sent! You can write more once {0} accepts.',
+    dm_first: 'Your first message goes as a request. You can write more once they accept.', dm_unavailable: "You can't message this player.",
+    you: 'You: ', message: 'Message', report: 'Report', report_title: 'Report {0}', report_reason: 'What happened?',
+    r_chat: 'Rude chat or messages', r_name: 'Bad name or bio', r_avatar: 'Inappropriate avatar', r_cheating: 'Cheating', r_other: 'Something else',
+    report_details: 'Details (optional)', report_send: 'Send report', reports: 'Reports', no_reports: 'No open reports', resolve: 'Resolve', reported_by: 'from {0}',
+    friends_of: 'Friends', friends_hidden: 'Friends list is hidden', friends_online_n: '{0} online of {1}', no_friends_short: 'No friends yet',
+    search_places: 'Search places', no_places: 'Nothing found', birthdate: 'Date of birth', birthdate_why: 'We need it to set up chat safety. It can\'t be changed later.',
+    birthdate_title: 'When is your birthday?', birthdate_set: 'Set date of birth', continue: 'Continue', privacy: 'Privacy', hide_friends: 'Hide my friends list',
+    face: 'Face', face_hint: 'Colors and hats are edited in the app. Faces work here too.',
+    rules_kid: 'Under 13: chat and messages are turned off.', rules_teen: 'Chat and messages are filtered.',
+    rules_older: 'Game chat is filtered, messages are not.', rules_adult: 'No filters.', rules_none: 'Add your date of birth to play and chat.',
+    telegram: 'Telegram channel', drag_to_spin: 'Drag to spin', admin_reset_bd: 'Reset birthdate', age_n: '{0} y.o.',
   },
   ru: {
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
@@ -110,8 +124,22 @@ const T = {
     ban: 'Забанить', unban: 'Разбанить', make_admin: 'Сделать админом', remove_admin: 'Снять админку', kick: 'Кикнуть', reset_profile: 'Сбросить профиль',
     ban_reason: 'Причина бана (необязательно)', close_server: 'Закрыть', no_live: 'Живых серверов нет', banned_tag: 'БАН',
     save: 'Сохранить', name_en: 'Название (EN)', name_ru: 'Название (RU)', desc_en: 'Описание (EN)', desc_ru: 'Описание (RU)',
-    download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
+    download_for: 'Скачать для {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
     last_seen: 'был(а) {0}',
+    messages: 'Сообщения', chats: 'Чаты', dm_requests: 'Запросы', no_chats: 'Чатов пока нет. Открой чей-нибудь профиль и напиши!',
+    no_dm_requests: 'Запросов на переписку нет', pick_chat: 'Выбери чат слева', type_message: 'Сообщение...',
+    dm_request_from: '{0} хочет с тобой переписываться. Прими, чтобы ответить.', dm_waiting: 'Отправлено! Дальше писать можно, когда {0} примет запрос.',
+    dm_first: 'Первое сообщение уйдёт как запрос. Дальше можно будет писать, когда его примут.', dm_unavailable: 'Этому игроку писать нельзя.',
+    you: 'Ты: ', message: 'Написать', report: 'Пожаловаться', report_title: 'Жалоба на {0}', report_reason: 'Что случилось?',
+    r_chat: 'Грубит в чате или личке', r_name: 'Плохой ник или описание', r_avatar: 'Неприличный аватар', r_cheating: 'Читерит', r_other: 'Другое',
+    report_details: 'Подробности (необязательно)', report_send: 'Отправить жалобу', reports: 'Жалобы', no_reports: 'Открытых жалоб нет', resolve: 'Закрыть', reported_by: 'от {0}',
+    friends_of: 'Друзья', friends_hidden: 'Список друзей скрыт', friends_online_n: 'в сети {0} из {1}', no_friends_short: 'Друзей пока нет',
+    search_places: 'Поиск плейсов', no_places: 'Ничего не нашли', birthdate: 'Дата рождения', birthdate_why: 'Нужна, чтобы настроить безопасность чата. Поменять потом нельзя.',
+    birthdate_title: 'Когда у тебя день рождения?', birthdate_set: 'Указать дату рождения', continue: 'Продолжить', privacy: 'Приватность', hide_friends: 'Скрыть мой список друзей',
+    face: 'Лицо', face_hint: 'Цвета и шапки меняются в приложении. А лицо можно и тут.',
+    rules_kid: 'До 13 лет чат и личные сообщения выключены.', rules_teen: 'Чат и личные сообщения фильтруются.',
+    rules_older: 'Игровой чат фильтруется, личные сообщения нет.', rules_adult: 'Без фильтров.', rules_none: 'Укажи дату рождения, чтобы играть и общаться.',
+    telegram: 'Телеграм-канал', drag_to_spin: 'Потяни, чтобы покрутить', admin_reset_bd: 'Сбросить дату рождения', age_n: '{0} лет',
   },
 };
 
@@ -178,6 +206,7 @@ function status(u) {
 
 async function launch(server = 'auto') {
   if (!state.me) return go('/login');
+  if (!(await askBirthdate(true))) return;
   try {
     await api('POST', '/api/launch', { server, game: 'playground' });
   } catch (e) {
@@ -204,11 +233,46 @@ function modal(html) {
 
 // --- chrome -----------------------------------------------------------------
 
+const ICONS = {
+  home: '<path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1z"/>',
+  friends: '<circle cx="9" cy="8.5" r="3.3"/><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M16.5 14.4c2.2 0 3.7 1.4 4.1 4"/>',
+  messages: '<path d="M4.5 5.5h15a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H10l-4.5 3.5V17h-1a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/>',
+  download: '<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  admin_panel: '<path d="M12 3.5 19 6v5.5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z"/>',
+  send: '<path d="M4 12 20 4l-4.5 16-3.5-6.5z"/>',
+  telegram: '<path d="M20.5 4.5 3.5 11l5.5 2 2 6 3-4 5 3.5z"/>',
+};
+const icon = (name, size = 22) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
+const TELEGRAM = 'https://t.me/meltiew';
+
+// Unread messages and friend requests, shown as badges in the navigation.
+const counts = { friends: 0, messages: 0 };
+function paintBadges() {
+  document.querySelectorAll('[data-count]').forEach((el) => {
+    const n = counts[el.dataset.count] || 0;
+    el.textContent = n > 99 ? '99+' : n;
+    el.hidden = n === 0;
+  });
+}
+async function pollCounts() {
+  if (!state.me) return;
+  try {
+    const n = await api('GET', '/api/notifications');
+    counts.friends = n.friend_requests;
+    counts.messages = n.dm_unread + n.dm_requests;
+    paintBadges();
+  } catch {}
+}
+setInterval(pollCounts, 15000);
+
 function renderNav(path) {
-  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends'], ['/messages', 'messages']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/') : path.startsWith(href));
+  const count = (key) => (key === 'friends' || key === 'messages' ? `<b class="count" data-count="${key}" hidden></b>` : '');
   $('#nav').innerHTML = `
-    <a class="brand" href="/" data-link><img src="/img/logo.svg" alt="">meltiew</a>
-    <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${path === href ? 'on' : ''}">${t(key)}</a>`).join('')}</div>
+    <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
+    <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${t(key)}${count(key)}</a>`).join('')}</div>
     <div class="nav-right">
       <div class="lang">${['en', 'ru'].map((l) => `<button data-lang="${l}" class="${state.lang === l ? 'on' : ''}">${l.toUpperCase()}</button>`).join('')}</div>
       ${state.me
@@ -216,7 +280,38 @@ function renderNav(path) {
         : `<a class="btn small" href="/login" data-link>${t('sign_in')}</a>`}
     </div>`;
   $('#nav').querySelectorAll('.me-chip .bust').forEach((b) => { b.style.width = b.style.height = '34px'; });
+  // Phones get an app-style tab bar at the bottom instead of a row of links.
+  const bar = $('#tabbar');
+  const tabs = state.me ? links.filter(([href]) => href !== '/download') : links;
+  bar.innerHTML = tabs.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
+  paintBadges();
 }
+
+// Asks once per visit for a date of birth when the account has none. Resolves true once it's set.
+function askBirthdate(force = false) {
+  if (!state.me || state.me.birthdate) return Promise.resolve(true);
+  if (!force && sessionStorage.getItem('bd_asked')) return Promise.resolve(false);
+  sessionStorage.setItem('bd_asked', '1');
+  return new Promise((resolve) => {
+    const bg = modal(`<h3>${t('birthdate_title')}</h3><p class="muted" style="margin:0">${t('birthdate_why')}</p>
+      <form class="stack" id="bdf"><input type="date" name="bd" required max="${new Date().toISOString().slice(0, 10)}">
+      <div class="error"></div><button class="btn">${t('continue')}</button></form>`);
+    const done = (ok) => { bg.remove(); resolve(ok); };
+    bg.addEventListener('click', (e) => { if (e.target === bg) resolve(false); });
+    $('#bdf', bg).addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const r = await api('PATCH', '/api/me', { birthdate: e.target.bd.value });
+        state.me = r.user || { ...state.me, birthdate: e.target.bd.value };
+        done(true);
+      } catch (err) { $('.error', bg).textContent = err.message; }
+    });
+  });
+}
+
+// Pages register timers here; they are cleared when the route changes.
+let cleanups = [];
+const onLeave = (fn) => cleanups.push(fn);
 
 // --- pages ------------------------------------------------------------------
 
@@ -224,17 +319,26 @@ const pages = {
   async '/'(root) {
     if (!state.me) return landing(root);
     root.innerHTML = `<h1>${esc(t('hi', state.me.display_name))}</h1><div id="fo"></div>
-      <h2>${t('places')}</h2><div class="places" id="places"></div>`;
-    const [places, friends] = await Promise.all([api('GET', '/api/places'), api('GET', '/api/friends')]);
-    $('#places').innerHTML = places.places.map(placeCard).join('');
-    const online = friends.friends.filter((f) => f.online);
-    if (online.length) {
-      $('#fo').innerHTML = `<h2>${t('friends_online')}</h2><div class="friend-strip">${online.map((f) => `
-        <div class="card row">${bust(f)}<div class="grow stack" style="gap:4px">
-          <a href="/u/${encodeURIComponent(f.username)}" data-link><b>${nameHtml(f)}</b></a>${status(f)}
-          ${f.playing ? `<button class="btn small mint" data-play="${esc(f.playing.server_id)}">${t('join')}</button>` : ''}
-        </div></div>`).join('')}</div>`;
-    }
+      <div class="row section-head"><h2 class="grow">${t('places')}</h2>
+        <input id="pq" class="search" type="search" placeholder="${t('search_places')}" autocomplete="off"></div>
+      <div class="places" id="places"></div>`;
+    const loadPlaces = async () => {
+      const q = $('#pq').value.trim();
+      const r = await api('GET', '/api/places' + (q ? '?q=' + encodeURIComponent(q) : ''));
+      $('#places').innerHTML = r.places.length ? r.places.map(placeCard).join('') : `<div class="empty">${t('no_places')}</div>`;
+    };
+    let timer;
+    $('#pq').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(loadPlaces, 300); });
+    const loadFriends = async () => {
+      const { friends } = await api('GET', '/api/friends');
+      if (!$('#fo')) return;
+      $('#fo').innerHTML = friends.length ? `<div class="row section-head"><h2>${t('friends')}</h2>
+        <span class="muted">${esc(t('friends_online_n', friends.filter((f) => f.online).length, friends.length))}</span></div>
+        <div class="carousel">${sortFriends(friends).map(friendChip).join('')}</div>` : '';
+    };
+    await Promise.all([loadPlaces(), loadFriends()]);
+    const iv = setInterval(loadFriends, 15000);
+    onLeave(() => clearInterval(iv));
   },
 
   '/download'(root) {
@@ -282,15 +386,35 @@ const pages = {
 
   async '/settings'(root) {
     if (!state.me) return go('/login');
+    const me = state.me;
+    const rules = me.rules || {};
+    const rulesKey = !me.birthdate ? 'rules_none' : !rules.chat ? 'rules_kid' : rules.filter_dm ? 'rules_teen' : rules.filter_chat ? 'rules_older' : 'rules_adult';
     root.innerHTML = `<h1>${t('settings')}</h1><div class="grid2">
       <div class="card stack"><h3>${t('language')}</h3>
-        <div class="tabs">${['en', 'ru'].map((l) => `<button data-lang="${l}" class="${state.lang === l ? 'on' : ''}">${l === 'en' ? 'English' : 'Русский'}</button>`).join('')}</div>
-        <p class="muted">${t('edit_in_app')}</p></div>
+        <div class="tabs">${['en', 'ru'].map((l) => `<button data-lang="${l}" class="${state.lang === l ? 'on' : ''}">${l === 'en' ? 'English' : 'Русский'}</button>`).join('')}</div></div>
+      <div class="card stack"><h3>${t('privacy')}</h3>
+        <label class="switch"><input type="checkbox" id="hf" ${me.hide_friends ? 'checked' : ''}><i></i>${t('hide_friends')}</label>
+        <div><span class="muted">${t('birthdate')}:</span> ${me.birthdate
+          ? `<b>${esc(new Date(me.birthdate + 'T00:00').toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US'))}</b>`
+          : `<button class="btn small" id="setbd">${t('birthdate_set')}</button>`}</div>
+        <span class="muted">${t(rulesKey)}</span></div>
+      <div class="card stack" style="grid-column:1/-1"><h3>${t('face')}</h3><span class="muted">${t('face_hint')}</span>
+        <div class="faces">${Object.entries(FACE_SLUGS).map(([id, slug]) => `<button class="face ${me.face === id ? 'on' : ''}" data-face="${esc(id)}" title="${esc(id)}"><img src="/img/faces/${slug}.png" alt="${esc(id)}"></button>`).join('')}</div></div>
       <form class="card stack" id="pw"><h3>${t('change_password')}</h3>
         <input type="password" name="old" placeholder="${t('current_password')}" required>
         <input type="password" name="new" placeholder="${t('new_password')}" minlength="6" required>
         <div class="error"></div><button class="btn ghost">${t('change_password')}</button>
-        <button type="button" class="btn danger" id="logout">${t('sign_out')}</button></form></div>`;
+        <button type="button" class="btn danger" id="logout">${t('sign_out')}</button></form>
+      <a class="card stack tg" href="${TELEGRAM}" target="_blank" rel="noopener"><h3>${icon('telegram')} ${t('telegram')}</h3><span class="muted">t.me/meltiew</span></a></div>`;
+    const patch = async (body) => {
+      try { const r = await api('PATCH', '/api/me', body); state.me = r.user; toast(t('saved')); return true; }
+      catch (e) { toast(e.message, 'error'); return false; }
+    };
+    $('#hf').addEventListener('change', (e) => patch({ hide_friends: e.target.checked }));
+    $('#setbd')?.addEventListener('click', async () => { if (await askBirthdate(true)) render(); });
+    root.querySelectorAll('[data-face]').forEach((b) => b.addEventListener('click', async () => {
+      if (await patch({ face: b.dataset.face })) root.querySelectorAll('[data-face]').forEach((x) => x.classList.toggle('on', x === b));
+    }));
     $('#pw').addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
@@ -314,6 +438,7 @@ function landing(root) {
       <h1>${t('hero_title')}</h1><p>${t('hero_text')}</p>
       ${downloadButtons()}
       <div class="row" style="margin-top:14px;flex-wrap:wrap"><a class="btn ghost" href="/register" data-link>${t('sign_up')}</a>
+      <a class="btn ghost" href="${TELEGRAM}" target="_blank" rel="noopener">${icon('telegram', 20)}Telegram</a>
       <span class="muted" style="font-size:15px"><span id="srv">…</span></span></div></div>
       <img class="cover" src="/img/cover.png" alt="Meltiew playground"></section>
     <section class="features">
@@ -331,7 +456,9 @@ function authPage(root, mode) {
     <input name="username" placeholder="${t('username')}" autocomplete="username" required>
     ${reg ? `<input name="display_name" placeholder="${t('display_name')}">` : ''}
     <input name="password" type="password" placeholder="${t('password')}" autocomplete="${reg ? 'new-password' : 'current-password'}" required>
-    ${reg ? `<input name="password2" type="password" placeholder="${t('repeat')}" required>` : ''}
+    ${reg ? `<input name="password2" type="password" placeholder="${t('repeat')}" required>
+      <label class="muted">${t('birthdate')}<input name="birthdate" type="date" required max="${new Date().toISOString().slice(0, 10)}"></label>
+      <span class="muted" style="font-size:13px;margin-top:-6px">${t('birthdate_why')}</span>` : ''}
     <div class="error"></div>
     <button class="btn big">${t(reg ? 'create' : 'sign_in')}</button>
     <p class="muted" style="margin:0;text-align:center">${t(reg ? 'have_account' : 'no_account')} <a href="${reg ? '/login' : '/register'}" data-link style="color:var(--accent)">${t(reg ? 'sign_in' : 'sign_up')}</a></p>
@@ -371,15 +498,31 @@ async function profilePage(root, username) {
     incoming: `<button class="btn mint" data-act="/api/friends/accept">${t('accept')}</button>`,
     none: `<button class="btn" data-act="/api/friends/request">${t('add_friend')}</button>`,
   }[rel];
-  const blockBtn = me ? '' : `<button class="btn ${rel === 'blocked' ? 'ghost' : 'danger'}" data-act="${rel === 'blocked' ? '/api/blocks/remove' : '/api/blocks/add'}">${t(rel === 'blocked' ? 'unblock' : 'block')}</button>`;
-  root.innerHTML = `<div class="card profile">${bust(u, 'big')}
+  const msgBtn = me || rel === 'blocked' ? '' : `<button class="btn ghost" id="dm">${icon('messages', 20)}${t('message')}</button>`;
+  const more = me ? '' : `<div class="row more">
+    <button class="link" id="report">${t('report')}</button>
+    <button class="link ${rel === 'blocked' ? '' : 'danger'}" data-act="${rel === 'blocked' ? '/api/blocks/remove' : '/api/blocks/add'}">${t(rel === 'blocked' ? 'unblock' : 'block')}</button></div>`;
+  root.innerHTML = `<div class="card profile">
+    <div class="stage" id="stage" title="${esc(t('drag_to_spin'))}">${bust(u, 'big')}</div>
     <div><h1 style="margin-bottom:4px">${nameHtml(u)}</h1><div class="muted">@${esc(u.username)}</div>
       <div style="margin-top:12px">${status(u)}</div>
       <p>${u.bio ? esc(u.bio) : `<span class="muted">${t('no_bio')}</span>`}</p>
       <div class="stats"><div><b>${u.friends}</b><span class="muted">${t('friends_count')}</span></div><div><b>${joined}</b><span class="muted">${t('member_since')}</span></div></div>
-      <div class="row" style="flex-wrap:wrap">${u.playing && !me ? `<button class="btn mint" data-play="${esc(u.playing.server_id)}">${t('join')}</button>` : ''}${friendBtn}${blockBtn}</div>
+      <div class="row" style="flex-wrap:wrap">${u.playing && !me ? `<button class="btn mint" data-play="${esc(u.playing.server_id)}">${t('join')}</button>` : ''}${friendBtn}${msgBtn}</div>
+      ${more}
       ${me ? `<p class="muted">${t('edit_in_app')}</p>` : ''}
-    </div></div>`;
+    </div></div>
+    <h2>${t('friends_of')}</h2><div id="pf"><div class="empty">…</div></div>`;
+  mellyViewer($('#stage'), u);
+  api('GET', `/api/users/${encodeURIComponent(u.username)}/friends`).then((r) => {
+    const box = $('#pf');
+    if (!box) return;
+    if (r.hidden) box.innerHTML = `<div class="empty">${t('friends_hidden')}</div>`;
+    else if (!r.friends.length) box.innerHTML = `<div class="empty">${t('no_friends_short')}</div>`;
+    else box.innerHTML = `<div class="carousel wrap">${r.friends.map(friendChip).join('')}</div>`;
+  }).catch(() => {});
+  $('#dm')?.addEventListener('click', () => { state.dmOpen = u; go('/messages'); });
+  $('#report')?.addEventListener('click', () => reportDialog(u));
   root.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', async () => {
     try {
       const r = await api('POST', b.dataset.act, { user_id: u.id });
@@ -387,6 +530,146 @@ async function profilePage(root, username) {
       profilePage(root, username);
     } catch (e) { toast(e.message, 'error'); }
   }));
+}
+
+function reportDialog(u) {
+  const reasons = ['chat', 'name', 'avatar', 'cheating', 'other'];
+  const bg = modal(`<h3>${esc(t('report_title', u.display_name))}</h3>
+    <form class="stack" id="rep"><span class="muted">${t('report_reason')}</span>
+      <div class="stack" style="gap:6px">${reasons.map((r, i) => `<label class="radio"><input type="radio" name="reason" value="${r}" ${i === 0 ? 'checked' : ''}>${t('r_' + r)}</label>`).join('')}</div>
+      <input name="details" maxlength="300" placeholder="${t('report_details')}">
+      <div class="row"><button type="button" class="btn ghost grow" data-close>${t('close')}</button><button class="btn danger grow">${t('report_send')}</button></div></form>`);
+  $('#rep', bg).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    try { const r = await api('POST', '/api/report', { user_id: u.id, ...f }); toast(r.message || t('done')); bg.remove(); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// --- 3D Melly ------------------------------------------------------------------
+
+const FACE_SLUGS = {
+  ':D': 'grin', ':)': 'smile', ':3': 'cat', ':P': 'tongue', ';)': 'wink', ':O': 'wow', xD: 'xd', 'B)': 'cool',
+  '^_^': 'happy', owo: 'owo', uwu: 'uwu', '>_<': 'squint', 'T_T': 'cry', '-_-': 'meh', ':|': 'flat', '<3': 'love',
+};
+const BODY_PARTS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r'];
+const DEFAULT_COLORS = { torso: '#baa4e2', head: '#f5f1ec', arm_l: '#f5f1ec', arm_r: '#f5f1ec', leg_l: '#302d38', leg_r: '#302d38' };
+
+// Spinning, waving Melly in the player's colors and face. The bust stays as a fallback
+// until WebGL and the model are ready, or for good if either fails.
+async function mellyViewer(el, u) {
+  try {
+    const THREE = await import('three');
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const gltf = await new GLTFLoader().loadAsync('/models/melly.glb');
+    if (!el.isConnected) return;
+    const w = el.clientWidth || 240;
+    const h = el.clientHeight || 300;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x5b4a80, 2.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(2, 4, 5);
+    scene.add(sun);
+
+    const model = gltf.scene;
+    const colors = { ...DEFAULT_COLORS, ...(u.colors || {}) };
+    const tints = BODY_PARTS.map((p) => new THREE.Color(colors[p]));
+    const faceTex = await new THREE.TextureLoader().loadAsync(`/img/faces/${FACE_SLUGS[u.face] || 'grin'}.png`);
+    faceTex.flipY = false;
+    faceTex.colorSpace = THREE.SRGBColorSpace;
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.material.name === 'Face') {
+        o.material = new THREE.MeshLambertMaterial({ map: faceTex, transparent: true, alphaTest: 0.4 });
+        return;
+      }
+      // Each vertex takes the color of the bone that moves it most (same as the game's shader).
+      const g = o.geometry;
+      const idx = g.attributes.skinIndex;
+      const wt = g.attributes.skinWeight;
+      const base = g.attributes.color;
+      const out = new Float32Array(idx.count * 3);
+      for (let i = 0; i < idx.count; i++) {
+        let best = 0;
+        for (let k = 1; k < 4; k++) if (wt.getComponent(i, k) > wt.getComponent(i, best)) best = k;
+        const c = tints[idx.getComponent(i, best)] || tints[0];
+        const shade = base ? base.getX(i) : 1;
+        out[i * 3] = c.r * shade; out[i * 3 + 1] = c.g * shade; out[i * 3 + 2] = c.b * shade;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(out, 3));
+      o.material = new THREE.MeshLambertMaterial({ vertexColors: true });
+    });
+    const pivot = new THREE.Group();
+    pivot.add(model);
+    scene.add(pivot);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.position.y = -box.min.y - size.y / 2;
+    const camera = new THREE.PerspectiveCamera(28, w / h, 0.1, 100);
+    camera.position.set(0, size.y * 0.04, size.y * 3.1);
+    camera.lookAt(0, 0, 0);
+
+    const mixer = new THREE.AnimationMixer(model);
+    const clip = (name) => THREE.AnimationClip.findByName(gltf.animations, name);
+    const idle = clip('Idle') && mixer.clipAction(clip('Idle')).play();
+    const wave = () => {
+      if (!clip('Wave')) return;
+      const a = mixer.clipAction(clip('Wave'));
+      a.reset().setLoop(THREE.LoopOnce, 1).fadeIn(0.15).play();
+      idle?.fadeOut(0.15);
+      setTimeout(() => { a.fadeOut(0.3); idle?.reset().fadeIn(0.3).play(); }, (clip('Wave').duration - 0.3) * 1000);
+    };
+
+    el.innerHTML = '';
+    el.appendChild(renderer.domElement);
+    el.classList.add('live');
+    let yaw = 0.35, spin = 0.25, dragging = false, lastX = 0, moved = 0;
+    const cv = renderer.domElement;
+    cv.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; moved = 0; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX; moved += Math.abs(dx);
+      yaw += dx * 0.012; spin = dx * 0.6;
+    });
+    cv.addEventListener('pointerup', () => { dragging = false; if (moved < 6) wave(); });
+    let last = performance.now();
+    setTimeout(wave, 500);
+    const frame = () => {
+      if (!el.isConnected) { renderer.dispose(); return; }
+      const now = performance.now();
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      if (!dragging) { spin += (0.25 - spin) * Math.min(1, dt * 1.5); yaw += spin * dt; }
+      pivot.rotation.y = yaw;
+      mixer.update(dt);
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    };
+    frame();
+  } catch (e) {
+    console.warn('3D preview unavailable', e);
+  }
+}
+
+// Playing first, then online, then everyone else.
+function sortFriends(list) {
+  const rank = (f) => (f.playing ? 2 : f.online ? 1 : 0);
+  return [...list].sort((a, b) => rank(b) - rank(a) || a.display_name.localeCompare(b.display_name));
+}
+
+// Round avatar with a status ring; tapping a friend who is playing joins their server.
+function friendChip(f) {
+  const ring = f.playing ? 'play' : f.online ? 'on' : '';
+  const inner = `<span class="ring ${ring}">${bust(f)}</span><b>${esc(f.display_name)}</b>`;
+  return f.playing
+    ? `<button class="chip" data-play="${esc(f.playing.server_id)}">${inner}<small>${t('join')}</small></button>`
+    : `<a class="chip" href="/u/${encodeURIComponent(f.username)}" data-link>${inner}</a>`;
 }
 
 function placeCard(p) {
@@ -410,7 +693,7 @@ async function placePage(root, id) {
       <div class="place" style="margin-top:14px">
         <img src="${esc(p.cover)}" alt="">
         <div class="stack">
-          <h1 style="margin:0">${esc(field(p, 'name'))}</h1>
+          <div class="row">${p.cover_square ? `<img class="square" src="${esc(p.cover_square)}" alt="">` : ''}<h1 style="margin:0">${esc(field(p, 'name'))}</h1></div>
           <a class="row" style="gap:10px" href="/u/${encodeURIComponent(p.author.username)}" data-link>${t('by')} ${p.author.id ? bust(p.author, 'small') : ''}<b>${nameHtml(p.author)}</b></a>
           <div class="row" style="flex-wrap:wrap;gap:8px">
             <span class="pill"><i class="dot on"></i>${esc(t('playing_n', p.playing))}</span>
@@ -439,6 +722,109 @@ async function placePage(root, id) {
   await draw();
 }
 
+// --- direct messages -------------------------------------------------------------
+
+async function messagesPage(root) {
+  if (!state.me) { sessionStorage.setItem('after_login', '/messages'); return go('/login'); }
+  root.innerHTML = `<div class="dm">
+    <div class="dm-side stack"><h1 style="margin:0">${t('messages')}</h1>
+      <div class="tabs"><button data-tab="chats" class="on">${t('chats')}</button><button data-tab="requests">${t('dm_requests')}</button></div>
+      <div class="stack dm-list" id="convs"></div></div>
+    <div class="card dm-pane" id="pane"><div class="empty dm-empty">${icon('messages', 44)}<br>${t('pick_chat')}</div></div></div>`;
+  let tab = 'chats';
+  let convs = [];
+  let current = null;
+  let lastId = 0;
+
+  const drawList = () => {
+    root.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    const reqs = convs.filter((c) => c.state === 'incoming');
+    root.querySelector('[data-tab="requests"]').textContent = t('dm_requests') + (reqs.length ? ` (${reqs.length})` : '');
+    const items = convs.filter((c) => (c.state === 'incoming') === (tab === 'requests'));
+    $('#convs').innerHTML = items.length ? items.map((c) => `
+      <button class="card row conv ${current && current.id === c.user.id ? 'on' : ''}" data-open="${c.user.id}">${bust(c.user)}
+        <span class="grow"><b>${nameHtml(c.user)}</b><span class="muted preview">${c.last.from_me ? t('you') : ''}${esc(c.last.body)}</span></span>
+        ${c.unread ? `<b class="count">${c.unread}</b>` : ''}</button>`).join('')
+      : `<div class="empty">${t(tab === 'requests' ? 'no_dm_requests' : 'no_chats')}</div>`;
+  };
+  const loadList = async () => {
+    const r = await api('GET', '/api/dm');
+    convs = r.conversations;
+    if ($('#convs')) drawList();
+  };
+  const bubble = (m) => `<div class="bubble ${m.from_me ? 'me' : ''}">${esc(m.body)}</div>`;
+  const scrollDown = () => { const b = $('#msgs'); if (b) b.scrollTop = b.scrollHeight; };
+
+  const open = async (user) => {
+    current = user;
+    lastId = 0;
+    root.querySelector('.dm').classList.add('chat-open');
+    drawList();
+    const r = await api('GET', `/api/dm/${user.id}`);
+    if (!current || current.id !== user.id) return;
+    const u = r.user;
+    let composer = '';
+    if (!r.can_message) composer = `<div class="note">${t('dm_unavailable')}</div>`;
+    else if (r.state === 'incoming') composer = `<div class="note">${esc(t('dm_request_from', u.display_name))}</div>
+      <div class="row"><button class="btn ghost grow" id="decline">${t('decline')}</button><button class="btn mint grow" id="accept">${t('accept')}</button></div>`;
+    else if (r.state === 'outgoing') composer = `<div class="note">${esc(t('dm_waiting', u.display_name))}</div>`;
+    else composer = `${r.state === 'none' ? `<div class="note">${t('dm_first')}</div>` : ''}
+      <form class="row" id="send"><input name="text" maxlength="500" placeholder="${t('type_message')}" autocomplete="off" required>
+      <button class="btn" aria-label="${t('send')}">${icon('send', 20)}</button></form>`;
+    $('#pane').innerHTML = `<div class="row dm-head"><button class="btn small ghost back" id="back">←</button>${bust(u)}
+        <a class="grow" href="/u/${encodeURIComponent(u.username)}" data-link><b>${nameHtml(u)}</b><div>${status(u)}</div></a></div>
+      <div class="msgs" id="msgs">${r.messages.map(bubble).join('')}</div>${composer}`;
+    lastId = r.messages.length ? r.messages[r.messages.length - 1].id : 0;
+    scrollDown();
+    $('#back').addEventListener('click', () => { current = null; root.querySelector('.dm').classList.remove('chat-open'); drawList(); });
+    $('#accept')?.addEventListener('click', async () => { await api('POST', `/api/dm/${u.id}/accept`); tab = 'chats'; await loadList(); open(u); });
+    $('#decline')?.addEventListener('click', async () => {
+      await api('POST', `/api/dm/${u.id}/decline`);
+      current = null;
+      $('#pane').innerHTML = `<div class="empty dm-empty">${t('pick_chat')}</div>`;
+      root.querySelector('.dm').classList.remove('chat-open');
+      loadList();
+    });
+    $('#send')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = e.target.text;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      try {
+        const res = await api('POST', `/api/dm/${u.id}`, { text });
+        if (res.state !== 'open') open(u);
+        else await poll();
+        loadList();
+      } catch (err) { toast(err.message, 'error'); input.value = text; }
+    });
+    pollCounts();
+  };
+  const poll = async () => {
+    if (!current) return;
+    const id = current.id;
+    const r = await api('GET', `/api/dm/${id}?after=${lastId}`);
+    if (!current || current.id !== id || !$('#msgs')) return;
+    const fresh = r.messages.filter((m) => m.id > lastId);
+    if (!fresh.length) return;
+    $('#msgs').insertAdjacentHTML('beforeend', fresh.map(bubble).join(''));
+    lastId = fresh[fresh.length - 1].id;
+    scrollDown();
+  };
+
+  root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; drawList(); }));
+  $('#convs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-open]');
+    if (!b) return;
+    const c = convs.find((x) => x.user.id === Number(b.dataset.open));
+    if (c) open(c.user);
+  });
+  await loadList();
+  if (state.dmOpen) { const u = state.dmOpen; state.dmOpen = null; open(u); }
+  const iv = setInterval(() => { loadList().catch(() => {}); poll().catch(() => {}); }, 3000);
+  onLeave(() => clearInterval(iv));
+}
+
 // --- admin panel --------------------------------------------------------------
 
 async function adminPage(root) {
@@ -446,7 +832,7 @@ async function adminPage(root) {
   const owner = state.me.role === 'owner';
   let tab = sessionStorage.getItem('admin_tab') || 'overview';
   root.innerHTML = `<h1>${t('admin_panel')}</h1>
-    <div class="tabs">${['overview', 'users', 'servers', 'places_admin'].map((k) => `<button data-tab="${k}">${t(k)}</button>`).join('')}</div>
+    <div class="tabs">${['overview', 'reports', 'users', 'servers', 'places_admin'].map((k) => `<button data-tab="${k}">${t(k)}</button>`).join('')}</div>
     <div id="admin" class="stack" style="margin-top:18px"></div>`;
   const box = $('#admin');
   const tabs = root.querySelectorAll('[data-tab]');
@@ -454,7 +840,7 @@ async function adminPage(root) {
     sessionStorage.setItem('admin_tab', tab);
     tabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     box.innerHTML = '…';
-    try { await ({ overview, users, servers, places_admin: placesAdmin })[tab](); }
+    try { await ({ overview, reports, users, servers, places_admin: placesAdmin })[tab](); }
     catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
   };
   tabs.forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; show(); }));
@@ -480,6 +866,29 @@ async function adminPage(root) {
     });
   }
 
+  async function reports() {
+    const r = await api('GET', '/api/admin/reports');
+    box.innerHTML = r.reports.length ? r.reports.map((x) => `<div class="card stack">
+        <div class="row" style="flex-wrap:wrap">${x.target ? bust(x.target) : ''}
+          <div class="grow">${x.target ? `<a href="/u/${encodeURIComponent(x.target.username)}" data-link><b>${nameHtml(x.target)}</b> <span class="muted">@${esc(x.target.username)}</span></a>` : '?'}
+            <div class="muted" style="font-size:14px">${esc(t('r_' + x.reason))} · ${esc(t('reported_by', x.reporter ? x.reporter.display_name : '?'))} · ${esc(ago(x.created_at))}</div></div>
+          <button class="btn small ghost" data-resolve="${x.id}">${t('resolve')}</button>
+          ${x.target && !x.target.banned && x.target.role === 'user' ? `<button class="btn small danger" data-ban="${x.target.id}" data-rid="${x.id}">${t('ban')}</button>` : ''}</div>
+        ${x.details ? `<p style="margin:0">${esc(x.details)}</p>` : ''}</div>`).join('') : `<div class="empty">${t('no_reports')}</div>`;
+    box.querySelectorAll('[data-resolve]').forEach((b) => b.addEventListener('click', async () => {
+      await api('POST', `/api/admin/reports/${b.dataset.resolve}/resolve`); reports();
+    }));
+    box.querySelectorAll('[data-ban]').forEach((b) => b.addEventListener('click', async () => {
+      const reason = prompt(t('ban_reason'));
+      if (reason === null) return;
+      try {
+        await api('POST', `/api/admin/users/${b.dataset.ban}`, { banned: true, reason });
+        await api('POST', `/api/admin/reports/${b.dataset.rid}/resolve`);
+        toast(t('done')); reports();
+      } catch (e) { toast(e.message, 'error'); }
+    }));
+  }
+
   async function users(q = '') {
     const r = await api('GET', '/api/admin/users?q=' + encodeURIComponent(q));
     box.innerHTML = `<input id="uq" placeholder="${t('search')}" value="${esc(q)}"><div class="stack" id="ul"></div>`;
@@ -488,10 +897,11 @@ async function adminPage(root) {
       return `<div class="card row admin-user">${bust(u)}
         <div class="grow"><a href="/u/${encodeURIComponent(u.username)}" data-link><b>${nameHtml(u)}</b> <span class="muted">@${esc(u.username)}</span></a>
           ${u.banned ? `<span class="badge banned">${t('banned_tag')}</span>` : ''}
-          <div class="muted" style="font-size:14px">${u.playing ? esc(t('playing', field(u.playing, 'server_name'))) : esc(t('last_seen', ago(u.last_seen)))}${u.ban_reason ? ' · ' + esc(u.ban_reason) : ''}</div></div>
+          <div class="muted" style="font-size:14px">${u.age != null ? esc(t('age_n', u.age)) + ' · ' : ''}${u.playing ? esc(t('playing', field(u.playing, 'server_name'))) : esc(t('last_seen', ago(u.last_seen)))}${u.ban_reason ? ' · ' + esc(u.ban_reason) : ''}</div></div>
         ${canTouch ? `<div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-end">
           ${u.playing ? `<button class="btn small ghost" data-kick="${u.id}">${t('kick')}</button>` : ''}
           <button class="btn small ghost" data-reset="${u.id}">${t('reset_profile')}</button>
+          ${u.age != null ? `<button class="btn small ghost" data-resetbd="${u.id}">${t('admin_reset_bd')}</button>` : ''}
           ${owner ? `<button class="btn small ghost" data-role="${u.id}" data-to="${u.role === 'admin' ? 'user' : 'admin'}">${t(u.role === 'admin' ? 'remove_admin' : 'make_admin')}</button>` : ''}
           <button class="btn small ${u.banned ? 'mint' : 'danger'}" data-ban="${u.id}" data-to="${u.banned ? 0 : 1}">${t(u.banned ? 'unban' : 'ban')}</button></div>` : ''}
       </div>`;
@@ -507,6 +917,7 @@ async function adminPage(root) {
     box.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => act(() => api('POST', `/api/admin/users/${b.dataset.role}`, { role: b.dataset.to }))));
     box.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => act(() => api('POST', `/api/admin/users/${b.dataset.reset}`, { reset_profile: true }))));
     box.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', () => act(() => api('POST', '/api/admin/kick', { user_id: Number(b.dataset.kick) }))));
+    box.querySelectorAll('[data-resetbd]').forEach((b) => b.addEventListener('click', () => act(() => api('POST', `/api/admin/users/${b.dataset.resetbd}`, { reset_birthdate: true }))));
   }
 
   async function servers() {
@@ -551,18 +962,23 @@ function go(path) {
 
 async function render() {
   const path = location.pathname;
+  cleanups.forEach((fn) => fn());
+  cleanups = [];
   document.documentElement.lang = state.lang;
   renderNav(path);
+  pollCounts();
   const root = $('#app');
   root.innerHTML = '';
   try {
-    if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));
+    if (path.startsWith('/messages')) await messagesPage(root);
+    else if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));
     else if (path.startsWith('/place/')) await placePage(root, decodeURIComponent(path.slice(7)));
     else if (path === '/admin') await adminPage(root);
     else await (pages[path] || pages['/'])(root);
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }
+  window.scrollTo(0, 0);
 }
 
 document.addEventListener('click', (e) => {
@@ -586,5 +1002,6 @@ window.addEventListener('popstate', render);
   if (state.token) {
     try { state.me = (await api('GET', '/api/me')).user; } catch { state.me = null; }
   }
-  render();
+  await render();
+  askBirthdate();
 })();

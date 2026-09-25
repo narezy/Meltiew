@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Meltiew</title>
 <meta name="description" content="Meltiew: play, dress up and hang out with friends.">
 <meta name="theme-color" content="#16141d">
@@ -13,12 +13,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=3">
+<link rel="stylesheet" href="/style.css?v=4">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
 </head>
 <body>
 <nav class="nav" id="nav"></nav>
 <main id="app"></main>
-<footer>meltiew · <a href="https://github.com/narezy/Meltiew" style="color:var(--accent)">GitHub</a></footer>
-<script src="/app.js?v=3" defer></script>
+<footer>meltiew · <a href="https://t.me/meltiew" target="_blank" rel="noopener">Telegram</a> · <a href="https://github.com/narezy/Meltiew" target="_blank" rel="noopener">GitHub</a></footer>
+<nav class="tabbar" id="tabbar"></nav>
+<script src="/app.js?v=4" defer></script>
 </body>
 </html>
