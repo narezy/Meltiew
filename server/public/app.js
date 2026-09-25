@@ -413,7 +413,9 @@ const pages = {
     $('#hf').addEventListener('change', (e) => patch({ hide_friends: e.target.checked }));
     $('#setbd')?.addEventListener('click', async () => { if (await askBirthdate(true)) render(); });
     root.querySelectorAll('[data-face]').forEach((b) => b.addEventListener('click', async () => {
-      if (await patch({ face: b.dataset.face })) root.querySelectorAll('[data-face]').forEach((x) => x.classList.toggle('on', x === b));
+      if (!(await patch({ face: b.dataset.face }))) return;
+      root.querySelectorAll('[data-face]').forEach((x) => x.classList.toggle('on', x === b));
+      try { await uploadMyBust(); renderNav(location.pathname); } catch (e) { console.warn('bust render failed', e); }
     }));
     $('#pw').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -556,13 +558,165 @@ const FACE_SLUGS = {
 const BODY_PARTS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r'];
 const DEFAULT_COLORS = { torso: '#baa4e2', head: '#f5f1ec', arm_l: '#f5f1ec', arm_r: '#f5f1ec', leg_l: '#302d38', leg_r: '#302d38' };
 
-// Spinning, waving Melly in the player's colors and face. The bust stays as a fallback
+let threeLibs = null;
+async function loadThree() {
+  if (!threeLibs) {
+    threeLibs = Promise.all([import('three'), import('three/addons/loaders/GLTFLoader.js')])
+      .then(([THREE, { GLTFLoader }]) => ({ THREE, GLTFLoader }));
+  }
+  return threeLibs;
+}
+
+// Hats, ported from client/scripts/avatar/hats.gd. Built in melly.glb units relative to the
+// Head bone: the head box spans x ±0.69, z ±0.67 and y 0..1.33 above the bone.
+function buildHat(THREE, id) {
+  const TOP = 1.33;
+  const D = Math.PI / 180;
+  const root = new THREE.Group();
+  const mat = (color, rough = 0.7, metal = 0, emission = 0) => new THREE.MeshStandardMaterial({
+    color, roughness: rough, metalness: metal, emissive: emission ? color : 0x000000, emissiveIntensity: emission * 0.6,
+  });
+  const part = (parent, geo, m, pos, rot = [0, 0, 0]) => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(...pos);
+    mesh.rotation.set(rot[0] * D, rot[1] * D, rot[2] * D, 'YXZ');
+    parent.add(mesh);
+    return mesh;
+  };
+  // Godot primitives: prism with the apex on top, ellipsoid spheres, Y-axis tori.
+  const prism = (w, h, d) => {
+    const shape = new THREE.Shape([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(w / 2, -h / 2), new THREE.Vector2(0, h / 2)]);
+    return new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2);
+  };
+  const sphere = (r, h, hemi = false) => (hemi
+    ? new THREE.SphereGeometry(r, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, h / r, 1)
+    : new THREE.SphereGeometry(r, 24, 12).scale(1, h / 2 / r, 1));
+  const cyl = (top, bottom, h) => new THREE.CylinderGeometry(top, bottom, h, 32);
+  const torus = (inner, outer) => new THREE.TorusGeometry((inner + outer) / 2, (outer - inner) / 2, 16, 48).rotateX(Math.PI / 2);
+
+  switch (id) {
+    case 'catears': {
+      const fur = mat('#302d38');
+      const pink = mat('#ff8fb1');
+      for (const side of [-1, 1]) {
+        const x = side * 0.42;
+        part(root, prism(0.5, 0.55, 0.2), fur, [x, TOP + 0.2, -0.05], [0, 0, -side * 14]);
+        part(root, prism(0.3, 0.34, 0.06), pink, [x + side * 0.02, TOP + 0.16, 0.06], [0, 0, -side * 14]);
+      }
+      break;
+    }
+    case 'cap': {
+      const red = mat('#ff6b6b');
+      part(root, sphere(0.74, 0.8, true), red, [0, TOP - 0.2, 0]);
+      part(root, new THREE.BoxGeometry(1.1, 0.07, 0.6), red, [0, TOP - 0.17, 0.85], [-6, 0, 0]);
+      part(root, sphere(0.08, 0.16), mat('#f4f1ec'), [0, TOP + 0.2, 0]);
+      break;
+    }
+    case 'crown': {
+      const gold = mat('#ffd166', 0.3, 0.8);
+      part(root, cyl(0.5, 0.47, 0.28), gold, [0, TOP + 0.12, 0]);
+      const gems = ['#ff6b6b', '#4cc9f0', '#7ee0c3', '#e056fd', '#ff8fb1'];
+      for (let i = 0; i < 5; i++) {
+        const a = (Math.PI * 2 * i) / 5;
+        const dx = Math.sin(a), dz = Math.cos(a);
+        const spike = part(root, prism(0.22, 0.3, 0.08), gold, [dx * 0.47, TOP + 0.4, dz * 0.47]);
+        spike.rotation.y = a;
+        part(root, sphere(0.06, 0.12), mat(gems[i], 0.2, 0, 0.6), [dx * 0.51, TOP + 0.12, dz * 0.51]);
+      }
+      break;
+    }
+    case 'halo': {
+      const ring = part(root, torus(0.42, 0.55), mat('#fff3b0', 0.2, 0, 2.2), [0, TOP + 0.45, 0]);
+      ring.userData.bob = [TOP + 0.45, TOP + 0.58];
+      break;
+    }
+    case 'tophat': {
+      const black = mat('#1f1c27', 0.5);
+      part(root, cyl(0.82, 0.82, 0.06), black, [0, TOP + 0.03, 0]);
+      part(root, cyl(0.5, 0.46, 0.85), black, [0, TOP + 0.48, 0]);
+      part(root, cyl(0.475, 0.47, 0.14), mat('#b89cff'), [0, TOP + 0.16, 0]);
+      root.rotation.z = -6 * D;
+      break;
+    }
+    case 'flower': {
+      const flower = new THREE.Group();
+      flower.position.set(0.5, TOP - 0.05, 0.25);
+      flower.rotation.set(20 * D, 0, -35 * D, 'YXZ');
+      root.add(flower);
+      const pink = mat('#ff8fb1');
+      for (let i = 0; i < 5; i++) {
+        const a = (Math.PI * 2 * i) / 5;
+        part(flower, sphere(0.16, 0.12), pink, [Math.cos(a) * 0.17, 0, Math.sin(a) * 0.17]);
+      }
+      part(flower, sphere(0.12, 0.18), mat('#ffd166'), [0, 0.04, 0]);
+      break;
+    }
+    case 'headphones': {
+      const dark = mat('#2e2940', 0.4);
+      part(root, torus(0.72, 0.82), dark, [0, 0.62, 0], [90, 0, 0]);
+      for (const side of [-1, 1]) {
+        part(root, cyl(0.26, 0.26, 0.2), dark, [side * 0.78, 0.62, 0], [0, 0, 90]);
+        part(root, cyl(0.18, 0.18, 0.22), mat('#7ee0c3'), [side * 0.8, 0.62, 0], [0, 0, 90]);
+      }
+      break;
+    }
+    default:
+      return null;
+  }
+  return root;
+}
+
+// Loads melly.glb dressed as this player: body colors by bone, face texture and hat.
+async function buildMelly(u) {
+  const { THREE, GLTFLoader } = await loadThree();
+  const gltf = await new GLTFLoader().loadAsync('/models/melly.glb');
+  const model = gltf.scene;
+  const colors = { ...DEFAULT_COLORS, ...(u.colors || {}) };
+  const tints = BODY_PARTS.map((p) => new THREE.Color(colors[p]));
+  const faceTex = await new THREE.TextureLoader().loadAsync(`/img/faces/${FACE_SLUGS[u.face] || 'grin'}.png`);
+  faceTex.flipY = false;
+  faceTex.colorSpace = THREE.SRGBColorSpace;
+  let head = null;
+  model.traverse((o) => {
+    if (o.isBone && o.name === 'Head') head = o;
+    if (!o.isMesh) return;
+    if (o.material.name === 'Face') {
+      o.material = new THREE.MeshLambertMaterial({ map: faceTex, transparent: true, alphaTest: 0.4 });
+      return;
+    }
+    // Each vertex takes the color of the bone that moves it most (same as the game's shader).
+    const g = o.geometry;
+    const idx = g.attributes.skinIndex;
+    const wt = g.attributes.skinWeight;
+    const base = g.attributes.color;
+    const out = new Float32Array(idx.count * 3);
+    for (let i = 0; i < idx.count; i++) {
+      let best = 0;
+      for (let k = 1; k < 4; k++) if (wt.getComponent(i, k) > wt.getComponent(i, best)) best = k;
+      const c = tints[idx.getComponent(i, best)] || tints[0];
+      const shade = base ? base.getX(i) : 1;
+      out[i * 3] = c.r * shade; out[i * 3 + 1] = c.g * shade; out[i * 3 + 2] = c.b * shade;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(out, 3));
+    o.material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  });
+  const hat = buildHat(THREE, u.hat);
+  if (hat && head) head.add(hat);
+  const bobbers = [];
+  hat?.traverse((o) => { if (o.userData.bob) bobbers.push(o); });
+  // Halo floats up and down like in the game.
+  const animateHat = (t) => bobbers.forEach((o) => {
+    const [lo, hi] = o.userData.bob;
+    o.position.y = lo + (hi - lo) * (0.5 - 0.5 * Math.cos((t / 1.2) * Math.PI));
+  });
+  return { THREE, gltf, model, animateHat };
+}
+
+// Spinning, waving Melly in the player's look. The bust stays as a fallback
 // until WebGL and the model are ready, or for good if either fails.
 async function mellyViewer(el, u) {
   try {
-    const THREE = await import('three');
-    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-    const gltf = await new GLTFLoader().loadAsync('/models/melly.glb');
+    const { THREE, gltf, model, animateHat } = await buildMelly(u);
     if (!el.isConnected) return;
     const w = el.clientWidth || 240;
     const h = el.clientHeight || 300;
@@ -576,34 +730,6 @@ async function mellyViewer(el, u) {
     sun.position.set(2, 4, 5);
     scene.add(sun);
 
-    const model = gltf.scene;
-    const colors = { ...DEFAULT_COLORS, ...(u.colors || {}) };
-    const tints = BODY_PARTS.map((p) => new THREE.Color(colors[p]));
-    const faceTex = await new THREE.TextureLoader().loadAsync(`/img/faces/${FACE_SLUGS[u.face] || 'grin'}.png`);
-    faceTex.flipY = false;
-    faceTex.colorSpace = THREE.SRGBColorSpace;
-    model.traverse((o) => {
-      if (!o.isMesh) return;
-      if (o.material.name === 'Face') {
-        o.material = new THREE.MeshLambertMaterial({ map: faceTex, transparent: true, alphaTest: 0.4 });
-        return;
-      }
-      // Each vertex takes the color of the bone that moves it most (same as the game's shader).
-      const g = o.geometry;
-      const idx = g.attributes.skinIndex;
-      const wt = g.attributes.skinWeight;
-      const base = g.attributes.color;
-      const out = new Float32Array(idx.count * 3);
-      for (let i = 0; i < idx.count; i++) {
-        let best = 0;
-        for (let k = 1; k < 4; k++) if (wt.getComponent(i, k) > wt.getComponent(i, best)) best = k;
-        const c = tints[idx.getComponent(i, best)] || tints[0];
-        const shade = base ? base.getX(i) : 1;
-        out[i * 3] = c.r * shade; out[i * 3 + 1] = c.g * shade; out[i * 3 + 2] = c.b * shade;
-      }
-      g.setAttribute('color', new THREE.BufferAttribute(out, 3));
-      o.material = new THREE.MeshLambertMaterial({ vertexColors: true });
-    });
     const pivot = new THREE.Group();
     pivot.add(model);
     scene.add(pivot);
@@ -638,7 +764,8 @@ async function mellyViewer(el, u) {
       yaw += dx * 0.012; spin = dx * 0.6;
     });
     cv.addEventListener('pointerup', () => { dragging = false; if (moved < 6) wave(); });
-    let last = performance.now();
+    const start = performance.now();
+    let last = start;
     setTimeout(wave, 500);
     const frame = () => {
       if (!el.isConnected) { renderer.dispose(); return; }
@@ -648,6 +775,7 @@ async function mellyViewer(el, u) {
       if (!dragging) { spin += (0.25 - spin) * Math.min(1, dt * 1.5); yaw += spin * dt; }
       pivot.rotation.y = yaw;
       mixer.update(dt);
+      animateHat((now - start) / 1000);
       renderer.render(scene, camera);
       requestAnimationFrame(frame);
     };
@@ -655,6 +783,42 @@ async function mellyViewer(el, u) {
   } catch (e) {
     console.warn('3D preview unavailable', e);
   }
+}
+
+// Renders the head-and-shoulders portrait the same way the app does (client/scripts/autoload/busts.gd)
+// and uploads it, so a look changed on the website shows up on every picture right away.
+// The hash is web-only on purpose: the app re-renders its own version the next time it opens.
+async function uploadMyBust() {
+  const { THREE, gltf, model } = await buildMelly(state.me);
+  const SIZE = 256;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.setSize(SIZE, SIZE);
+  renderer.setPixelRatio(1);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.AgXToneMapping;
+  const scene = new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xe6e0ff, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 3.2);
+  key.position.set(1.2, 2.2, 3);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xb89cff, 1.0);
+  fill.position.set(-2.5, 0.8, -2);
+  scene.add(fill);
+  model.scale.setScalar(0.34);
+  model.rotation.y = 0.25;
+  scene.add(model);
+  const mixer = new THREE.AnimationMixer(model);
+  const idle = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+  if (idle) mixer.clipAction(idle).play();
+  mixer.update(0);
+  const camera = new THREE.PerspectiveCamera(24, 1, 0.05, 50);
+  camera.position.set(0.25, 1.66, 2.1);
+  camera.lookAt(0, 1.48, 0);
+  renderer.render(scene, camera);
+  const png = renderer.domElement.toDataURL('image/png').split(',')[1];
+  renderer.dispose();
+  const r = await api('POST', '/api/me/render', { hash: 'web' + Date.now().toString(36), png });
+  state.me.render = r.render;
 }
 
 // Playing first, then online, then everyone else.
