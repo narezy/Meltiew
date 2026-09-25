@@ -249,11 +249,15 @@ test('admin endpoints are staff-only and bans lock the account', async () => {
 });
 
 test('outdated apps are turned away, the website is not', async () => {
-  const old = await fetch(base + '/api/places', { headers: { 'x-client-version': '1.1.0' } });
+  const old = await fetch(base + '/api/places', { headers: { 'x-client': 'app', 'x-client-version': '1.1.0' } });
   assert.equal(old.status, 426);
   assert.equal((await old.json()).error, 'update_required');
-  const none = await fetch(base + '/api/me');
-  assert.equal(none.status, 426);
+  // Builds before 1.2 sent no version at all, only Godot's user agent.
+  const legacy = await fetch(base + '/api/me', { headers: { 'user-agent': 'GodotEngine/4.7.2.stable (Android)' } });
+  assert.equal(legacy.status, 426);
+  // A browser running a stale cached site script (no X-Client) must still work.
+  const browser = await fetch(base + '/api/me', { headers: { 'user-agent': 'Mozilla/5.0' } });
+  assert.equal(browser.status, 401);
   const web = await fetch(base + '/api/me', { headers: { 'x-client': 'web' } });
   assert.equal(web.status, 401);
   assert.equal((await call('POST', '/api/admin/min-version', { version: '1.3.0' }, users.alice)).status, 403);

@@ -22,9 +22,15 @@ export function createVersionGate(db) {
   return {
     min: () => get.get()?.value || LATEST_CLIENT,
     setMin: (v) => set.run(v),
-    /** Web requests are never gated; app requests must carry a recent enough version. */
-    allows(client, version) {
+    /**
+     * Only the game app is gated. It is recognised by X-Client: app or by Godot's
+     * User-Agent (old builds sent neither version nor X-Client). Browsers always pass,
+     * even with a stale cached site script.
+     */
+    allows(client, version, userAgent = '') {
       if (client === 'web') return true;
+      const isApp = client === 'app' || /^GodotEngine\//.test(String(userAgent));
+      if (!isApp) return true;
       return compareVersions(version, this.min()) >= 0;
     },
   };

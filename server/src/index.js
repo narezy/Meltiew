@@ -52,7 +52,8 @@ function serveStatic(req, res) {
     res.writeHead(200, {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'content-length': st.size,
-      'cache-control': path.extname(file) === '.html' ? 'no-cache' : 'public, max-age=300',
+      // Site code must never go stale after a deploy; images can be cached briefly.
+      'cache-control': ['.html', '.js', '.css'].includes(path.extname(file)) ? 'no-cache' : 'public, max-age=300',
     });
     fs.createReadStream(file).pipe(res);
   });

@@ -669,7 +669,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     if (req.method === 'OPTIONS') return send(204, {});
     // Outdated apps get a clear "please update" instead of half-working.
     const ungated = url.pathname === '/api/health' || url.pathname.startsWith('/api/avatar/');
-    if (!ungated && !gate.allows(req.headers['x-client'], req.headers['x-client-version'])) {
+    if (!ungated && !gate.allows(req.headers['x-client'], req.headers['x-client-version'], req.headers['user-agent'])) {
       return send(426, {
         error: 'update_required',
         message: msg('update_required', lang, { v: gate.min() }),

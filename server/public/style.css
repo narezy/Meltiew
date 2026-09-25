@@ -160,3 +160,9 @@ label.muted { display: flex; flex-direction: column; gap: 6px; font-size: 14px; 
   .meter { width: 100px; }
   .bust.big { width: 150px; height: 150px; }
 }
+
+/* Download buttons */
+.dl-grid { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.btn.dl { flex-direction: column; gap: 2px; align-items: flex-start; }
+.btn.dl small { font-size: 12px; font-weight: 700; opacity: .7; }
+.btn.dl.big { min-width: 260px; }

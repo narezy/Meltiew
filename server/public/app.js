@@ -6,6 +6,26 @@ const DOWNLOADS = {
   linux: DL_BASE + 'meltiew-linux.zip',
 };
 const DOWNLOAD_URL = DOWNLOADS.android;
+const PLATFORMS = [
+  ['android', 'Android', 'APK · Android 7+'],
+  ['windows', 'Windows', 'ZIP · 64-bit'],
+  ['linux', 'Linux', 'ZIP · x86_64'],
+];
+function myPlatform() {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('android')) return 'android';
+  if (ua.includes('windows')) return 'windows';
+  if (ua.includes('linux') || ua.includes('x11')) return 'linux';
+  return 'android';
+}
+// One big button for the visitor's OS, the other platforms next to it.
+function downloadButtons() {
+  const mine = myPlatform();
+  const sorted = [...PLATFORMS].sort((a, b) => (a[0] === mine ? -1 : b[0] === mine ? 1 : 0));
+  return `<div class="dl-grid">${sorted.map(([id, name, note], i) => `
+    <a class="btn ${i === 0 ? 'big' : 'ghost'} dl" href="${DOWNLOADS[id]}">
+      <span>${esc(t('download_for', name))}</span><small>${note}</small></a>`).join('')}</div>`;
+}
 const PACKAGE = 'cat.narezany.meltiew';
 
 const T = {
@@ -35,7 +55,7 @@ const T = {
     friends_count: 'friends', member_since: 'member since', no_bio: 'No bio yet', not_found: 'Player not found',
     language: 'Language', account: 'Account', change_password: 'Change password', current_password: 'Current password',
     new_password: 'New password', saved: 'Saved', edit_in_app: 'Edit your avatar in the app: Avatar tab.',
-    download_title: 'Get Meltiew for Android', download_text: 'Download the APK, open it and allow installing from your browser if Android asks.',
+    download_title: 'Get Meltiew', download_text: 'Android: open the APK and allow installing from your browser if asked. Windows and Linux: unzip and run.',
     server_up: 'Server online', server_down: 'Server offline', signed_out: 'Signed out', sign_in_to_play: 'Sign in to play',
     blocked: 'Blocked', done: 'Done',
     places: 'Places', by: 'by', playing_n: '{0} playing', visits_n: '{0} visits', liked: '{0} liked', about: 'About',
@@ -48,7 +68,7 @@ const T = {
     ban: 'Ban', unban: 'Unban', make_admin: 'Make admin', remove_admin: 'Remove admin', kick: 'Kick', reset_profile: 'Reset profile',
     ban_reason: 'Ban reason (optional)', close_server: 'Close', no_live: 'No live servers', banned_tag: 'BANNED',
     save: 'Save', name_en: 'Name (EN)', name_ru: 'Name (RU)', desc_en: 'Description (EN)', desc_ru: 'Description (RU)',
-    get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Also on', desktop_note: 'Unzip and run Meltiew. Same account, same friends.',
+    download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Also on', desktop_note: 'Unzip and run Meltiew. Same account, same friends.',
     last_seen: 'last seen {0}',
   },
   ru: {
@@ -77,7 +97,7 @@ const T = {
     friends_count: 'друзей', member_since: 'с нами с', no_bio: 'Пока ничего о себе не рассказал(а)', not_found: 'Игрок не найден',
     language: 'Язык', account: 'Аккаунт', change_password: 'Сменить пароль', current_password: 'Текущий пароль',
     new_password: 'Новый пароль', saved: 'Сохранено', edit_in_app: 'Образ редактируется в приложении, вкладка «Аватар».',
-    download_title: 'Meltiew для Android', download_text: 'Скачай APK, открой его и разреши установку из браузера, если Android спросит.',
+    download_title: 'Скачать Meltiew', download_text: 'Android: открой APK и разреши установку из браузера, если спросит. Windows и Linux: распакуй и запусти.',
     server_up: 'Сервер онлайн', server_down: 'Сервер недоступен', signed_out: 'Ты вышел(ла)', sign_in_to_play: 'Войди, чтобы играть',
     blocked: 'Заблокирован', done: 'Готово',
     places: 'Плейсы', by: 'от', playing_n: 'играют: {0}', visits_n: 'посещений: {0}', liked: '{0} лайков', about: 'Описание',
@@ -90,7 +110,7 @@ const T = {
     ban: 'Забанить', unban: 'Разбанить', make_admin: 'Сделать админом', remove_admin: 'Снять админку', kick: 'Кикнуть', reset_profile: 'Сбросить профиль',
     ban_reason: 'Причина бана (необязательно)', close_server: 'Закрыть', no_live: 'Живых серверов нет', banned_tag: 'БАН',
     save: 'Сохранить', name_en: 'Название (EN)', name_ru: 'Название (RU)', desc_en: 'Описание (EN)', desc_ru: 'Описание (RU)',
-    get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
+    download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
     last_seen: 'был(а) {0}',
   },
 };
@@ -169,7 +189,7 @@ async function launch(server = 'auto') {
     ? `intent://play#Intent;scheme=meltiew;package=${PACKAGE};S.browser_fallback_url=${fallback};end`
     : 'meltiew://play';
   modal(`<h3>${t('opening')}</h3><p class="muted">${t('opening_text')}</p>
-    <div class="row"><a class="btn ghost grow" href="${DOWNLOAD_URL}">${t('get_app')}</a><button class="btn grow" data-close>${t('close')}</button></div>`);
+    <div class="row"><a class="btn ghost grow" href="/download" data-link>${t('download')}</a><button class="btn grow" data-close>${t('close')}</button></div>`);
   location.href = url;
 }
 
@@ -220,10 +240,7 @@ const pages = {
   '/download'(root) {
     root.innerHTML = `<div class="hero"><div>
         <h1>${t('download_title')}</h1><p>${t('download_text')}</p>
-        <a class="btn big" href="${DOWNLOADS.android}">${t('get_app')}</a>
-        <p class="muted">${t('apk_note')}</p>
-        <h3 style="margin-top:26px">${t('other_platforms')}</h3>
-        <div class="row" style="flex-wrap:wrap"><a class="btn ghost" href="${DOWNLOADS.windows}">${t('get_windows')}</a><a class="btn ghost" href="${DOWNLOADS.linux}">${t('get_linux')}</a></div>
+        ${downloadButtons()}
         <p class="muted">${t('desktop_note')}</p></div>
         <img class="cover" src="/img/cover.png" alt=""></div>`;
   },
@@ -295,9 +312,9 @@ const pages = {
 function landing(root) {
   root.innerHTML = `<section class="hero"><div>
       <h1>${t('hero_title')}</h1><p>${t('hero_text')}</p>
-      <div class="row" style="flex-wrap:wrap"><a class="btn big" href="${DOWNLOAD_URL}">${t('get_app')}</a>
-      <a class="btn ghost big" href="/register" data-link>${t('sign_up')}</a></div>
-      <p class="muted" style="font-size:15px">${t('apk_note')} · ${t('other_platforms')} <a href="${DOWNLOADS.windows}" style="color:var(--accent)">Windows</a> / <a href="${DOWNLOADS.linux}" style="color:var(--accent)">Linux</a> · <span id="srv">…</span></p></div>
+      ${downloadButtons()}
+      <div class="row" style="margin-top:14px;flex-wrap:wrap"><a class="btn ghost" href="/register" data-link>${t('sign_up')}</a>
+      <span class="muted" style="font-size:15px"><span id="srv">…</span></span></div></div>
       <img class="cover" src="/img/cover.png" alt="Meltiew playground"></section>
     <section class="features">
       <div class="card"><b>${t('f1')}</b><span>${t('f1t')}</span></div>
