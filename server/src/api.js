@@ -544,7 +544,12 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       if (GAMES[body.game]) game = body.game;
       else if (body.game) game = visibleRow(user, String(body.game)).id;
       let server = String(body.server ?? 'auto');
-      if (server !== 'auto' && server !== 'new' && !hub.hasServer(server)) throw new HttpError(404, 'bad_server');
+      if (server !== 'auto' && server !== 'new') {
+        if (!hub.hasServer(server)) throw new HttpError(404, 'bad_server');
+        // A specific server decides the place (joining a friend wherever they are).
+        const on = hub.gameOf(server);
+        game = GAMES[on] ? on : visibleRow(user, on).id;
+      }
       launches.set(user.id, { server, game, at: Date.now() });
       return { ok: true, server, game };
     },

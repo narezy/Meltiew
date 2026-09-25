@@ -86,6 +86,21 @@ const T = {
     bd_change_free: 'Fix date of birth (one free change)', bd_change: 'Change date of birth', bd_next_change: 'You can change it again on {0}.',
     bd_change_why: 'Pick your real date of birth. After this change the next one is possible in 6 months.',
     search_everything: 'Search players and places', telegram: 'Telegram channel', lang_fallback: "The website isn't translated to this language yet, so it shows English. Places with their own translations will use it.", drag_to_spin: 'Drag to spin', admin_reset_bd: 'Reset birthdate', age_n: '{0} y.o.',
+    studio: 'Studio', studio_web_text: 'You build places in the app (the Studio tab, best on a computer). Here you manage them and your images.',
+    studio_docs: 'Studio docs', my_places: 'My places', my_images: 'My images', upload: 'Upload',
+    studio_line: '{0} visits · {1} playing · edited {2}', no_my_places: 'No places yet. Open Studio in the app and press New place.',
+    delete: 'Delete', delete_place_q: 'Delete this place? This can\'t be undone.', delete_image_q: 'Delete this image? Places using it will lose it.',
+    asset_usage: '{0} of {1} images, {2} of {3} MB', copy_id: 'Copy ID', copied: 'Copied', no_images: 'No images yet. Upload a PNG or JPG up to 2 MB.',
+    image_too_big: 'The image is bigger than 2 MB', uploaded: 'Uploaded',
+    vis_private: 'Only me', vis_friends: 'Friends', vis_public: 'Everyone', who_can_play: 'Who can play', comments_on: 'Comments',
+    your_place: 'Your place', edit_in_studio: 'To change the place itself, open it in Studio in the app.', visits_30: 'Visits, last 30 days',
+    st_visits: 'Visits', st_players: 'Players', st_returning: 'Came back', st_playtime: 'Total playtime', st_session: 'Average session', st_now: 'Playing now',
+    no_description: 'No description yet.', updated: 'updated {0}', places_of: 'Places',
+    comments: 'Comments', comments_off: 'The author turned comments off.', comment_placeholder: 'Say something nice about this place',
+    comments_too_young: 'Comments open up at 13.', no_comments: 'No comments yet. Be the first!', load_more: 'Show more', delete_comment_q: 'Delete this comment?',
+    report_place: 'Report this place', report_comment: 'Report this comment', r_place: 'Inappropriate place', r_comment: 'Rude or spam comment',
+    report_about_place: 'Place:', report_open_place: 'Open the place',
+    doc_start: 'Getting started', doc_scripting: 'Scripting', doc_ui: 'User interface', doc_strings: 'Translations', doc_marp: 'The .marp file', doc_classes: 'Class reference',
   },
   ru: {
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
@@ -144,6 +159,21 @@ const T = {
     bd_change_free: 'Исправить дату рождения (одна бесплатная смена)', bd_change: 'Сменить дату рождения', bd_next_change: 'Снова сменить можно будет {0}.',
     bd_change_why: 'Выбери настоящую дату рождения. После этой смены следующая будет доступна через полгода.',
     search_everything: 'Поиск игроков и плейсов', telegram: 'Телеграм-канал', lang_fallback: 'Сайт пока не переведён на этот язык, поэтому он на английском. Плейсы со своими переводами будут на нём.', drag_to_spin: 'Потяни, чтобы покрутить', admin_reset_bd: 'Сбросить дату рождения', age_n: '{0} лет',
+    studio: 'Студия', studio_web_text: 'Плейсы строятся в приложении (вкладка Студия, лучше с компьютера). Здесь ими и картинками можно управлять.',
+    studio_docs: 'Документация студии', my_places: 'Мои плейсы', my_images: 'Мои картинки', upload: 'Загрузить',
+    studio_line: '{0} визитов · {1} играют · изменён {2}', no_my_places: 'Плейсов пока нет. Открой Студию в приложении и нажми «Новый плейс».',
+    delete: 'Удалить', delete_place_q: 'Удалить плейс? Вернуть не получится.', delete_image_q: 'Удалить картинку? Плейсы, где она стоит, её потеряют.',
+    asset_usage: '{0} из {1} картинок, {2} из {3} МБ', copy_id: 'Копировать ID', copied: 'Скопировано', no_images: 'Картинок пока нет. Загрузи PNG или JPG до 2 МБ.',
+    image_too_big: 'Картинка больше 2 МБ', uploaded: 'Загружено',
+    vis_private: 'Только я', vis_friends: 'Друзья', vis_public: 'Все', who_can_play: 'Кто может играть', comments_on: 'Комментарии',
+    your_place: 'Твой плейс', edit_in_studio: 'Сам плейс меняется в Студии в приложении.', visits_30: 'Визиты за 30 дней',
+    st_visits: 'Визиты', st_players: 'Игроки', st_returning: 'Вернулись', st_playtime: 'Всего наиграно', st_session: 'Средняя сессия', st_now: 'Играют сейчас',
+    no_description: 'Описания пока нет.', updated: 'обновлён {0}', places_of: 'Плейсы',
+    comments: 'Комментарии', comments_off: 'Автор выключил комментарии.', comment_placeholder: 'Скажи что-нибудь хорошее про плейс',
+    comments_too_young: 'Комментарии доступны с 13 лет.', no_comments: 'Комментариев пока нет. Будь первым!', load_more: 'Показать ещё', delete_comment_q: 'Удалить комментарий?',
+    report_place: 'Пожаловаться на плейс', report_comment: 'Пожаловаться на комментарий', r_place: 'Неприемлемый плейс', r_comment: 'Грубость или спам',
+    report_about_place: 'Плейс:', report_open_place: 'Открыть плейс',
+    doc_start: 'С чего начать', doc_scripting: 'Скрипты', doc_ui: 'Интерфейс', doc_strings: 'Переводы', doc_marp: 'Файл .marp', doc_classes: 'Справочник классов',
   },
 };
 
@@ -214,11 +244,11 @@ function status(u) {
 
 // --- launching the game -----------------------------------------------------
 
-async function launch(server = 'auto') {
+async function launch(server = 'auto', game = 'playground') {
   if (!state.me) return go('/login');
   if (!(await askBirthdate(true))) return;
   try {
-    await api('POST', '/api/launch', { server, game: 'playground' });
+    await api('POST', '/api/launch', { server, game });
   } catch (e) {
     return toast(e.message, 'error');
   }
@@ -252,6 +282,7 @@ const ICONS = {
   admin_panel: '<path d="M12 3.5 19 6v5.5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z"/>',
   send: '<path d="M4 12 20 4l-4.5 16-3.5-6.5z"/>',
   telegram: '<path d="M20.5 4.5 3.5 11l5.5 2 2 6 3-4 5 3.5z"/>',
+  studio: '<path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/>',
 };
 const icon = (name, size = 22) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 const TELEGRAM = 'https://t.me/meltiew';
@@ -279,9 +310,10 @@ setInterval(pollCounts, 15000);
 
 function renderNav(path) {
   // Friends and chats share one tab; its badge counts requests and unread messages together.
-  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends'], ['/studio', 'studio']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
   const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/')
-    : href === '/friends' ? path.startsWith('/friends') || path.startsWith('/messages') : path.startsWith(href));
+    : href === '/friends' ? path.startsWith('/friends') || path.startsWith('/messages')
+    : href === '/studio' ? path.startsWith('/studio') || path.startsWith('/docs') : path.startsWith(href));
   const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>' : '');
   $('#nav').innerHTML = `
     <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
@@ -542,8 +574,13 @@ async function profilePage(root, username) {
       ${more}
       ${me ? `<p class="muted">${t('edit_in_app')}</p>` : ''}
     </div></div>
+    <div id="pplaces"></div>
     <h2>${t('friends_of')}</h2><div id="pf"><div class="loader"><i></i></div></div>`;
   mellyViewer($('#stage'), u);
+  api('GET', `/api/users/${encodeURIComponent(u.username)}/places`).then((r) => {
+    const box = $('#pplaces');
+    if (box && r.places.length) box.innerHTML = `<h2>${t('places_of')}</h2><div class="places" style="margin-bottom:10px">${r.places.map(placeCard).join('')}</div>`;
+  }).catch(() => {});
   api('GET', `/api/users/${encodeURIComponent(u.username)}/friends`).then((r) => {
     const box = $('#pf');
     if (!box) return;
@@ -562,9 +599,11 @@ async function profilePage(root, username) {
   }));
 }
 
-function reportDialog(u) {
-  const reasons = ['chat', 'name', 'avatar', 'cheating', 'other'];
-  const bg = modal(`<h3>${esc(t('report_title', u.display_name))}</h3>
+// A player, or with `about` = { place_id } / { comment_id } their place or comment.
+function reportDialog(u, about = {}) {
+  const reasons = about.place_id ? ['place', 'name', 'other'] : about.comment_id ? ['comment', 'chat', 'other'] : ['chat', 'name', 'avatar', 'cheating', 'other'];
+  const title = about.place_id ? t('report_place') : about.comment_id ? t('report_comment') : t('report_title', u.display_name);
+  const bg = modal(`<h3>${esc(title)}</h3>
     <form class="stack" id="rep"><span class="muted">${t('report_reason')}</span>
       <div class="stack" style="gap:6px">${reasons.map((r, i) => `<label class="radio"><input type="radio" name="reason" value="${r}" ${i === 0 ? 'checked' : ''}>${t('r_' + r)}</label>`).join('')}</div>
       <input name="details" maxlength="300" placeholder="${t('report_details')}">
@@ -572,7 +611,7 @@ function reportDialog(u) {
   $('#rep', bg).addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    try { const r = await api('POST', '/api/report', { user_id: u.id, ...f }); toast(r.message || t('done')); bg.remove(); }
+    try { const r = await api('POST', '/api/report', { user_id: u.id, ...about, ...f }); toast(r.message || t('done')); bg.remove(); }
     catch (err) { toast(err.message, 'error'); }
   });
 }
@@ -881,6 +920,9 @@ async function placePage(root, id) {
     const total = p.likes + p.dislikes;
     const pct = total ? Math.round((100 * p.likes) / total) : 0;
     const created = new Date(p.created_at).toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US');
+    const mine = p.author.id === state.me.id;
+    const studio = p.kind === 'studio';
+    const game = `data-game="${esc(p.id)}"`;
     root.innerHTML = `<a href="/" data-link class="muted">${t('back')}</a>
       <div class="place" style="margin-top:14px">
         <img src="${esc(p.cover)}" alt="">
@@ -888,6 +930,7 @@ async function placePage(root, id) {
           <div class="row">${p.cover_square ? `<img class="square" src="${esc(p.cover_square)}" alt="">` : ''}<h1 style="margin:0">${esc(field(p, 'name'))}</h1></div>
           <a class="row" style="gap:10px" href="/u/${encodeURIComponent(p.author.username)}" data-link>${t('by')} ${p.author.id ? bust(p.author, 'small') : ''}<b>${nameHtml(p.author)}</b></a>
           <div class="row" style="flex-wrap:wrap;gap:8px">
+            ${p.visibility !== 'public' ? `<span class="pill">${esc(t('vis_' + p.visibility))}</span>` : ''}
             <span class="pill"><i class="dot on"></i>${esc(t('playing_n', p.playing))}</span>
             <span class="pill">${esc(t('visits_n', p.visits))}</span>
             <span class="pill">♥ ${esc(t('liked', total ? pct + '%' : '—'))}</span></div>
@@ -895,23 +938,210 @@ async function placePage(root, id) {
             <button class="btn ${p.my_vote === 1 ? '' : 'ghost'}" data-vote="${p.my_vote === 1 ? 0 : 1}">${THUMB} ${p.likes}</button>
             <button class="btn ${p.my_vote === -1 ? '' : 'ghost'}" data-vote="${p.my_vote === -1 ? 0 : -1}">${THUMB_DOWN} ${p.dislikes}</button>
             <div class="meter grow"><i style="width:${pct}%;background:var(--online)"></i></div></div>
-          <button class="btn big" data-play="auto">▶ ${t('play')}</button>
+          <button class="btn big" data-play="auto" ${game}>▶ ${t('play')}</button>
           <span class="muted" style="font-size:14px">${t('play_hint')}</span>
+          ${studio && !mine ? `<div class="row more"><button class="link danger" id="report-place">${t('report_place')}</button></div>` : ''}
         </div></div>
-      <div class="card" style="margin-top:20px"><h3>${t('about')}</h3><p style="margin:6px 0">${esc(field(p, 'description'))}</p>
-        <span class="muted">${esc(t('created', created))}</span></div>
-      <div class="row" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('servers')}</h2><button class="btn ghost" data-play="new">${t('new_server')}</button></div>
+      <div class="card" style="margin-top:20px"><h3>${t('about')}</h3><p style="margin:6px 0;white-space:pre-line">${esc(field(p, 'description')) || `<span class="muted">${t('no_description')}</span>`}</p>
+        <span class="muted">${esc(t('created', created))}${studio && p.updated_at ? ' · ' + esc(t('updated', ago(p.updated_at))) : ''}</span></div>
+      ${studio && mine ? '<div id="owner" style="margin-top:20px"></div>' : ''}
+      <div class="row" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('servers')}</h2><button class="btn ghost" data-play="new" ${game}>${t('new_server')}</button></div>
       <div class="stack" style="margin-top:14px">${servers.length ? servers.map((s) => `<div class="card server">
           <div class="grow"><h3>${esc(field(s, 'name'))}</h3><span class="muted">${s.friends.length ? esc(t('friends_here', s.friends.join(', '))) : '#' + esc(s.id)}</span></div>
           <div class="stack" style="gap:6px;align-items:flex-end"><b>${s.players} / ${s.max_players}</b><div class="meter"><i style="width:${(s.players / s.max_players) * 100}%"></i></div></div>
-          <button class="btn mint" data-play="${esc(s.id)}" ${s.players >= s.max_players ? 'disabled' : ''}>${s.players >= s.max_players ? t('full') : t('join')}</button>
-        </div>`).join('') : `<div class="empty">${t('no_servers')}</div>`}</div>`;
+          <button class="btn mint" data-play="${esc(s.id)}" ${game} ${s.players >= s.max_players ? 'disabled' : ''}>${s.players >= s.max_players ? t('full') : t('join')}</button>
+        </div>`).join('') : `<div class="empty">${t('no_servers')}</div>`}</div>
+      <div id="comments" style="margin-top:30px"></div>`;
     root.querySelectorAll('[data-vote]').forEach((b) => b.addEventListener('click', async () => {
       try { await api('POST', `/api/places/${encodeURIComponent(id)}/vote`, { value: Number(b.dataset.vote) }); draw(); }
       catch (e) { toast(e.message, 'error'); }
     }));
+    $('#report-place')?.addEventListener('click', () => reportDialog(p.author, { place_id: p.id }));
+    if (studio && mine) ownerPanel($('#owner'), p, draw);
+    commentsBlock($('#comments'), p);
   };
   await draw();
+}
+
+// Your own place: who can play, comments on/off and the numbers. Editing is in the app's Studio.
+async function ownerPanel(box, p, redraw) {
+  const vis = ['private', 'friends', 'public'];
+  box.innerHTML = `<div class="card stack">
+    <div class="row"><h3 class="grow" style="margin:0">${t('your_place')}</h3><a class="link" href="/docs/studio" data-link>${t('studio_docs')}</a></div>
+    <span class="muted">${t('edit_in_studio')}</span>
+    <div class="row" style="flex-wrap:wrap;gap:14px">
+      <label class="stack" style="gap:6px"><span class="muted">${t('who_can_play')}</span>
+        <select id="vis">${vis.map((v) => `<option value="${v}" ${p.visibility === v ? 'selected' : ''}>${t('vis_' + v)}</option>`).join('')}</select></label>
+      <label class="radio" style="align-self:flex-end"><input type="checkbox" id="cm" ${p.comments_enabled ? 'checked' : ''}>${t('comments_on')}</label>
+    </div>
+    <div id="pstats"><div class="loader"><i></i></div></div></div>`;
+  const patch = async (body) => {
+    try { await api('PATCH', `/api/studio/places/${encodeURIComponent(p.id)}`, body); toast(t('saved')); redraw(); }
+    catch (e) { toast(e.message, 'error'); }
+  };
+  $('#vis', box).addEventListener('change', (e) => patch({ visibility: e.target.value }));
+  $('#cm', box).addEventListener('change', (e) => patch({ comments_enabled: e.target.checked }));
+  try {
+    const { stats: s } = await api('GET', `/api/studio/places/${encodeURIComponent(p.id)}/stats`);
+    const hours = s.playtime_ms / 3600000;
+    const tiles = [['st_visits', s.visits], ['st_players', s.unique_players], ['st_returning', s.returning_players],
+      ['st_playtime', hours >= 1 ? hours.toFixed(1) + ' h' : Math.round(hours * 60) + ' min'],
+      ['st_session', Math.round(s.avg_session_ms / 60000) + ' min'], ['st_now', s.playing], ['comments', s.comments]];
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      days.push({ d, v: s.daily.find((x) => x.day === d)?.visits || 0 });
+    }
+    const max = Math.max(1, ...days.map((x) => x.v));
+    $('#pstats', box).innerHTML = `<div class="tiles">${tiles.map(([k, v]) => `<div class="card tile"><span class="muted">${t(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
+      <div class="muted" style="margin:14px 0 6px;font-weight:800">${t('visits_30')}</div>
+      <div class="bars">${days.map((x) => `<i style="height:${Math.max(3, (x.v / max) * 100)}%" title="${x.d}: ${x.v}"></i>`).join('')}</div>`;
+  } catch { $('#pstats', box).innerHTML = ''; }
+}
+
+function commentRow(c) {
+  return `<div class="card comment" data-cid="${c.id}">${bust(c.author, 'small')}
+    <div class="grow"><div class="row" style="gap:8px;flex-wrap:wrap"><a href="/u/${encodeURIComponent(c.author.username)}" data-link><b>${nameHtml(c.author)}</b></a><span class="muted" style="font-size:13px">${esc(ago(c.created_at))}</span></div>
+      <p>${esc(c.body)}</p></div>
+    <div class="stack" style="gap:4px;align-items:flex-end">
+      ${c.can_delete ? `<button class="link" data-del="${c.id}">${t('delete')}</button>` : ''}
+      ${c.author.id !== state.me.id ? `<button class="link danger" data-rep="${c.id}">${t('report')}</button>` : ''}</div></div>`;
+}
+
+async function commentsBlock(box, p) {
+  const base = `/api/places/${encodeURIComponent(p.id)}/comments`;
+  let list = [];
+  let r;
+  try { r = await api('GET', base); } catch (e) { box.innerHTML = ''; return; }
+  list = r.comments;
+  const paint = () => {
+    box.innerHTML = `<h2>${t('comments')}${list.length ? ` <span class="muted" style="font-size:18px">${list.length}${r.comments.length >= 30 ? '+' : ''}</span>` : ''}</h2>
+      ${!r.enabled ? `<div class="empty">${t('comments_off')}</div>`
+        : r.can_post ? `<form class="row" id="cf" style="margin-bottom:14px"><input name="text" class="grow" maxlength="500" required placeholder="${t('comment_placeholder')}"><button class="btn">${icon('send', 20)}</button></form>`
+        : `<p class="muted">${t('comments_too_young')}</p>`}
+      <div class="stack" id="cl">${list.length ? list.map(commentRow).join('') : r.enabled ? `<div class="empty">${t('no_comments')}</div>` : ''}</div>
+      ${r.comments.length >= 30 ? `<button class="btn ghost" id="cmore" style="margin-top:12px">${t('load_more')}</button>` : ''}`;
+    $('#cf', box)?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = e.target.text;
+      try {
+        const res = await api('POST', base, { text: input.value });
+        list.unshift(res.comment);
+        paint();
+      } catch (err) { toast(err.message, 'error'); }
+    });
+    $('#cmore', box)?.addEventListener('click', async () => {
+      r = await api('GET', base + '?before=' + list[list.length - 1].id);
+      list = list.concat(r.comments);
+      paint();
+    });
+    box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_comment_q'))) return;
+      try { await api('DELETE', `${base}/${b.dataset.del}`); list = list.filter((c) => String(c.id) !== b.dataset.del); paint(); }
+      catch (err) { toast(err.message, 'error'); }
+    }));
+    box.querySelectorAll('[data-rep]').forEach((b) => b.addEventListener('click', () => {
+      const c = list.find((x) => String(x.id) === b.dataset.rep);
+      reportDialog(c.author, { comment_id: c.id });
+    }));
+  };
+  paint();
+}
+
+// --- studio on the website: your places and images (building happens in the app) ---
+
+async function studioPage(root) {
+  if (!state.me) { sessionStorage.setItem('after_login', '/studio'); return go('/login'); }
+  root.innerHTML = `<div class="row section-head" style="flex-wrap:wrap"><div class="grow"><h1 style="margin:0">${t('studio')}</h1>
+      <p class="muted" style="margin:6px 0 0">${t('studio_web_text')}</p></div>
+      <a class="btn ghost" href="/docs/studio" data-link>${t('studio_docs')}</a></div>
+    <h2>${t('my_places')}</h2><div class="stack" id="sp"><div class="loader"><i></i></div></div>
+    <div class="row section-head" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('my_images')}</h2>
+      <label class="btn">${t('upload')}<input type="file" id="up" accept="image/png,image/jpeg" hidden></label></div>
+    <div id="au" class="muted" style="margin:8px 0 14px"></div><div class="assets" id="as"></div>`;
+  const vis = ['private', 'friends', 'public'];
+  const loadPlaces = async () => {
+    const { places } = await api('GET', '/api/studio/places');
+    $('#sp').innerHTML = places.length ? places.map((p) => `<div class="card row studio-row">
+        <a href="/place/${encodeURIComponent(p.id)}" data-link><img src="${esc(p.cover)}" alt=""></a>
+        <div class="grow"><a href="/place/${encodeURIComponent(p.id)}" data-link><h3 style="margin:0">${esc(field(p, 'name'))}</h3></a>
+          <span class="muted" style="font-size:14px">${esc(t('studio_line', p.visits, p.playing, ago(p.updated_at)))}</span></div>
+        <select data-vis="${esc(p.id)}">${vis.map((v) => `<option value="${v}" ${p.visibility === v ? 'selected' : ''}>${t('vis_' + v)}</option>`).join('')}</select>
+        <button class="btn small mint" data-play="auto" data-game="${esc(p.id)}">▶</button>
+        <button class="link danger" data-delp="${esc(p.id)}">${t('delete')}</button></div>`).join('')
+      : `<div class="empty">${t('no_my_places')}</div>`;
+    $('#sp').querySelectorAll('[data-vis]').forEach((sel) => sel.addEventListener('change', async () => {
+      try { await api('PATCH', `/api/studio/places/${encodeURIComponent(sel.dataset.vis)}`, { visibility: sel.value }); toast(t('saved')); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+    $('#sp').querySelectorAll('[data-delp]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_place_q'))) return;
+      try { await api('DELETE', `/api/studio/places/${encodeURIComponent(b.dataset.delp)}`); loadPlaces(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  };
+  const loadAssets = async () => {
+    const { assets, usage } = await api('GET', '/api/assets');
+    $('#au').textContent = t('asset_usage', usage.count, usage.max_count, (usage.bytes / 1048576).toFixed(1), Math.round(usage.max_bytes / 1048576));
+    $('#as').innerHTML = assets.length ? assets.map((a) => `<div class="card asset">
+        <img src="/api/assets/${esc(a.id)}" alt="" loading="lazy"><b title="${esc(a.name)}">${esc(a.name)}</b>
+        <div class="row" style="gap:6px"><button class="btn small ghost grow" data-copy="asset://${esc(a.id)}">${t('copy_id')}</button>
+          <button class="btn small ghost" data-dela="${esc(a.id)}" aria-label="${t('delete')}">✕</button></div></div>`).join('')
+      : `<div class="empty">${t('no_images')}</div>`;
+    $('#as').querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); toast(t('copied')); } catch { prompt('', b.dataset.copy); }
+    }));
+    $('#as').querySelectorAll('[data-dela]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_image_q'))) return;
+      try { await api('DELETE', `/api/assets/${b.dataset.dela}`); loadAssets(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  };
+  $('#up').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return toast(t('image_too_big'), 'error');
+    const b64 = await new Promise((ok) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result).split(',')[1]);
+      r.readAsDataURL(file);
+    });
+    try { await api('POST', '/api/assets', { name: file.name.replace(/\.[^.]+$/, ''), image: b64 }); toast(t('uploaded')); loadAssets(); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+  await Promise.all([loadPlaces(), loadAssets()]);
+}
+
+// Studio docs: markdown files next to the site, rendered with marked.
+const DOC_PAGES = [['index', 'doc_start'], ['scripting', 'doc_scripting'], ['ui', 'doc_ui'], ['strings', 'doc_strings'], ['marp', 'doc_marp'], ['classes', 'doc_classes']];
+let markedLib = null;
+async function docsPage(root, page) {
+  if (!DOC_PAGES.some(([p]) => p === page)) page = 'index';
+  const [md, lib] = await Promise.all([
+    fetch(`/docs/studio/${page}.md`).then((r) => (r.ok ? r.text() : Promise.reject(new Error(t('not_found'))))),
+    markedLib || import('https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.esm.js'),
+  ]);
+  markedLib = lib;
+  root.innerHTML = `<div class="docs"><aside class="card stack">${DOC_PAGES.map(([p, k]) =>
+      `<a href="/docs/studio${p === 'index' ? '' : '/' + p}" data-link class="${p === page ? 'on' : ''}">${t(k)}</a>`).join('')}</aside>
+    <article class="md">${lib.marked.parse(md)}</article></div>`;
+  const art = $('.md', root);
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  art.querySelectorAll('h2, h3').forEach((h) => { h.id = slug(h.textContent); });
+  art.querySelectorAll('a[href]').forEach((a) => {
+    const href = a.getAttribute('href');
+    const doc = href.match(/^([a-z]+)\.md(#.*)?$/);
+    if (doc) {
+      a.setAttribute('href', `/docs/studio${doc[1] === 'index' ? '' : '/' + doc[1]}`);
+      a.dataset.link = '';
+    } else if (href.startsWith('#')) {
+      a.addEventListener('click', (e) => { e.preventDefault(); $(href, art)?.scrollIntoView({ behavior: 'smooth' }); });
+    } else if (/^https?:/.test(href)) {
+      a.target = '_blank';
+      a.rel = 'noopener';
+    }
+  });
 }
 
 // --- direct messages -------------------------------------------------------------
@@ -1076,6 +1306,8 @@ async function adminPage(root) {
             <div class="muted" style="font-size:14px">${esc(t('r_' + x.reason))} · ${esc(t('reported_by', x.reporter ? x.reporter.display_name : '?'))} · ${esc(ago(x.created_at))}</div></div>
           <button class="btn small ghost" data-resolve="${x.id}">${t('resolve')}</button>
           ${x.target && !x.target.banned && x.target.role === 'user' ? `<button class="btn small danger" data-ban="${x.target.id}" data-rid="${x.id}">${t('ban')}</button>` : ''}</div>
+        ${x.place ? `<div>${t('report_about_place')} <a href="/place/${encodeURIComponent(x.place.id)}" data-link><b>${esc(x.place.name)}</b></a></div>` : ''}
+        ${x.comment ? `<blockquote class="quote">${esc(x.comment.body)}</blockquote><a class="muted" href="/place/${encodeURIComponent(x.comment.place_id)}" data-link>${t('report_open_place')}</a>` : ''}
         ${x.details ? `<p style="margin:0">${esc(x.details)}</p>` : ''}</div>`).join('') : `<div class="empty">${t('no_reports')}</div>`;
     box.querySelectorAll('[data-resolve]').forEach((b) => b.addEventListener('click', async () => {
       await api('POST', `/api/admin/reports/${b.dataset.resolve}/resolve`); reports();
@@ -1183,6 +1415,8 @@ async function render() {
     else if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));
     else if (path.startsWith('/place/')) await placePage(root, decodeURIComponent(path.slice(7)));
     else if (path === '/admin') await adminPage(root);
+    else if (path === '/studio') await studioPage(root);
+    else if (path.startsWith('/docs/studio')) await docsPage(root, path.split('/')[3] || 'index');
     else await (pages[path] || pages['/'])(root);
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -1197,7 +1431,7 @@ document.addEventListener('click', (e) => {
     return go(link.getAttribute('href'));
   }
   const play = e.target.closest('[data-play]');
-  if (play) launch(play.dataset.play);
+  if (play) launch(play.dataset.play, play.dataset.game);
 });
 window.addEventListener('popstate', render);
 

@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { openDb } from './db.js';
 import { createApi, clientIp } from './api.js';
 import { pickLang, msg } from './i18n.js';
+import { LANGUAGE_CODES } from './languages.js';
 import { PlaceStore } from './studio/places.js';
 import { GameHub } from './game.js';
 
@@ -29,6 +30,7 @@ const MIME = {
   '.json': 'application/json',
   '.glb': 'model/gltf-binary',
   '.wasm': 'application/wasm',
+  '.md': 'text/markdown; charset=utf-8',
 };
 
 function serveStatic(req, res) {
@@ -56,7 +58,7 @@ function serveStatic(req, res) {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'content-length': st.size,
       // Site code must never go stale after a deploy; images can be cached briefly.
-      'cache-control': ['.html', '.js', '.css'].includes(path.extname(file)) ? 'no-cache' : 'public, max-age=300',
+      'cache-control': ['.html', '.js', '.css', '.md'].includes(path.extname(file)) ? 'no-cache' : 'public, max-age=300',
     });
     fs.createReadStream(file).pipe(res);
   });
@@ -115,7 +117,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      const lang = url.searchParams.get('lang') === 'ru' ? 'ru' : pickLang(req);
+      const lang = LANGUAGE_CODES.has(url.searchParams.get('lang')) ? url.searchParams.get('lang') : pickLang(req);
       if (!api.gate.allows('app', url.searchParams.get('v'))) {
         ws.send(JSON.stringify({ t: 'kicked', code: 'update', m: msg('update_required', lang, { v: api.gate.min() }) }));
         ws.close(4003, 'update');

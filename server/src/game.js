@@ -265,6 +265,10 @@ export class GameHub {
     return this.servers.has(String(id));
   }
 
+  gameOf(serverId) {
+    return this.servers.get(String(serverId))?.game || null;
+  }
+
   playerCount(game) {
     let n = 0;
     for (const s of this.servers.values()) if (s.game === game) n += s.players.size;

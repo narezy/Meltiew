@@ -54,9 +54,11 @@ export const MESSAGES = {
 // Server messages exist in English and Russian; any other language the player picked gets English.
 export function pickLang(req) {
   const explicit = String(req.headers['x-lang'] || '').toLowerCase();
-  if (LANGUAGE_CODES.has(explicit)) return explicit === 'ru' ? 'ru' : 'en';
-  const accept = String(req.headers['accept-language'] || '').toLowerCase();
-  return accept.startsWith('ru') ? 'ru' : 'en';
+  // Any supported code comes back as is: server messages exist in EN/RU (msg() falls
+  // back to English), but places carry translations for every language.
+  if (LANGUAGE_CODES.has(explicit)) return explicit;
+  const accept = String(req.headers['accept-language'] || '').toLowerCase().split(/[-,;]/)[0];
+  return LANGUAGE_CODES.has(accept) ? accept : 'en';
 }
 
 export function msg(code, lang = 'en', vars = {}) {

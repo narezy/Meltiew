@@ -113,11 +113,13 @@ print("secret server code")`,
     },
   ];
   marp.strings = { welcome: { en: 'Welcome!', ru: 'Добро пожаловать!' } };
-  marp.meta.i18n.name = { ru: 'Монетная гонка' };
+  marp.meta.i18n.name = { ru: 'Монетная гонка', es: 'Carrera de monedas' };
   return marp;
 }
 
 test('marp validation keeps known classes and rejects junk', () => {
+  const sss = templatePlace('New').tree.k.find((n) => n.c === 'ServerScriptService');
+  assert.equal(sss.k[0].c, 'Script', 'new places start with a server script');
   const clean = validateMarp(gamePlace());
   assert.equal(clean.tree.c, 'DataModel');
   assert.throws(() => validateMarp({ format: 'marp', tree: { c: 'DataModel', k: [{ c: 'Nuke' }] } }), /unknown class/);
@@ -159,6 +161,12 @@ test('create, save, publish, play, comment and stats', async () => {
   guest.send2({ t: 'join', game: id, server: 'auto' });
   const welcome = await guest.next((m) => m.t === 'welcome');
   assert.equal(welcome.place.id, id);
+
+  // Any language with a translation gets it; launching someone's server opens its place.
+  const es = await fetch(`${base}/api/places/${id}`, { headers: { authorization: `Bearer ${users.guest}`, 'x-lang': 'es' } }).then((x) => x.json());
+  assert.equal(es.place.name, 'Carrera de monedas');
+  r = await call('POST', '/api/launch', { server: welcome.server.id }, users.maker);
+  assert.equal(r.data.game, id, r.raw);
   assert.equal(welcome.place.strings.welcome.ru, 'Добро пожаловать!');
   const snap = welcome.place.snapshot;
   const byName = (n) => snap.find((o) => o.n === n);

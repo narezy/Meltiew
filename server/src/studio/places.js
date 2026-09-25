@@ -35,7 +35,11 @@ export function templatePlace(name) {
         },
         { c: 'Lighting', n: 'Lighting', k: [{ c: 'Sky', n: 'Sky' }] },
         { c: 'ReplicatedStorage', n: 'ReplicatedStorage' },
-        { c: 'ServerScriptService', n: 'ServerScriptService' },
+        {
+          c: 'ServerScriptService',
+          n: 'ServerScriptService',
+          k: [{ c: 'Script', n: 'Main', p: { Source: STARTER_SCRIPT } }],
+        },
         { c: 'ServerStorage', n: 'ServerStorage' },
         { c: 'StarterGui', n: 'StarterGui' },
         { c: 'StarterPlayer', n: 'StarterPlayer', k: [{ c: 'StarterPlayerScripts', n: 'StarterPlayerScripts' }] },
@@ -43,6 +47,15 @@ export function templatePlace(name) {
     },
   };
 }
+
+// What a new place's server script starts with.
+const STARTER_SCRIPT = `-- Runs on the server when the place starts.
+-- Docs: https://meltiew.narez.xyz/docs/studio
+
+game.Players.PlayerAdded:Connect(function(player)
+	print(player.DisplayName .. " joined")
+end)
+`;
 
 function badPlace(reason) {
   const e = new Error(reason);
