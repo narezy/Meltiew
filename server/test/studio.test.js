@@ -235,3 +235,10 @@ test('assets: upload, serve, quota, delete', async () => {
   assert.equal((await call('DELETE', `/api/assets/${a.id}`, null, users.guest)).status, 403);
   assert.equal((await call('DELETE', `/api/assets/${a.id}`, null, users.maker)).status, 200);
 });
+
+test('the app ships the same runtime and schema as the server', async () => {
+  const fs = await import('node:fs');
+  const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
+  assert.equal(read('../../client/studio/runtime/runtime.luau'), read('../src/studio/runtime/runtime.luau'), 'run tools/sync_runtime.sh');
+  assert.equal(read('../../client/studio/runtime/classes.json'), read('../src/studio/runtime/classes.json'), 'run tools/sync_runtime.sh');
+});

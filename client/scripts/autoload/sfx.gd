@@ -24,6 +24,9 @@ func _ready() -> void:
 	_streams.coin = _chord([987.77, 1318.51], 0.25, 0.22)
 	_streams["break"] = _tone(420.0, 90.0, 0.35, 0.4, "noise")
 	_streams.hurt = _tone(330.0, 180.0, 0.16, 0.3, "square")
+	# Extra sounds studio places can play (Sound.SoundId).
+	_streams.win = _chord([523.25, 659.25, 783.99, 1046.5], 0.6, 0.2)
+	_streams.whoosh = _tone(900.0, 200.0, 0.3, 0.25, "noise")
 
 
 func play(name: String, pitch := 1.0) -> void:

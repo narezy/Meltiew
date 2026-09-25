@@ -30,6 +30,8 @@ var settings := {
 }
 ## Where the game scene should go when it opens: "auto", "new" or a server id.
 var pending_server := "auto"
+## Which place the game scene joins: "playground" or a studio place id.
+var pending_game := "playground"
 
 
 func _ready() -> void:

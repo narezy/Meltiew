@@ -41,6 +41,17 @@ var dead := false
 var first_person := false
 var seated := false
 
+# Tunables a studio place can change (Humanoid / Workspace properties).
+var walk_speed := MAX_SPEED
+var sprint_speed := SPRINT_SPEED
+var jump_velocity := JUMP_VELOCITY
+var gravity := GRAVITY
+var can_jump := true
+var void_height := -25.0
+var max_hp := 100.0
+## Studio places: the server owns health and decides when to respawn.
+var server_health := false
+
 var _collision: CollisionShape3D
 var _unseat_time := 0.0
 
@@ -98,7 +109,7 @@ func _ready() -> void:
 
 
 func request_jump() -> void:
-	if dead:
+	if dead or not can_jump:
 		return
 	if seated:
 		stand_up()
@@ -133,7 +144,7 @@ func stand_up() -> void:
 	_unseat_time = Time.get_ticks_msec()
 	_emote = ""
 	global_position += Vector3(0, 0.25, 0)
-	velocity = Basis(Vector3.UP, _facing) * Vector3(0, 0, -2.5) + Vector3(0, JUMP_VELOCITY * 0.8, 0)
+	velocity = Basis(Vector3.UP, _facing) * Vector3(0, 0, -2.5) + Vector3(0, jump_velocity * 0.8, 0)
 	jumped.emit()
 
 
@@ -211,16 +222,37 @@ func die() -> void:
 	_emote = ""
 	died.emit()
 	velocity = Vector3.ZERO
+	if server_health:
+		return  # the server sends the new spawn point when it's time
 	await get_tree().create_timer(RESPAWN_DELAY).timeout
 	respawn()
 
 
+## Studio places: the server's health for this character.
+func set_server_health(value: float, maximum: float) -> void:
+	max_hp = maximum
+	if value < hp and not dead:
+		_since_hurt = 0.0
+		_shake = minf(0.35, (hp - value) / maxf(maximum, 1.0) + 0.1)
+		hurt.emit(hp - value)
+	hp = value
+	health_changed.emit(hp)
+	if hp <= 0.0 and not dead:
+		die()
+
+
+## Studio places: moves (and revives) the character where the server says.
+func respawn_at(pos: Vector3) -> void:
+	spawn_point = pos
+	respawn()
+
+
 func respawn() -> void:
-	global_position = spawn_point + Vector3(randf_range(-2, 2), 0.2, randf_range(-2, 2))
+	global_position = spawn_point + (Vector3.ZERO if server_health else Vector3(randf_range(-2, 2), 0.2, randf_range(-2, 2)))
 	reset_physics_interpolation()
 	velocity = Vector3.ZERO
 	_fall_speed = 0.0
-	hp = 100.0
+	hp = max_hp
 	dead = false
 	avatar.visible = not first_person
 	avatar.play("idle")
@@ -239,11 +271,11 @@ func _physics_process(delta: float) -> void:
 	_jump_buffer -= delta
 
 	if not on_floor:
-		velocity.y = maxf(velocity.y - GRAVITY * delta, -MAX_FALL)
+		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
 
-	if _jump_buffer > 0.0 and _coyote > 0.0:
-		velocity.y = JUMP_VELOCITY
+	if _jump_buffer > 0.0 and _coyote > 0.0 and can_jump:
+		velocity.y = jump_velocity
 		_jump_buffer = 0.0
 		_coyote = 0.0
 		_emote = ""
@@ -259,7 +291,7 @@ func _physics_process(delta: float) -> void:
 	if input.length() > 0.1 and _emote != "":
 		_emote = ""
 	var dir := Basis(Vector3.UP, cam_yaw) * Vector3(input.x, 0, input.y)
-	var top := SPRINT_SPEED if sprint else MAX_SPEED
+	var top := sprint_speed if sprint else walk_speed
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
 	var rate := (ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL
@@ -286,7 +318,7 @@ func _physics_process(delta: float) -> void:
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if not now_floor:
 		_anim_state = "jump" if velocity.y > 1.0 else "fall"
-	elif hspeed > 5.6:
+	elif hspeed > walk_speed * 1.12:
 		_anim_state = "run"
 	elif hspeed > 0.5:
 		_anim_state = "walk"
@@ -297,13 +329,13 @@ func _physics_process(delta: float) -> void:
 	else:
 		avatar.play(_anim_state)
 
-	if global_position.y < -25.0:
+	if global_position.y < void_height:
 		die()
 
 
 func _process(delta: float) -> void:
 	_since_hurt += delta
-	if _since_hurt > 5.0 and hp < 100.0 and not dead:
+	if not server_health and _since_hurt > 5.0 and hp < 100.0 and not dead:
 		hp = minf(hp + 4.0 * delta, 100.0)
 		health_changed.emit(hp)
 	_update_camera(delta)

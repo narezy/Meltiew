@@ -148,6 +148,12 @@ static func place_card(p: Dictionary, on_open: Callable) -> Control:
 	var v := UI.vbox(8)
 	c.add_child(v)
 	var cover := RoundedImage.new(PlacePage.cover_for(p), 16)
+	if cover.texture == null:
+		# Studio places: covers come from the server.
+		AssetCache.fetch(str(p.get("cover", "")), func(tex: Texture2D):
+			if tex and is_instance_valid(cover):
+				PlacePage._cover_cache[str(p.id)] = tex
+				cover.texture = tex)
 	cover.custom_minimum_size = Vector2(306, 172)
 	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(cover)
@@ -243,7 +249,7 @@ func _friend_chip(f: Dictionary, can_join := true) -> Control:
 		var join := UI.label(L.t("join"), 13, UI.MINT, "black")
 		join.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(join)
-		UI.on_tap(v, func(): _menu().play(str(playing.server_id)))
+		UI.on_tap(v, func(): _menu().play(str(playing.server_id), str(playing.get("game", "playground"))))
 	else:
 		UI.on_tap(v, func(): _menu().show_profile(str(f.username)))
 	return v

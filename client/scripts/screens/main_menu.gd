@@ -86,7 +86,7 @@ func _check_launch() -> void:
 	var r := await Api.request("GET", "/api/launch")
 	_checking_launch = false
 	if r.ok and r.data.get("launch") is Dictionary and is_inside_tree():
-		play(str(r.data.launch.server))
+		play(str(r.data.launch.server), str(r.data.launch.get("game", "playground")))
 
 
 func _build_sidebar() -> Control:
@@ -343,13 +343,14 @@ func open_messages(u: Dictionary) -> void:
 
 
 ## Starts the playground, optionally on a specific server ("auto", "new" or id).
-func play(server := "auto") -> void:
+func play(server := "auto", game := "playground") -> void:
 	# No game without a date of birth (it decides the chat rules).
 	if str(Session.user.get("birthdate", "")) == "":
 		if not await BirthdayInput.ask(self):
 			UI.toast(L.t("birthdate_needed"), "error")
 			return
 	Session.pending_server = server
+	Session.pending_game = game
 	UI.goto("res://scenes/game.tscn")
 
 

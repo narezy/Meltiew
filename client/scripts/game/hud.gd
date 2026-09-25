@@ -282,12 +282,19 @@ func set_chat_enabled(on: bool) -> void:
 		_set_chat_expanded(false)
 
 
+## Studio places can raise MaxHealth above 100.
+var max_health := 100.0
+
+
 func set_health(hp: float) -> void:
+	if player:
+		max_health = player.max_hp
 	var t := create_tween()
 	t.tween_method(func(v: float):
-		_hp_fill.size.x = HP_W * clampf(v / 100.0, 0.0, 1.0)
+		var frac := clampf(v / maxf(max_health, 1.0), 0.0, 1.0)
+		_hp_fill.size.x = HP_W * frac
 		var sb := _hp_fill.get_theme_stylebox("panel") as StyleBoxFlat
-		sb.bg_color = UI.ONLINE if v > 50.0 else (Color("#ffd166") if v > 25.0 else UI.DANGER), _hp_shown, hp, 0.2)
+		sb.bg_color = UI.ONLINE if frac > 0.5 else (Color("#ffd166") if frac > 0.25 else UI.DANGER), _hp_shown, hp, 0.2)
 	_hp_shown = hp
 	_hp_label.text = str(int(ceil(hp)))
 

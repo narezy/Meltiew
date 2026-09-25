@@ -140,7 +140,7 @@ func _build() -> void:
 	var pic := Icon.make("play", 22, UI.INK)
 	pic.position = Vector2(30, 21)
 	play.add_child(pic)
-	play.pressed.connect(func(): _menu().play("auto"))
+	play.pressed.connect(func(): _menu().play("auto", place_id))
 	info.add_child(play)
 	var hint := UI.label(L.t("play_hint"), 14, UI.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -161,7 +161,7 @@ func _build() -> void:
 	sh.add_child(UI.label(L.t("servers_title"), 24, UI.TEXT, "black"))
 	sh.add_child(UI.spacer())
 	var create := UI.button(L.t("new_server"), "ghost", 48)
-	create.pressed.connect(func(): _menu().play("new"))
+	create.pressed.connect(func(): _menu().play("new", place_id))
 	sh.add_child(create)
 	_root.add_child(sh)
 	_servers_box = UI.vbox(10)
@@ -325,6 +325,6 @@ func _server_row(s: Dictionary) -> Control:
 	var join := UI.button(L.t("full") if full else L.t("join"), "ghost" if full else "mint", 52)
 	join.custom_minimum_size.x = 130
 	join.disabled = full
-	join.pressed.connect(func(): _menu().play(str(s.id)))
+	join.pressed.connect(func(): _menu().play(str(s.id), place_id))
 	row.add_child(join)
 	return c

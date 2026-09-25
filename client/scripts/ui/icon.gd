@@ -117,6 +117,10 @@ func _draw() -> void:
 		"menu":
 			for y in [6.5, 12.0, 17.5]:
 				_line([Vector2(4.5, y), Vector2(19.5, y)])
+		"code":
+			_line([Vector2(8, 7), Vector2(3, 12), Vector2(8, 17)])
+			_line([Vector2(16, 7), Vector2(21, 12), Vector2(16, 17)])
+			_line([Vector2(13.5, 5), Vector2(10.5, 19)])
 		"send":
 			_poly([Vector2(3, 4), Vector2(21, 12), Vector2(3, 20), Vector2(6, 12)])
 		"jump":

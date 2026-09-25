@@ -62,7 +62,11 @@ func _ready() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size.y = 8
 	side.add_child(gap)
-	for t in [["players", "users", L.t("players")], ["settings", "settings", L.t("nav_settings")], ["help", "menu", L.t("controls")]]:
+	var tabs := [["players", "users", L.t("players")], ["settings", "settings", L.t("nav_settings")], ["help", "menu", L.t("controls")]]
+	# Studio places: script output (prints and errors), like a developer console.
+	if Session.pending_game != "playground":
+		tabs.append(["console", "code", L.t("console")])
+	for t in tabs:
 		var b := _tab_button(t[0], t[1], t[2])
 		side.add_child(b)
 	side.add_child(UI.spacer(false))
@@ -152,6 +156,15 @@ func show_tab(id: String) -> void:
 			var note := UI.label(L.t("graphics_note"), 15, UI.MUTED)
 			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			_body.add_child(note)
+		"console":
+			_body.add_child(UI.label(L.t("console"), 26, UI.TEXT, "black"))
+			var log := RichTextLabel.new()
+			log.bbcode_enabled = true
+			log.fit_content = true
+			log.selection_enabled = true
+			log.add_theme_font_size_override("normal_font_size", 15)
+			log.text = game.console_bbcode() if game.has_method("console_bbcode") else ""
+			_body.add_child(log)
 		"help":
 			_body.add_child(UI.label(L.t("controls"), 26, UI.TEXT, "black"))
 			for line in ["help_move", "help_camera", "help_zoom", "help_jump", "help_emotes", "help_chat", "help_reset"]:
