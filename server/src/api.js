@@ -1,8 +1,8 @@
 import { hashPassword, verifyPassword, newToken, RateLimiter } from './security.js';
 import { GAMES, MAX_PLAYERS } from './game.js';
+import { BODY_PARTS, COLOR_RE, parseColors } from './colors.js';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
-const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 export const HATS = ['none', 'cap', 'crown', 'catears', 'halo', 'tophat', 'flower', 'headphones'];
 const ONLINE_WINDOW_MS = 60_000;
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60;
@@ -106,9 +106,7 @@ export function createApi({ db, hub }) {
       username: u.username,
       display_name: u.display_name,
       bio: u.bio,
-      skin_color: u.skin_color,
-      shirt_color: u.shirt_color,
-      pants_color: u.pants_color,
+      colors: parseColors(u.colors),
       hat: u.hat,
       created_at: u.created_at,
       friends: q.countFriends.get(u.id, u.id).n,
@@ -217,23 +215,26 @@ export function createApi({ db, hub }) {
         if (next.display_name.length < 2) throw bad('bad_name', 'Имя слишком короткое');
       }
       if (body.bio !== undefined) next.bio = cleanText(body.bio, 160);
-      for (const key of ['skin_color', 'shirt_color', 'pants_color']) {
-        if (body[key] === undefined) continue;
-        if (!COLOR_RE.test(body[key])) throw bad('bad_color', 'Некорректный цвет');
-        next[key] = body[key].toLowerCase();
+      if (body.colors !== undefined) {
+        if (!body.colors || typeof body.colors !== 'object') throw bad('bad_color', 'Некорректные цвета');
+        const merged = parseColors(user.colors);
+        for (const [part, value] of Object.entries(body.colors)) {
+          if (!BODY_PARTS.includes(part)) throw bad('bad_part', 'Нет такой части тела');
+          if (!COLOR_RE.test(value)) throw bad('bad_color', 'Некорректный цвет');
+          merged[part] = value.toLowerCase();
+        }
+        next.colors = JSON.stringify(merged);
       }
       if (body.hat !== undefined) {
         if (!HATS.includes(body.hat)) throw bad('bad_hat', 'Такой шапки нет');
         next.hat = body.hat;
       }
       db.prepare(
-        'UPDATE users SET display_name = ?, bio = ?, skin_color = ?, shirt_color = ?, pants_color = ?, hat = ? WHERE id = ?',
+        'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ? WHERE id = ?',
       ).run(
         next.display_name,
         next.bio,
-        next.skin_color,
-        next.shirt_color,
-        next.pants_color,
+        next.colors,
         next.hat,
         user.id,
       );

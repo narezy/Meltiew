@@ -63,9 +63,11 @@ test('register and login', async () => {
 });
 
 test('profile update validates input', async () => {
-  const r = await call('PATCH', '/api/me', { bio: 'hi', shirt_color: '#FF00aa', hat: 'crown' }, users.alice);
+  const r = await call('PATCH', '/api/me', { bio: 'hi', colors: { torso: '#FF00aa' }, hat: 'crown' }, users.alice);
   assert.equal(r.status, 200);
-  assert.equal(r.data.user.shirt_color, '#ff00aa');
+  assert.equal(r.data.user.colors.torso, '#ff00aa');
+  assert.equal(r.data.user.colors.head, '#f5f1ec');
+  assert.equal((await call('PATCH', '/api/me', { colors: { tail: '#000000' } }, users.alice)).status, 400);
   assert.equal(r.data.user.hat, 'crown');
   assert.equal((await call('PATCH', '/api/me', { hat: 'sombrero' }, users.alice)).status, 400);
   assert.equal((await call('GET', '/api/me')).status, 401);

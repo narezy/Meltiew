@@ -15,9 +15,7 @@ export function openDb(file) {
       pass_hash    TEXT NOT NULL,
       display_name TEXT NOT NULL,
       bio          TEXT NOT NULL DEFAULT '',
-      skin_color   TEXT NOT NULL DEFAULT '#f5f1ec',
-      shirt_color  TEXT NOT NULL DEFAULT '#baa4e2',
-      pants_color  TEXT NOT NULL DEFAULT '#302d38',
+      colors       TEXT NOT NULL DEFAULT '{}',
       hat          TEXT NOT NULL DEFAULT 'none',
       created_at   INTEGER NOT NULL,
       last_seen    INTEGER NOT NULL DEFAULT 0

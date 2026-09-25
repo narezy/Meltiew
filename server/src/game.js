@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { parseColors } from './colors.js';
 
 export const MAX_PLAYERS = 10;
 export const GAMES = {
@@ -21,9 +22,7 @@ function publicUser(u) {
     id: u.id,
     username: u.username,
     display_name: u.display_name,
-    skin_color: u.skin_color,
-    shirt_color: u.shirt_color,
-    pants_color: u.pants_color,
+    colors: parseColors(u.colors),
     hat: u.hat,
   };
 }
