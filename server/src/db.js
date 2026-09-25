@@ -66,6 +66,37 @@ export function openDb(file) {
       value TEXT NOT NULL
     );
 
+    -- Direct messages. A conversation is open between friends or once a message
+    -- request was accepted; until then the sender gets exactly one message in.
+    CREATE TABLE IF NOT EXISTS messages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      to_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body       TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      read       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS messages_pair ON messages(from_id, to_id, id);
+    CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, read);
+
+    CREATE TABLE IF NOT EXISTS dm_requests (
+      from_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      to_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status     TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (from_id, to_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS reports (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reason      TEXT NOT NULL,
+      details     TEXT NOT NULL DEFAULT '',
+      created_at  INTEGER NOT NULL,
+      resolved    INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS place_votes (
       place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
       user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -84,6 +115,11 @@ function migrate(db) {
   if (!cols.has('role')) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
   if (!cols.has('banned')) db.exec('ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('ban_reason')) db.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''");
+  if (!cols.has('birthdate')) db.exec("ALTER TABLE users ADD COLUMN birthdate TEXT NOT NULL DEFAULT ''");
+  if (!cols.has('face')) db.exec("ALTER TABLE users ADD COLUMN face TEXT NOT NULL DEFAULT ':D'");
+  if (!cols.has('hide_friends')) db.exec('ALTER TABLE users ADD COLUMN hide_friends INTEGER NOT NULL DEFAULT 0');
+  const pcols = new Set(db.prepare('PRAGMA table_info(places)').all().map((c) => c.name));
+  if (!pcols.has('cover_square')) db.exec("ALTER TABLE places ADD COLUMN cover_square TEXT NOT NULL DEFAULT ''");
   db.prepare(
     `INSERT OR IGNORE INTO places (id, name, name_ru, description, description_ru, author_username, cover, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -97,4 +133,6 @@ function migrate(db) {
     '/img/cover.png',
     Date.UTC(2026, 8, 25),
   );
+  // Runs after the seed insert so fresh databases get the square cover too.
+  db.prepare("UPDATE places SET cover_square = '/img/cover_square.png' WHERE id = 'playground' AND cover_square = ''").run();
 }

@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 import { parseColors } from './colors.js';
 import { msg } from './i18n.js';
+import { chatRules } from './age.js';
+import { filterText } from './filter.js';
 
 export const MAX_PLAYERS = 10;
 export const GAMES = {
@@ -39,6 +41,7 @@ function publicUser(u) {
     colors: parseColors(u.colors),
     hat: u.hat,
     role: u.role || 'user',
+    face: u.face || ':D',
   };
 }
 
@@ -160,6 +163,7 @@ export class GameHub {
       lastChat: 0,
       chatBurst: 0,
       blocks: this.loadBlocks(user.id),
+      rules: chatRules(user.birthdate),
     };
     conn.send = (m) => {
       if (ws.readyState === 1) ws.send(JSON.stringify(m));
@@ -207,6 +211,9 @@ export class GameHub {
   }
 
   join(conn, m) {
+    if (conn.rules.age === null) {
+      return conn.send({ t: 'error', code: 'birthdate', m: msg('birthdate_needed', conn.lang) });
+    }
     if (conn.server) this.leave(conn);
     const game = GAMES[m.game] ? m.game : 'playground';
     let server;
@@ -243,6 +250,7 @@ export class GameHub {
       t: 'welcome',
       server: this.describe(server),
       you: conn.user.id,
+      chat: conn.rules.chat,
       spawn,
       players: [...server.players.values()]
         .filter((p) => p !== player)
@@ -275,10 +283,15 @@ export class GameHub {
     conn.chatBurst += 1;
     conn.lastChat = now;
     if (conn.chatBurst > 6) return conn.send({ t: 'sys', k: 'slow' });
-    const data = JSON.stringify({ t: 'chat', id: conn.user.id, name: conn.user.display_name, m: text });
+    if (!conn.rules.chat) return conn.send({ t: 'sys', k: 'no_chat' });
+    const base = { t: 'chat', id: conn.user.id, name: conn.user.display_name };
+    const raw = JSON.stringify({ ...base, m: text });
+    const clean = JSON.stringify({ ...base, m: filterText(text) });
     for (const p of conn.server.players.values()) {
-      // Whoever blocked the sender never receives their messages.
-      if (p.conn.blocks.has(conn.user.id)) continue;
+      // Whoever blocked the sender never receives their messages; under-13s see no chat.
+      if (p.conn.blocks.has(conn.user.id) || !p.conn.rules.chat) continue;
+      // The sender always sees what they typed; minors get the filtered version.
+      const data = p.conn !== conn && p.conn.rules.filter_chat ? clean : raw;
       if (p.conn.ws.readyState === 1) p.conn.ws.send(data);
     }
   }
@@ -305,6 +318,7 @@ export class GameHub {
     const entry = this.byUser.get(user.id);
     if (!entry) return;
     entry.conn.user = user;
+    entry.conn.rules = chatRules(user.birthdate);
     entry.player.user = publicUser(user);
     this.broadcast(entry.server, { t: 'look', player: entry.player.user });
   }

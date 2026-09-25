@@ -4,6 +4,8 @@ import { BODY_PARTS, COLOR_RE, parseColors } from './colors.js';
 import { msg, pickLang } from './i18n.js';
 import fs from 'node:fs';
 import { createVersionGate, DOWNLOAD_PAGE, LATEST_CLIENT } from './version.js';
+import { FACES, ageOf, chatRules, validBirthdate } from './age.js';
+import { filterText } from './filter.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -145,6 +147,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       description: p.description,
       description_ru: p.description_ru,
       cover: p.cover,
+      cover_square: p.cover_square || '',
       visits: p.visits,
       created_at: p.created_at,
       likes: v.likes || 0,
@@ -178,6 +181,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       ...publicProfile(u),
       banned: !!u.banned,
       ban_reason: u.ban_reason,
+      age: ageOf(u.birthdate),
       last_seen: u.last_seen,
     };
   }
@@ -202,12 +206,23 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       hat: u.hat,
       render: u.render_hash || '',
       role: u.role || 'user',
+      face: u.face || ':D',
       created_at: u.created_at,
       friends: q.countFriends.get(u.id, u.id).n,
       ...presence(u),
     };
     if (viewerId != null && viewerId !== u.id) out.relation = relation(viewerId, u.id);
     return out;
+  }
+
+  /** The signed-in user's own profile, with private fields. */
+  function selfProfile(u) {
+    return {
+      ...publicProfile(u),
+      birthdate: u.birthdate || '',
+      hide_friends: !!u.hide_friends,
+      rules: chatRules(u.birthdate),
+    };
   }
 
   function relation(me, other) {
@@ -217,6 +232,17 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted')) return 'friends';
     if (out) return 'outgoing';
     if (inc) return 'incoming';
+    return 'none';
+  }
+
+  /** 'open' | 'outgoing' (my request waits) | 'incoming' (their request waits) | 'none'. */
+  function dmState(me, other) {
+    if (relation(me, other) === 'friends') return 'open';
+    const out = db.prepare('SELECT status FROM dm_requests WHERE from_id = ? AND to_id = ?').get(me, other);
+    const inc = db.prepare('SELECT status FROM dm_requests WHERE from_id = ? AND to_id = ?').get(other, me);
+    if (out?.status === 'accepted' || inc?.status === 'accepted') return 'open';
+    if (inc?.status === 'pending') return 'incoming';
+    if (out?.status === 'pending') return 'outgoing';
     return 'none';
   }
 
@@ -290,12 +316,14 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       if (!USERNAME_RE.test(username)) throw bad('bad_username');
       if (password.length < 6 || password.length > 128) throw bad('bad_password');
       if (displayName.length < 2) throw bad('bad_name');
+      if (!validBirthdate(body.birthdate)) throw bad('bad_birthdate');
       if (q.userByName.get(username)) throw new HttpError(409, 'taken');
       const now = Date.now();
       const info = q.insertUser.run(username, hashPassword(password), displayName, now, now);
+      db.prepare('UPDATE users SET birthdate = ? WHERE id = ?').run(body.birthdate, Number(info.lastInsertRowid));
       promoteOwner();
       const user = q.userById.get(Number(info.lastInsertRowid));
-      return { token: issueSession(user.id), user: publicProfile(user) };
+      return { token: issueSession(user.id), user: selfProfile(user) };
     },
 
     'POST /api/login': async (req, body) => {
@@ -306,7 +334,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       }
       if (user.banned) throw new HttpError(403, user.ban_reason ? 'banned_reason' : 'banned', { r: user.ban_reason });
       q.touchUser.run(Date.now(), user.id);
-      return { token: issueSession(user.id), user: publicProfile(user) };
+      return { token: issueSession(user.id), user: selfProfile(user) };
     },
 
     'POST /api/logout': (req) => {
@@ -317,7 +345,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
 
     'GET /api/me': (req) => {
       const { user } = requireAuth(req);
-      return { user: publicProfile(user) };
+      return { user: selfProfile(user) };
     },
 
     'PATCH /api/me': (req, body) => {
@@ -339,22 +367,35 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         }
         next.colors = JSON.stringify(merged);
       }
+      if (body.birthdate !== undefined && body.birthdate !== user.birthdate) {
+        if (user.birthdate) throw new HttpError(403, 'birthdate_locked');
+        if (!validBirthdate(body.birthdate)) throw bad('bad_birthdate');
+        next.birthdate = body.birthdate;
+      }
+      if (body.face !== undefined) {
+        if (!FACES.includes(body.face)) throw bad('bad_face');
+        next.face = body.face;
+      }
+      if (body.hide_friends !== undefined) next.hide_friends = body.hide_friends ? 1 : 0;
       if (body.hat !== undefined) {
         if (!HATS.includes(body.hat)) throw bad('bad_hat');
         next.hat = body.hat;
       }
       db.prepare(
-        'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ? WHERE id = ?',
+        'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ?, birthdate = ?, face = ?, hide_friends = ? WHERE id = ?',
       ).run(
         next.display_name,
         next.bio,
         next.colors,
         next.hat,
+        next.birthdate || '',
+        next.face || ':D',
+        next.hide_friends ? 1 : 0,
         user.id,
       );
       const fresh = q.userById.get(user.id);
       hub.updateUser(fresh);
-      return { user: publicProfile(fresh) };
+      return { user: selfProfile(fresh) };
     },
 
     'POST /api/me/password': (req, body) => {
@@ -500,9 +541,16 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
       return { __redirect: '/img/default-bust.png' };
     },
 
-    'GET /api/places': (req) => {
+    'GET /api/places': (req, _body, url) => {
       const { user } = requireAuth(req);
-      return { places: pq.all.all().map((p) => placeView(p, user.id)) };
+      const term = cleanText(url.searchParams.get('q'), 40).toLowerCase();
+      let list = pq.all.all();
+      if (term) {
+        list = list.filter((p) =>
+          [p.name, p.name_ru, p.description, p.description_ru, p.author_username].some((f) => String(f).toLowerCase().includes(term)),
+        );
+      }
+      return { places: list.map((p) => placeView(p, user.id)) };
     },
 
     'GET /api/places/:id': (req, _body, _url, params) => {
@@ -574,6 +622,7 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         if (!isOwner || !['user', 'admin'].includes(body.role)) throw new HttpError(403, 'forbidden');
         db.prepare('UPDATE users SET role = ? WHERE id = ?').run(body.role, target.id);
       }
+      if (body.reset_birthdate) db.prepare("UPDATE users SET birthdate = '' WHERE id = ?").run(target.id);
       if (body.reset_profile) {
         db.prepare("UPDATE users SET bio = '', display_name = username WHERE id = ?").run(target.id);
         hub.updateUser(q.userById.get(target.id));
@@ -622,6 +671,166 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         p.id,
       );
       return { place: placeView(pq.one.get(p.id), null) };
+    },
+
+    'GET /api/users/:name/friends': (req, _body, _url, params) => {
+      const { user } = requireAuth(req);
+      const target = q.userByName.get(params.name);
+      if (!target) throw new HttpError(404, 'no_user');
+      const staff = user.role === 'owner' || user.role === 'admin';
+      if (target.hide_friends && target.id !== user.id && !staff) return { hidden: true, friends: [] };
+      const friends = q.friendsOf
+        .all(target.id, target.id, target.id)
+        .filter((r) => r.status === 'accepted')
+        .map((r) => publicProfile(r));
+      friends.sort((a, b) => Number(!!b.playing) - Number(!!a.playing) || Number(b.online) - Number(a.online));
+      return { hidden: false, friends };
+    },
+
+    'GET /api/notifications': (req) => {
+      const { user } = requireAuth(req);
+      const n = (sql, ...a) => db.prepare(sql).get(...a).n;
+      return {
+        dm_unread: n('SELECT COUNT(*) AS n FROM messages m WHERE m.to_id = ? AND m.read = 0 AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.user_id = ? AND b.blocked_id = m.from_id)', user.id, user.id),
+        dm_requests: n("SELECT COUNT(*) AS n FROM dm_requests WHERE to_id = ? AND status = 'pending'", user.id),
+        friend_requests: n("SELECT COUNT(*) AS n FROM friendships WHERE to_id = ? AND status = 'pending'", user.id),
+      };
+    },
+
+    // --- direct messages ------------------------------------------------------
+    'GET /api/dm': (req) => {
+      const { user } = requireAuth(req);
+      const rules = chatRules(user.birthdate);
+      const partners = db
+        .prepare(
+          `SELECT other, MAX(id) AS last_id FROM (
+             SELECT to_id AS other, id FROM messages WHERE from_id = ?
+             UNION ALL SELECT from_id AS other, id FROM messages WHERE to_id = ?)
+           GROUP BY other ORDER BY last_id DESC LIMIT 100`,
+        )
+        .all(user.id, user.id);
+      const blocked = blockSet(user.id);
+      const out = [];
+      for (const row of partners) {
+        if (blocked.has(row.other)) continue;
+        const other = q.userById.get(row.other);
+        if (!other) continue;
+        const last = db.prepare('SELECT * FROM messages WHERE id = ?').get(row.last_id);
+        const unread = db.prepare('SELECT COUNT(*) AS n FROM messages WHERE from_id = ? AND to_id = ? AND read = 0').get(other.id, user.id).n;
+        out.push({
+          user: publicProfile(other),
+          state: dmState(user.id, other.id),
+          unread,
+          last: {
+            from_me: last.from_id === user.id,
+            body: last.from_id !== user.id && rules.filter_dm ? filterText(last.body) : last.body,
+            created_at: last.created_at,
+          },
+        });
+      }
+      return { conversations: out, rules };
+    },
+
+    'GET /api/dm/:id': (req, _body, url, params) => {
+      const { user } = requireAuth(req);
+      const other = q.userById.get(Number(params.id));
+      if (!other) throw new HttpError(404, 'no_user');
+      const rules = chatRules(user.birthdate);
+      const after = Number(url.searchParams.get('after') || 0);
+      const rows = db
+        .prepare(
+          `SELECT * FROM messages WHERE ((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)) AND id > ?
+           ORDER BY id DESC LIMIT 100`,
+        )
+        .all(user.id, other.id, other.id, user.id, after)
+        .reverse();
+      db.prepare('UPDATE messages SET read = 1 WHERE from_id = ? AND to_id = ? AND read = 0').run(other.id, user.id);
+      return {
+        user: publicProfile(other, user.id),
+        state: dmState(user.id, other.id),
+        can_message: rules.dm && chatRules(other.birthdate).dm,
+        messages: rows.map((m) => ({
+          id: m.id,
+          from_me: m.from_id === user.id,
+          body: m.from_id !== user.id && rules.filter_dm ? filterText(m.body) : m.body,
+          created_at: m.created_at,
+        })),
+      };
+    },
+
+    'POST /api/dm/:id': (req, body, _url, params) => {
+      const { user } = requireAuth(req);
+      if (!writeLimiter.allow('dm:' + user.id)) throw new HttpError(429, 'slow_down');
+      const other = q.userById.get(Number(params.id));
+      if (!other || other.id === user.id) throw new HttpError(404, 'no_user');
+      if (!chatRules(user.birthdate).dm) throw new HttpError(403, 'dm_too_young');
+      if (!chatRules(other.birthdate).dm) throw new HttpError(403, 'dm_unavailable');
+      if (q.blockRow.get(other.id, user.id) || q.blockRow.get(user.id, other.id)) throw new HttpError(403, 'blocked');
+      const text = String(body.text ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, 500);
+      if (!text) throw bad('empty');
+      let state = dmState(user.id, other.id);
+      if (state === 'outgoing') throw new HttpError(403, 'dm_wait');
+      if (state === 'incoming') {
+        // Replying to a request accepts it.
+        db.prepare("UPDATE dm_requests SET status = 'accepted' WHERE from_id = ? AND to_id = ?").run(other.id, user.id);
+        state = 'open';
+      } else if (state === 'none') {
+        db.prepare("INSERT OR REPLACE INTO dm_requests (from_id, to_id, status, created_at) VALUES (?, ?, 'pending', ?)").run(user.id, other.id, Date.now());
+        state = 'outgoing';
+      }
+      const info = db.prepare('INSERT INTO messages (from_id, to_id, body, created_at) VALUES (?, ?, ?, ?)').run(user.id, other.id, text, Date.now());
+      return { id: Number(info.lastInsertRowid), state };
+    },
+
+    'POST /api/dm/:id/accept': (req, _body, _url, params) => {
+      const { user } = requireAuth(req);
+      db.prepare("UPDATE dm_requests SET status = 'accepted' WHERE from_id = ? AND to_id = ?").run(Number(params.id), user.id);
+      return { state: dmState(user.id, Number(params.id)) };
+    },
+
+    'POST /api/dm/:id/decline': (req, _body, _url, params) => {
+      const { user } = requireAuth(req);
+      const otherId = Number(params.id);
+      db.prepare('DELETE FROM dm_requests WHERE from_id = ? AND to_id = ?').run(otherId, user.id);
+      db.prepare('DELETE FROM messages WHERE from_id = ? AND to_id = ?').run(otherId, user.id);
+      return { state: 'none' };
+    },
+
+    // --- reports ----------------------------------------------------------------
+    'POST /api/report': (req, body) => {
+      const { user } = requireAuth(req);
+      if (!writeLimiter.allow('report:' + user.id)) throw new HttpError(429, 'slow_down');
+      const target = lookupTarget(body);
+      const reason = ['chat', 'name', 'avatar', 'cheating', 'other'].includes(body.reason) ? body.reason : 'other';
+      db.prepare('INSERT INTO reports (reporter_id, target_id, reason, details, created_at) VALUES (?, ?, ?, ?, ?)').run(
+        user.id,
+        target.id,
+        reason,
+        cleanText(body.details, 300),
+        Date.now(),
+      );
+      return { ok: true, message: msg('reported', pickLang(req)) };
+    },
+
+    'GET /api/admin/reports': (req) => {
+      requireStaff(req);
+      const rows = db.prepare('SELECT * FROM reports WHERE resolved = 0 ORDER BY id DESC LIMIT 100').all();
+      return {
+        reports: rows.map((r) => ({
+          id: r.id,
+          reason: r.reason,
+          details: r.details,
+          created_at: r.created_at,
+          reporter: q.userById.get(r.reporter_id) ? publicProfile(q.userById.get(r.reporter_id)) : null,
+          target: q.userById.get(r.target_id) ? adminUser(q.userById.get(r.target_id)) : null,
+        })),
+      };
+    },
+
+    'POST /api/admin/reports/:id/resolve': (req, _body, _url, params) => {
+      requireStaff(req);
+      db.prepare('UPDATE reports SET resolved = 1 WHERE id = ?').run(Number(params.id));
+      return { ok: true };
     },
 
     'GET /api/games': (req) => {

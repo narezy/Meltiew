@@ -49,11 +49,11 @@ const users = {};
 
 test('register and login', async () => {
   for (const name of ['alice', 'bob']) {
-    const r = await call('POST', '/api/register', { username: name, password: 'secret123', display_name: name.toUpperCase() });
+    const r = await call('POST', '/api/register', { username: name, password: 'secret123', display_name: name.toUpperCase(), birthdate: '2000-01-01' });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     users[name] = r.data.token;
   }
-  const dup = await call('POST', '/api/register', { username: 'ALICE', password: 'secret123' });
+  const dup = await call('POST', '/api/register', { username: 'ALICE', password: 'secret123', birthdate: '2000-01-01' });
   assert.equal(dup.status, 409);
   const badLogin = await call('POST', '/api/login', { username: 'alice', password: 'nope' });
   assert.equal(badLogin.status, 401);
@@ -111,7 +111,7 @@ test('game servers cap at 10 players and sync state', async () => {
 
   const extra = [];
   for (let i = 0; i < 9; i++) {
-    const reg = await call('POST', '/api/register', { username: `p${i}x`, password: 'secret123' });
+    const reg = await call('POST', '/api/register', { username: `p${i}x`, password: 'secret123', birthdate: '2000-01-01' });
     const ws = await connect(reg.data.token);
     ws.send2({ t: 'join', server: wa.server.id });
     extra.push({ ws, msg: await ws.next((m) => m.t === 'welcome' || m.t === 'error') });
@@ -186,7 +186,7 @@ test('bust render upload is validated and served', async () => {
 });
 
 test('places list, votes and owner author', async () => {
-  const reg = await call('POST', '/api/register', { username: 'nrz', password: 'secret123', display_name: 'Narez' });
+  const reg = await call('POST', '/api/register', { username: 'nrz', password: 'secret123', display_name: 'Narez', birthdate: '1999-05-05' });
   users.nrz = reg.data.token;
   assert.equal(reg.data.user.role, 'owner');
   let r = await call('GET', '/api/places', null, users.alice);
@@ -269,4 +269,90 @@ test('outdated apps are turned away, the website is not', async () => {
     body: JSON.stringify({ version: '1.2.0' }),
   });
   assert.equal(reset.status, 200);
+});
+
+test('profanity filter follows the age rules in game chat', async () => {
+  const kid = await call('POST', '/api/register', { username: 'kid12', password: 'secret123', birthdate: '2016-01-01' });
+  const teen = await call('POST', '/api/register', { username: 'teen15', password: 'secret123', birthdate: '2011-01-01' });
+  assert.equal(kid.data.user.rules.chat, false);
+  assert.equal(teen.data.user.rules.filter_chat, true);
+  const noBirth = await call('POST', '/api/register', { username: 'nobirth', password: 'secret123' });
+  assert.equal(noBirth.status, 400);
+  const a = await connect(users.alice);
+  a.send2({ t: 'join', server: 'new' });
+  const w = await a.next((m) => m.t === 'welcome');
+  const t = await connect(teen.data.token);
+  t.send2({ t: 'join', server: w.server.id });
+  await t.next((m) => m.t === 'welcome');
+  const k = await connect(kid.data.token);
+  k.send2({ t: 'join', server: w.server.id });
+  const wk = await k.next((m) => m.t === 'welcome');
+  assert.equal(wk.chat, false);
+  a.send2({ t: 'chat', m: 'what the fuck' });
+  const mine = await a.next((m) => m.t === 'chat');
+  assert.equal(mine.m, 'what the fuck');
+  const theirs = await t.next((m) => m.t === 'chat');
+  assert.equal(theirs.m, 'what the ####');
+  k.send2({ t: 'chat', m: 'hi' });
+  const denied = await k.next((m) => m.t === 'sys');
+  assert.equal(denied.k, 'no_chat');
+  a.close(); t.close(); k.close();
+});
+
+test('direct messages: requests for strangers, open chat for friends, filtered for minors', async () => {
+  // bob's sessions were revoked by the ban test
+  users.bob = (await call('POST', '/api/login', { username: 'bob', password: 'secret123' })).data.token;
+  const bob = (await call('GET', '/api/me', null, users.bob)).data.user;
+  const alice = (await call('GET', '/api/me', null, users.alice)).data.user;
+  // alice and bob are friends: open conversation
+  let r = await call('POST', `/api/dm/${bob.id}`, { text: 'hey bob' }, users.alice);
+  assert.equal(r.data.state, 'open');
+  // p1x is a stranger to alice: one message, then wait
+  const p1 = await call('POST', '/api/login', { username: 'p1x', password: 'secret123' });
+  const p1me = (await call('GET', '/api/me', null, p1.data.token)).data.user;
+  r = await call('POST', `/api/dm/${alice.id}`, { text: 'hello stranger' }, p1.data.token);
+  assert.equal(r.data.state, 'outgoing');
+  r = await call('POST', `/api/dm/${alice.id}`, { text: 'again?' }, p1.data.token);
+  assert.equal(r.status, 403);
+  const notes = await call('GET', '/api/notifications', null, users.alice);
+  assert.equal(notes.data.dm_requests, 1);
+  const list = await call('GET', '/api/dm', null, users.alice);
+  assert.equal(list.data.conversations.find((c) => c.user.id === p1me.id).state, 'incoming');
+  await call('POST', `/api/dm/${p1me.id}/accept`, null, users.alice);
+  r = await call('POST', `/api/dm/${alice.id}`, { text: 'thanks!' }, p1.data.token);
+  assert.equal(r.data.state, 'open');
+  const conv = await call('GET', `/api/dm/${p1me.id}`, null, users.alice);
+  assert.equal(conv.data.messages.length, 2);
+  // a 15-year-old sees filtered direct messages
+  const teen = await call('POST', '/api/login', { username: 'teen15', password: 'secret123' });
+  const teenMe = (await call('GET', '/api/me', null, teen.data.token)).data.user;
+  await call('POST', `/api/dm/${teenMe.id}`, { text: 'shit happens' }, users.alice);
+  const tv = await call('GET', `/api/dm/${alice.id}`, null, teen.data.token);
+  assert.equal(tv.data.messages[0].body, '#### happens');
+  // under 13: no DMs either way
+  const kid = await call('POST', '/api/login', { username: 'kid12', password: 'secret123' });
+  const kidMe = (await call('GET', '/api/me', null, kid.data.token)).data.user;
+  assert.equal((await call('POST', `/api/dm/${kidMe.id}`, { text: 'hi' }, users.alice)).status, 403);
+  assert.equal((await call('POST', `/api/dm/${alice.id}`, { text: 'hi' }, kid.data.token)).status, 403);
+});
+
+test('birthdate is set once, faces, friends privacy, place search and reports', async () => {
+  let r = await call('PATCH', '/api/me', { birthdate: '1990-01-01' }, users.alice);
+  assert.equal(r.status, 403);
+  r = await call('PATCH', '/api/me', { face: ':3', hide_friends: true }, users.alice);
+  assert.equal(r.data.user.face, ':3');
+  assert.equal((await call('PATCH', '/api/me', { face: 'lol' }, users.alice)).status, 400);
+  const hidden = await call('GET', '/api/users/alice/friends', null, users.bob);
+  assert.equal(hidden.data.hidden, true);
+  const own = await call('GET', '/api/users/alice/friends', null, users.alice);
+  assert.equal(own.data.hidden, false);
+  assert.equal((await call('GET', '/api/places?q=trampo', null, users.alice)).data.places.length, 1);
+  assert.equal((await call('GET', '/api/places?q=zzzz', null, users.alice)).data.places.length, 0);
+  assert.equal((await call('GET', '/api/places', null, users.alice)).data.places[0].cover_square, '/img/cover_square.png');
+  r = await call('POST', '/api/report', { username: 'bob', reason: 'chat', details: 'rude' }, users.alice);
+  assert.equal(r.status, 200);
+  const reports = await call('GET', '/api/admin/reports', null, users.nrz);
+  assert.equal(reports.data.reports[0].target.username, 'bob');
+  await call('POST', `/api/admin/reports/${reports.data.reports[0].id}/resolve`, null, users.nrz);
+  assert.equal((await call('GET', '/api/admin/reports', null, users.nrz)).data.reports.length, 0);
 });
