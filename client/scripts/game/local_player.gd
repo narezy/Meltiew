@@ -51,6 +51,12 @@ var void_height := -25.0
 var max_hp := 100.0
 ## Studio places: the server owns health and decides when to respawn.
 var server_health := false
+## Camera rules a place can set (Player.CameraMode / CameraMinZoom / CameraMaxZoom).
+var camera_mode := "Classic"
+var min_zoom := 0.0
+var max_zoom := 16.0
+## A script-driven camera (Camera.CameraType = Scriptable): its transform, or null.
+var scripted_camera: Variant = null
 
 var _collision: CollisionShape3D
 var _unseat_time := 0.0
@@ -155,18 +161,54 @@ func rotate_camera(delta_px: Vector2) -> void:
 
 
 func zoom_camera(amount: float) -> void:
-	var next := clampf(cam_distance + amount, 0.0, 16.0)
-	cam_distance = next
+	if camera_mode == "LockFirstPerson":
+		return
+	cam_distance = clampf(cam_distance + amount, _zoom_floor(), max_zoom)
 	_set_first_person(cam_distance < 1.2)
 
 
 func toggle_first_person() -> void:
+	if camera_mode != "Classic" or min_zoom >= 1.2:
+		return  # the place decided
 	if first_person:
-		cam_distance = 7.5
+		cam_distance = clampf(7.5, min_zoom, max_zoom)
 		_set_first_person(false)
 	else:
 		cam_distance = 0.0
 		_set_first_person(true)
+
+
+## Can the player switch between first and third person here?
+func can_toggle_view() -> bool:
+	return camera_mode == "Classic" and min_zoom < 1.2
+
+
+## Third person never gets closer than this (LockThirdPerson keeps the head in view).
+func _zoom_floor() -> float:
+	return maxf(min_zoom, 1.5) if camera_mode == "LockThirdPerson" else min_zoom
+
+
+## Applies a place's camera rules; called whenever they may have changed.
+func set_camera_rules(mode: String, min_z: float, max_z: float) -> void:
+	max_z = maxf(max_z, min_z)
+	if mode == camera_mode and is_equal_approx(min_z, min_zoom) and is_equal_approx(max_z, max_zoom):
+		return
+	camera_mode = mode
+	min_zoom = min_z
+	max_zoom = max_z
+	match mode:
+		"LockFirstPerson":
+			cam_distance = 0.0
+			_set_first_person(true)
+		"LockThirdPerson":
+			cam_distance = clampf(maxf(cam_distance, 7.5), _zoom_floor(), max_zoom)
+			_set_first_person(false)
+		_:
+			if first_person and min_zoom >= 1.2:
+				cam_distance = clampf(7.5, min_zoom, max_zoom)
+				_set_first_person(false)
+			elif not first_person:
+				cam_distance = clampf(cam_distance, _zoom_floor(), max_zoom)
 
 
 func _set_first_person(on: bool) -> void:
@@ -342,6 +384,14 @@ func _process(delta: float) -> void:
 
 
 func _update_camera(delta: float) -> void:
+	if scripted_camera is Transform3D:
+		if not camera.top_level:
+			camera.top_level = true
+		camera.global_transform = scripted_camera
+		return
+	if camera.top_level:
+		camera.top_level = false
+		camera.transform = Transform3D()
 	var body := get_global_transform_interpolated().origin
 	var target := body + Vector3(0, EYE_HEIGHT if first_person else 1.5, 0)
 	_camera_pivot.global_position = _camera_pivot.global_position.lerp(target, minf(delta * 22.0, 1.0))

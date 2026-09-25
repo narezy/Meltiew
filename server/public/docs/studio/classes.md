@@ -27,14 +27,21 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | UserId | number | 0 | read-only |
 | Character | Instance |  | read-only |
 | Language | string | "en" | read-only |
+| CameraMode | [CameraMode](#cameramode) | "Classic" |  |
+| CameraMinZoom | number | 0.5 | min 0, max 100 |
+| CameraMaxZoom | number | 14 | min 0.5, max 100 |
 
-**Methods:** `Kick(message)`, `LoadCharacter()`, `Teleport(pos)`
+**Methods:** `GetMouse()`, `Kick(message)`, `LoadCharacter()`, `Teleport(pos)`
 
 **Events:** `CharacterAdded`
 
 ### PlayerGui
 
 ### PlayerScripts
+
+### Backpack
+
+The player's inventory: the Tools they carry but don't hold. `player.Backpack`. Refilled from StarterPack on every spawn.
 
 ### Humanoid
 
@@ -50,7 +57,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | HealthRegen | number | 1 | min 0 |
 | EmotesEnabled | bool | true |  |
 
-**Methods:** `TakeDamage(amount)`
+**Methods:** `TakeDamage(amount)`, `EquipTool(tool)`, `UnequipTools()`
 
 **Events:** `Died`, `HealthChanged`
 
@@ -101,6 +108,18 @@ Every object is an **Instance**, so everything listed under Instance works on al
 
 **Events:** `MouseEnter`, `MouseLeave`
 
+### Camera
+
+`workspace.CurrentCamera` in LocalScripts. With CameraType `Custom` the game moves it and Position, Focus and LookVector tell you where it is. Set CameraType to `Scriptable` and it stays at Position looking at Focus (cutscenes, menus, top-down views).
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| CameraType | [CameraType](#cameratype) | "Custom" |  |
+| FieldOfView | number | 70 | min 10, max 120 |
+| Position | Vector3 | Vector3.new(0, 10, 10) |  |
+| Focus | Vector3 | Vector3.new(0, 0, 0) |  |
+| LookVector | Vector3 | Vector3.new(0, 0, -1) | read-only |
+
 ## Services
 
 ### Workspace
@@ -111,6 +130,8 @@ Every object is an **Instance**, so everything listed under Instance works on al
 |---|---|---|---|
 | Gravity | number | 22 | min 0, max 200 |
 | FallHeight | number | -60 |  |
+
+**Methods:** `Raycast(origin, direction, params)`, `GetPartBoundsInRadius(position, radius, params)`
 
 ### Lighting
 
@@ -144,6 +165,8 @@ Every object is an **Instance**, so everything listed under Instance works on al
 
 *service*
 
+**Methods:** `SetCoreGuiEnabled(kind, enabled)`, `GetCoreGuiEnabled(kind)`
+
 ### StarterPlayer
 
 *service*
@@ -161,12 +184,19 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | EmotesEnabled | bool | true |  |
 | ChatEnabled | bool | true |  |
 | CameraMode | [CameraMode](#cameramode) | "Classic" |  |
-| CameraMaxZoom | number | 14 | min 1, max 60 |
+| CameraMinZoom | number | 0.5 | min 0, max 100 |
+| CameraMaxZoom | number | 14 | min 1, max 100 |
 | AntiCheat | bool | true |  |
 
 ### StarterPlayerScripts
 
 *service*
+
+### StarterPack
+
+*service*
+
+Tools put here are copied into every player's Backpack each time their character spawns.
 
 ### Players
 
@@ -187,6 +217,26 @@ Every object is an **Instance**, so everything listed under Instance works on al
 *can be created with `Instance.new`*
 
 **Methods:** `MoveTo(pos)`, `GetCenter()`
+
+### Tool
+
+*can be created with `Instance.new`*
+
+Something a player carries and holds in their right hand. Put a Part named **Handle** inside: that's where the hand grabs it, and every other part moves with it. Build it facing forward (−Z), the way it should point when held. Tools live in StarterPack (everyone gets one), in a player's Backpack, or lying in the Workspace (touching the Handle picks it up).
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| ToolTip | string | "" |  |
+| TextureId | asset | "" |  |
+| Enabled | bool | true |  |
+| RequiresHandle | bool | true |  |
+| GripOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| GripRotation | Vector3 | Vector3.new(0, 0, 0) |  |
+| CanBeDropped | bool | false |  |
+
+**Methods:** `Activate()`, `Deactivate()`
+
+**Events:** `Equipped`, `Unequipped`, `Activated`, `Deactivated`
 
 ### Part
 
@@ -553,7 +603,7 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 
 ### CameraMode
 
-`Classic`, `LockFirstPerson`
+`Classic`, `LockFirstPerson`, `LockThirdPerson`
 
 ### EasingStyle
 
@@ -574,3 +624,19 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 ### SkyPreset
 
 `Day`, `Sunset`, `Night`, `Space`, `Overcast`, `Candy`, `Custom`
+
+### CameraType
+
+`Custom`, `Scriptable`
+
+### MouseBehavior
+
+`Default`, `LockCenter`, `LockCurrentPosition`
+
+### CoreGuiType
+
+`Backpack`, `Health`, `Chat`, `Emotes`, `All`
+
+### RaycastFilterType
+
+`Exclude`, `Include`

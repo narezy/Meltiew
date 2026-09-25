@@ -81,6 +81,7 @@ func _ready() -> void:
 	hud.menu_requested.connect(_open_menu)
 	hud.chat_submitted.connect(func(t): net.send({"t": "chat", "m": t}))
 	hud.emote_picked.connect(_emote)
+	hud.tool_picked.connect(_pick_tool)
 
 	menu = GameMenu.new()
 	menu.game = self
@@ -99,6 +100,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Input.set_custom_mouse_cursor(null)
 	net.close()
 	if place_host:
 		place_host.close()
@@ -344,8 +347,11 @@ func _start_place(p: Dictionary) -> void:
 		player.global_position = pos
 		player.reset_physics_interpolation()
 		player.velocity = Vector3.ZERO)
+	place_host.mouse_settings_changed.connect(_apply_cursor)
+	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
 	if not place_host.start(my_id, L.lang, p.get("strings", {}), p.get("snapshot", []), world):
 		hud.add_chat("", L.t("place_unsupported"))
+	place_host.scene.avatar_of = _avatar_of_character
 	place_host.scene.apply_quality(str(Session.settings.quality))
 	world.set_scene(place_host.scene)
 
@@ -392,6 +398,9 @@ func _sync_place(delta: float) -> void:
 			player.set_server_health(hp, mx)
 	player.gravity = float(h.workspace_prop("Gravity"))
 	player.void_height = float(h.workspace_prop("FallHeight"))
+	player.set_camera_rules(str(h.player_prop("CameraMode")), float(h.player_prop("CameraMinZoom")), float(h.player_prop("CameraMaxZoom")))
+	hud.set_view_toggle(player.can_toggle_view())
+	_sync_tools()
 	if not player.dead:
 		for i in player.get_slide_collision_count():
 			h.report_contact(PlaceScene.id_of(player.get_slide_collision(i).get_collider()))
@@ -427,13 +436,41 @@ func _unhandled_input(event: InputEvent) -> void:
 			_console_in_chat = not _console_in_chat
 			hud.add_chat("", L.t("console") + (": on" if _console_in_chat else ": off"))
 			return
+		if event.pressed and event.keycode == KEY_BACKSPACE and not hud.chat_open():
+			_drop_tool()
 		place_host.key_event(OS.get_keycode_string(event.keycode), event.pressed)
-	# A tap/click (not a camera drag) on a part with a ClickDetector.
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			_press_pos = event.position
-		elif event.position.distance_to(_press_pos) < 12.0:
-			_click_at(event.position)
+	if event is InputEventMouseButton:
+		var touch := DisplayServer.is_touchscreen_available()
+		var at := _pointer_pos(event.position)
+		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			if event.pressed:
+				place_host.pointer_event("MouseWheel", event.button_index == MOUSE_BUTTON_WHEEL_UP, at)
+			return
+		var kind := "MouseButton1" if event.button_index == MOUSE_BUTTON_LEFT else ("MouseButton2" if event.button_index == MOUSE_BUTTON_RIGHT else "")
+		if kind == "":
+			return
+		if touch and not hud.tap_allowed(event.position):
+			return
+		_update_mouse(at)
+		if touch:
+			# Phones: a quick tap is a click (a drag turns the camera instead).
+			if event.pressed:
+				_press_pos = event.position
+			elif event.position.distance_to(_press_pos) < 12.0:
+				place_host.pointer_event("Touch", true, at)
+				place_host.pointer_event("Touch", false, at)
+				_use_tool(true)
+				_use_tool(false)
+				_click_at(at)
+			return
+		place_host.pointer_event(kind, event.pressed, at)
+		if kind == "MouseButton1":
+			_use_tool(event.pressed)
+			# A click (not a drag) on a part with a ClickDetector.
+			if event.pressed:
+				_press_pos = event.position
+			elif event.position.distance_to(_press_pos) < 12.0:
+				_click_at(at)
 
 
 func _click_at(screen: Vector2) -> void:
@@ -449,6 +486,149 @@ func _click_at(screen: Vector2) -> void:
 	if det != "" and hit.position.distance_to(player.global_position) <= float(place_host.tree.prop(det, "MaxDistance")) + 2.0:
 		net.send({"t": "click", "id": det})
 		Sfx.click()
+
+
+# --- tools, pointer and camera for studio places ------------------------------------
+
+var _tools_sig := ""
+var _tool_down := ""
+var _mouse_timer := 0.0
+var _cam_timer := 0.0
+var _cursor_tex: Texture2D
+
+
+## The Melly drawn for a character Model (so held tools find her hand).
+func _avatar_of_character(model: String) -> MellyAvatar:
+	var uid := place_host.user_of_character(model)
+	if uid == my_id:
+		return player.avatar if not player.dead else null
+	var r: RemotePlayer = remotes.get(uid)
+	return r.avatar if r and r.avatar.visible else null
+
+
+func _sync_tools() -> void:
+	var h := place_host
+	var list: Array = []
+	for id in h.tools():
+		list.append({"id": id, "name": h.tree.name_of(id), "icon": str(h.tree.prop(id, "TextureId")), "tip": str(h.tree.prop(id, "ToolTip"))})
+	var held := h.equipped_tool()
+	var sig := JSON.stringify([list, held])
+	if sig != _tools_sig:
+		_tools_sig = sig
+		hud.set_tools(list, held)
+
+
+func _pick_tool(id: String) -> void:
+	if player.dead:
+		return
+	Sfx.click()
+	place_host.tool_event(id, "unequip" if id == place_host.equipped_tool() else "equip")
+
+
+func _use_tool(down: bool) -> void:
+	var held := place_host.equipped_tool()
+	if down and held != "" and not player.dead:
+		_tool_down = held
+		place_host.tool_event(held, "activate")
+	elif not down and _tool_down != "":
+		place_host.tool_event(_tool_down, "deactivate")
+		_tool_down = ""
+
+
+func _drop_tool() -> void:
+	var held := place_host.equipped_tool()
+	if held != "" and place_host.tree.prop(held, "CanBeDropped"):
+		var front := player.global_position + Basis(Vector3.UP, player.avatar.rotation.y) * Vector3(0, 1.0, -2.5)
+		place_host.tool_event(held, "drop", {"p": SValue.encode(front)})
+
+
+## Screen point the scripts see: the middle of the screen while the mouse is locked.
+func _pointer_pos(p: Vector2) -> Vector2:
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		return get_viewport().get_visible_rect().size / 2.0
+	return p
+
+
+## Mouse.Hit / Mouse.Target: what's under the pointer.
+func _update_mouse(screen: Vector2) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var from := cam.project_ray_origin(screen)
+	var dir := cam.project_ray_normal(screen)
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 500.0, PlaceScene.LAYER_WORLD | PlaceScene.LAYER_GHOST)
+	q.exclude = [player.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var at: Vector3 = hit.position if not hit.is_empty() else from + dir * 500.0
+	var target := PlaceScene.id_of(hit.collider) if not hit.is_empty() else ""
+	place_host.mouse_state(screen, from, dir, at, target)
+
+
+## Every frame: pointer and camera for scripts, the script camera, mouse lock.
+func _tick_place(delta: float) -> void:
+	var h := place_host
+	_mouse_timer -= delta
+	if _mouse_timer <= 0.0:
+		_mouse_timer = 0.05
+		_update_mouse(_pointer_pos(get_viewport().get_mouse_position()))
+	var cam_id := h.camera()
+	var cam := player.camera
+	if cam_id != "":
+		cam.fov = float(h.tree.prop(cam_id, "FieldOfView"))
+		if str(h.tree.prop(cam_id, "CameraType")) == "Scriptable":
+			var pos: Vector3 = h.tree.prop(cam_id, "Position")
+			var focus: Vector3 = h.tree.prop(cam_id, "Focus")
+			var t := Transform3D(Basis(), pos)
+			if not pos.is_equal_approx(focus):
+				t = t.looking_at(focus, Vector3.UP if absf((focus - pos).normalized().y) < 0.99 else Vector3.FORWARD)
+			player.scripted_camera = t
+		else:
+			player.scripted_camera = null
+		_cam_timer -= delta
+		if _cam_timer <= 0.0:
+			_cam_timer = 0.05
+			var look := -cam.global_basis.z
+			h.camera_state(cam.global_position, player.global_position + Vector3(0, 1.5, 0) if player.scripted_camera == null else h.tree.prop(cam_id, "Focus"), look)
+	_apply_mouse_mode()
+
+
+## LockCenter / LockFirstPerson grab the mouse on computers, except while a menu,
+## the chat or the inventory needs it.
+func _apply_mouse_mode() -> void:
+	if DisplayServer.is_touchscreen_available():
+		return
+	var ms := place_host.mouse_settings
+	var lock: bool = ms.behavior != "Default" or (player.first_person and player.camera_mode == "LockFirstPerson")
+	var busy := menu.visible or hud.chat_open() or hud.inventory_open() or not get_window().has_focus() or not _joined
+	var want := Input.MOUSE_MODE_VISIBLE
+	if lock and not busy:
+		want = Input.MOUSE_MODE_CAPTURED
+	elif not ms.enabled and not busy:
+		want = Input.MOUSE_MODE_HIDDEN
+	if Input.mouse_mode != want:
+		Input.mouse_mode = want
+	hud.set_crosshair(_cursor_tex, want == Input.MOUSE_MODE_CAPTURED and ms.enabled)
+
+
+## UserInputService.MouseIcon: any uploaded image as the cursor.
+func _apply_cursor() -> void:
+	var ref := str(place_host.mouse_settings.icon)
+	if ref == "":
+		_cursor_tex = null
+		Input.set_custom_mouse_cursor(null)
+		return
+	AssetCache.fetch(ref, func(tex: Texture2D):
+		if tex == null or str(place_host.mouse_settings.icon) != ref:
+			return
+		var img := tex.get_image()
+		if img.is_compressed():
+			img.decompress()
+		var side := maxi(img.get_width(), img.get_height())
+		if side > 64:
+			img.resize(maxi(1, img.get_width() * 64 / side), maxi(1, img.get_height() * 64 / side), Image.INTERPOLATE_BILINEAR)
+		var small := ImageTexture.create_from_image(img)
+		_cursor_tex = small
+		Input.set_custom_mouse_cursor(small, Input.CURSOR_ARROW, Vector2(img.get_width(), img.get_height()) / 2.0))
 
 
 func _add_remote(u: Dictionary) -> void:
@@ -484,6 +664,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if place_host:
 		_sync_place(delta)
+		_tick_place(delta)
 	_send_accum += delta
 	if _send_accum >= 1.0 / SEND_HZ:
 		_send_accum = 0.0

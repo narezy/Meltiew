@@ -178,3 +178,8 @@ func _draw() -> void:
 			_line([Vector2(15, 4), Vector2(7, 12), Vector2(15, 20)])
 		"down":
 			_line([Vector2(5, 9), Vector2(12, 16), Vector2(19, 9)])
+		"backpack":
+			_line([Vector2(9, 6), Vector2(9, 4), Vector2(15, 4), Vector2(15, 6)])
+			_line([Vector2(6, 21), Vector2(4.5, 19.5), Vector2(4.5, 9.5), Vector2(7, 6.5), Vector2(17, 6.5),
+				Vector2(19.5, 9.5), Vector2(19.5, 19.5), Vector2(18, 21), Vector2(6, 21)])
+			_line([Vector2(8, 13), Vector2(16, 13), Vector2(16, 17), Vector2(8, 17), Vector2(8, 13)])

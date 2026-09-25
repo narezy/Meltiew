@@ -29,6 +29,10 @@ func load_melt(melt: Dictionary) -> void:
 	if not meta.has("i18n"):
 		meta["i18n"] = {"name": {}, "description": {}}
 	strings = melt.get("strings", {})
+	# Places made before a service existed (StarterPack...) get it now.
+	for svc in StudioSchema.services():
+		if tree.service(svc) == "":
+			tree.create(new_id(), svc, svc, PlaceTree.ROOT)
 	selection.clear()
 	_undo.clear()
 	_redo.clear()

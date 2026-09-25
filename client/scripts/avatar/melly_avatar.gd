@@ -36,6 +36,15 @@ var _worn_built_version := -1
 var _head_top_above_bone := 0.35
 ## Rest-pose height of the top of Melly's head (metres, avatar space).
 const HEAD_TOP := 1.81
+var _skeleton: Skeleton3D
+var _hand: Node3D
+var _hold: HoldArm
+## True while a Tool is in her right hand: the arm points forward to hold it.
+var holding := false:
+	set(v):
+		holding = v
+		if _hold:
+			_hold.target = 1.0 if v else 0.0
 var _face_mat: StandardMaterial3D
 var _face_id := ":D"
 var _current := ""
@@ -78,6 +87,11 @@ func _ready() -> void:
 	_torso_root = BoneAttachment3D.new()
 	_torso_root.bone_name = "Torso"
 	skeleton.add_child(_torso_root)
+	_skeleton = skeleton
+	_hold = HoldArm.new()
+	_hold.bone = skeleton.find_bone("ArmR")
+	_hold.target = 1.0 if holding else 0.0
+	skeleton.add_child(_hold)
 	# Looks may have been set before we entered the tree.
 	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
 	var pending: Array = _worn_pending if _worn_pending is Array else []
@@ -127,6 +141,20 @@ func top_y() -> float:
 		if mi.visible:
 			top = maxf(top, (mi.global_transform * mi.get_aabb()).end.y)
 	return top
+
+
+## Where a held Tool's Handle goes: the right palm. Its axes match the character when
+## the arm points forward (-Z forward, +Y up), so tools keep the look they were built with.
+func hand_r() -> Node3D:
+	if _hand == null and _skeleton:
+		var att := BoneAttachment3D.new()
+		att.bone_name = "ArmR"
+		_skeleton.add_child(att)
+		_hand = Node3D.new()
+		# melly.glb units, bone space: the palm sits near the end of the arm.
+		_hand.transform = Transform3D(Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0)), Vector3(-0.21, -1.78, 0.0))
+		att.add_child(_hand)
+	return _hand
 
 
 func get_colors() -> Dictionary:
@@ -192,3 +220,19 @@ func _on_anim_finished(anim_name: StringName) -> void:
 	if anim_name == &"Wave":
 		_current = ""
 		play("idle")
+
+
+## Raises the right arm forward over whatever animation plays, blending in and out.
+class HoldArm extends SkeletonModifier3D:
+	const POSE := Vector3(-1.5, 0.0, 0.0)
+	var bone := -1
+	var target := 0.0
+	var _amount := 0.0
+
+	func _process_modification_with_delta(delta: float) -> void:
+		_amount = move_toward(_amount, target, delta * 7.0)
+		if _amount <= 0.0 or bone < 0:
+			return
+		var sk := get_skeleton()
+		var pose := sk.get_bone_pose_rotation(bone)
+		sk.set_bone_pose_rotation(bone, pose.slerp(Quaternion.from_euler(POSE), _amount))

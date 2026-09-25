@@ -271,3 +271,39 @@ test('places saved by apps before the .melt rename still work', async () => {
   assert.equal(r.data.melt.format, 'melt');
   assert.deepEqual(r.data.marp, r.data.melt);
 });
+
+test('tools: StarterPack fills the Backpack, equip, click, raycast', async () => {
+  const { PlaceVM } = await import('../src/studio/vm.js');
+  const melt = templatePlace('Tools');
+  melt.tree.k.find((n) => n.c === 'StarterPack').k = [
+    {
+      c: 'Tool',
+      n: 'Sword',
+      k: [
+        { c: 'Part', n: 'Handle', p: { Size: v3(0.3, 0.3, 3) } },
+        { c: 'Script', n: 'S', p: { Source: 'script.Parent.Activated:Connect(function() print("swing " .. script.Parent.Parent.Name) end)' } },
+      ],
+    },
+  ];
+  melt.tree.k.find((n) => n.c === 'ServerScriptService').k[0].p.Source =
+    'local r = workspace:Raycast(Vector3.new(0, 10, 0), Vector3.new(0, -20, 0)) print("ray " .. r.Instance.Name)';
+  const vm = await PlaceVM.create();
+  const prints = [];
+  const run = (ops) => ops.forEach((o) => o.o === 'print' && prints.push(o.msg));
+  run(vm.init({ role: 'server', place: melt, seed: 1 }));
+  run(vm.start());
+  run(vm.dispatch([{ e: 'player_add', userId: 7, name: 'nrz', display: 'nrz' }]));
+  const snap = vm.snapshot();
+  const bp = snap.find((o) => o.c === 'Backpack');
+  const tool = snap.find((o) => o.c === 'Tool' && o.parent === bp.id);
+  assert.ok(tool, 'the tool is in the backpack');
+  // Clicking with a tool that isn't in hand does nothing.
+  run(vm.dispatch([{ e: 'tool', userId: 7, id: tool.id, ev: 'activate' }]));
+  const equip = vm.dispatch([{ e: 'tool', userId: 7, id: tool.id, ev: 'equip' }]);
+  assert.ok(equip.some((o) => o.o === 'parent' && o.id === tool.id && o.parent !== bp.id));
+  run(vm.dispatch([{ e: 'tool', userId: 7, id: tool.id, ev: 'activate' }]));
+  // Someone else can't swing it.
+  run(vm.dispatch([{ e: 'tool', userId: 8, id: tool.id, ev: 'activate' }]));
+  assert.deepEqual(prints, ['ray SpawnLocation', 'swing nrz']);
+  vm.close();
+});

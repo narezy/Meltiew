@@ -1031,6 +1031,21 @@ local function setProp(inst, key, value, silent)
 end
 
 local startScriptsIn -- forward: runs scripts that just became runnable
+local toolMouse -- forward: the client's Mouse, handed to Tool.Equipped
+
+-- A character is a Model with a Humanoid in it; a Tool inside one is being held.
+local function isCharacter(m)
+	local d = m and D[m]
+	if not d or d.class.name ~= "Model" then
+		return false
+	end
+	for _, ch in d.children do
+		if D[ch].class.name == "Humanoid" then
+			return true
+		end
+	end
+	return false
+end
 
 local function setParent(inst, parent)
 	local d = D[inst]
@@ -1085,6 +1100,14 @@ local function setParent(inst, parent)
 	firePropChanged(inst, "Parent")
 	if parent and started then
 		startScriptsIn(inst)
+	end
+	if d.class.name == "Tool" and old ~= parent then
+		if isCharacter(old) then
+			fireEvent(inst, "Unequipped")
+		end
+		if isCharacter(parent) then
+			fireEvent(inst, "Equipped", role == "client" and toolMouse or nil)
+		end
 	end
 end
 
@@ -1441,15 +1464,110 @@ function RunService:IsStudio()
 	return false
 end
 
-local UserInputService = {
+-- The cursor and pointer-lock settings scripts can change (LocalScripts only).
+local mouseSettings = { MouseIcon = "", MouseIconEnabled = true, MouseBehavior = "Default" }
+-- Where the pointer is, fed by the host: screen X/Y and what's under it in the world.
+local mouseState = { x = 0, y = 0, hit = v3(0, 0, 0), target = nil, origin = v3(0, 0, 0), dir = v3(0, 0, -1) }
+
+local UIS = {
 	InputBegan = Signal.new("InputBegan"),
 	InputEnded = Signal.new("InputEnded"),
+	InputChanged = Signal.new("InputChanged"),
 	TouchEnabled = false,
 	KeyboardEnabled = false,
+	MouseEnabled = false,
+	_down = {},
 }
-function UserInputService:IsKeyDown(key)
-	return UserInputService._down and UserInputService._down[key] == true
+function UIS:IsKeyDown(key)
+	return UIS._down[tostring(key)] == true
 end
+function UIS:IsMouseButtonPressed(button)
+	return UIS._down[tostring(button)] == true
+end
+function UIS:GetMouseLocation()
+	return v2(mouseState.x, mouseState.y)
+end
+
+local function emitMouseSettings()
+	if role == "client" then
+		emit({ o = "mouse", icon = mouseSettings.MouseIcon, enabled = mouseSettings.MouseIconEnabled, behavior = mouseSettings.MouseBehavior })
+	end
+end
+
+local function setMouseSetting(key, value, level)
+	if key == "MouseIcon" then
+		value = value == nil and "" or tostring(value)
+	elseif key == "MouseIconEnabled" then
+		if type(value) ~= "boolean" then
+			error("MouseIconEnabled must be true or false", level)
+		end
+	elseif key == "MouseBehavior" then
+		value = tostring(value)
+		if not table.find(enums.MouseBehavior, value) then
+			error('MouseBehavior must be "Default", "LockCenter" or "LockCurrentPosition"', level)
+		end
+	else
+		error(tostring(key) .. " is not a valid member of UserInputService", level)
+	end
+	if mouseSettings[key] ~= value then
+		mouseSettings[key] = value
+		emitMouseSettings()
+	end
+end
+
+local UserInputService = setmetatable({}, {
+	__index = function(_, key)
+		if mouseSettings[key] ~= nil then
+			return mouseSettings[key]
+		end
+		return UIS[key]
+	end,
+	__newindex = function(_, key, value)
+		setMouseSetting(key, value, 3)
+	end,
+	__tostring = function()
+		return "UserInputService"
+	end,
+})
+
+-- Player:GetMouse(): the pointer as an object (Hit, Target, Button1Down...).
+local mouseSignals = {}
+for _, name in { "Button1Down", "Button1Up", "Button2Down", "Button2Up", "Move", "WheelForward", "WheelBackward" } do
+	mouseSignals[name] = Signal.new(name)
+end
+local Mouse = setmetatable({}, {
+	__index = function(_, key)
+		if key == "Hit" then
+			return mouseState.hit
+		elseif key == "Target" then
+			local t = mouseState.target
+			return t and D[t] and not D[t].destroyed and t or nil
+		elseif key == "X" then
+			return mouseState.x
+		elseif key == "Y" then
+			return mouseState.y
+		elseif key == "Origin" then
+			return mouseState.origin
+		elseif key == "UnitRay" then
+			return table.freeze({ Origin = mouseState.origin, Direction = mouseState.dir })
+		elseif key == "Icon" then
+			return mouseSettings.MouseIcon
+		elseif mouseSignals[key] then
+			return mouseSignals[key]
+		end
+		error(tostring(key) .. " is not a valid member of Mouse", 2)
+	end,
+	__newindex = function(_, key, value)
+		if key ~= "Icon" then
+			error(tostring(key) .. " can't be set on Mouse", 2)
+		end
+		setMouseSetting("MouseIcon", value, 3)
+	end,
+	__tostring = function()
+		return "Mouse"
+	end,
+})
+toolMouse = Mouse
 
 -- Place translations: Strings.get("coins", 5) -> "Монеты: 5" for a Russian player.
 local Strings = {}
@@ -1723,6 +1841,228 @@ Methods.Model = {
 }
 
 ---------------------------------------------------------------------------
+-- Raycasts and area queries (plain math over the parts: same answer on server and client)
+---------------------------------------------------------------------------
+-- A part's rotation (degrees) as a row-major 3x3 matrix, in the renderer's Y * X * Z order.
+local function rotMatrix(r)
+	local x, y, z = math.rad(r.X), math.rad(r.Y), math.rad(r.Z)
+	local cx, sx, cy, sy, cz, sz = math.cos(x), math.sin(x), math.cos(y), math.sin(y), math.cos(z), math.sin(z)
+	local a11, a12, a13 = cy, sy * sx, sy * cx
+	local a21, a22, a23 = 0, cx, -sx
+	local a31, a32, a33 = -sy, cy * sx, cy * cx
+	return {
+		a11 * cz + a12 * sz, -a11 * sz + a12 * cz, a13,
+		a21 * cz + a22 * sz, -a21 * sz + a22 * cz, a23,
+		a31 * cz + a32 * sz, -a31 * sz + a32 * cz, a33,
+	}
+end
+
+local RaycastParams = {}
+local RPmt = { __type = "RaycastParams" }
+RPmt.__index = RPmt
+function RaycastParams.new()
+	return setmetatable({ FilterDescendantsInstances = {}, FilterType = "Exclude", RespectCanCollide = false }, RPmt)
+end
+table.freeze(RaycastParams)
+
+-- Every BasePart in the Workspace that the params let through.
+local function queryParts(params)
+	local out = {}
+	local filter = {}
+	local include = false
+	if params ~= nil then
+		if type(params) ~= "table" then
+			error("expected RaycastParams", 3)
+		end
+		for _, v in params.FilterDescendantsInstances or {} do
+			if isInstance(v) then
+				filter[v] = true
+			end
+		end
+		include = params.FilterType == "Include"
+	end
+	local respect = params and params.RespectCanCollide == true
+	local function walk(inst, inFilter)
+		for _, ch in D[inst].children do
+			local f = inFilter or filter[ch] == true
+			local cd = D[ch]
+			if cd.class.isA.BasePart and (f == include) and (not respect or cd.props.CanCollide) then
+				out[#out + 1] = ch
+			end
+			walk(ch, f)
+		end
+	end
+	if services.Workspace then
+		walk(services.Workspace, false)
+	end
+	return out
+end
+
+-- Where a ray (origin o, vector dir, t in 0..1) first enters a part: t and the surface normal.
+local function rayPart(part, o, dir)
+	local p = D[part].props
+	local c, size = p.Position, p.Size
+	local rx, ry, rz = o.X - c.X, o.Y - c.Y, o.Z - c.Z
+	if D[part].class.name == "Part" and p.Shape == "Ball" then
+		local r = math.min(size.X, size.Y, size.Z) / 2
+		local a = dir.X * dir.X + dir.Y * dir.Y + dir.Z * dir.Z
+		local b = 2 * (rx * dir.X + ry * dir.Y + rz * dir.Z)
+		local cc = rx * rx + ry * ry + rz * rz - r * r
+		local disc = b * b - 4 * a * cc
+		if a == 0 or cc <= 0 or disc < 0 then
+			return nil
+		end
+		local t = (-b - math.sqrt(disc)) / (2 * a)
+		if t < 0 or t > 1 then
+			return nil
+		end
+		return t, v3(rx + dir.X * t, ry + dir.Y * t, rz + dir.Z * t).Unit
+	end
+	-- Boxes (cylinders and wedges count as their box): slabs in the part's own axes.
+	local m = rotMatrix(p.Rotation)
+	local lo = { m[1] * rx + m[4] * ry + m[7] * rz, m[2] * rx + m[5] * ry + m[8] * rz, m[3] * rx + m[6] * ry + m[9] * rz }
+	local ld = { m[1] * dir.X + m[4] * dir.Y + m[7] * dir.Z, m[2] * dir.X + m[5] * dir.Y + m[8] * dir.Z, m[3] * dir.X + m[6] * dir.Y + m[9] * dir.Z }
+	local half = { size.X / 2, size.Y / 2, size.Z / 2 }
+	local tmin, tmax, axis, sign = 0, 1, 0, 0
+	for i = 1, 3 do
+		if math.abs(ld[i]) < 1e-9 then
+			if math.abs(lo[i]) > half[i] then
+				return nil
+			end
+		else
+			local t1 = (-half[i] - lo[i]) / ld[i]
+			local t2 = (half[i] - lo[i]) / ld[i]
+			local near, far = math.min(t1, t2), math.max(t1, t2)
+			if near > tmin then
+				tmin, axis, sign = near, i, ld[i] > 0 and -1 or 1
+			end
+			tmax = math.min(tmax, far)
+			if tmin > tmax then
+				return nil
+			end
+		end
+	end
+	if axis == 0 then
+		return nil -- the ray starts inside this part
+	end
+	-- The local axis back to world space is column `axis` of the matrix.
+	return tmin, v3(m[axis] * sign, m[3 + axis] * sign, m[6 + axis] * sign)
+end
+
+local function raycast(origin, direction, params)
+	if typeOf(origin) ~= "Vector3" or typeOf(direction) ~= "Vector3" then
+		error("Raycast needs an origin and a direction (Vector3)", 3)
+	end
+	if direction.Magnitude > 5000 then
+		direction = direction.Unit * 5000
+	end
+	local best, bestT, bestN = nil, math.huge, nil
+	for _, part in queryParts(params) do
+		local t, n = rayPart(part, origin, direction)
+		if t and t < bestT then
+			best, bestT, bestN = part, t, n
+		end
+	end
+	if not best then
+		return nil
+	end
+	return table.freeze({
+		Instance = best,
+		Position = origin + direction * bestT,
+		Normal = bestN,
+		Distance = direction.Magnitude * bestT,
+		Material = D[best].props.Material,
+	})
+end
+
+Methods.Workspace = {
+	-- The first part a ray hits: { Instance, Position, Normal, Distance, Material } or nil.
+	Raycast = function(_, origin, direction, params)
+		return raycast(origin, direction, params)
+	end,
+	-- Parts whose bounding box comes within `radius` of `position`.
+	GetPartBoundsInRadius = function(_, position, radius, params)
+		if typeOf(position) ~= "Vector3" then
+			error("GetPartBoundsInRadius needs a Vector3 position", 2)
+		end
+		radius = tonumber(radius) or 0
+		local out = {}
+		for _, part in queryParts(params) do
+			local p = D[part].props
+			local m = rotMatrix(p.Rotation)
+			local h = p.Size / 2
+			local d2 = 0
+			for i, axis in { "X", "Y", "Z" } do
+				local e = math.abs(m[i * 3 - 2]) * h.X + math.abs(m[i * 3 - 1]) * h.Y + math.abs(m[i * 3]) * h.Z
+				local dist = math.max(math.abs(position[axis] - p.Position[axis]) - e, 0)
+				d2 += dist * dist
+			end
+			if d2 <= radius * radius then
+				out[#out + 1] = part
+			end
+		end
+		return out
+	end,
+}
+
+---------------------------------------------------------------------------
+-- Small services: Debris, HttpService (JSON), StarterGui core UI switches
+---------------------------------------------------------------------------
+local Debris = {}
+function Debris:AddItem(inst, lifetime)
+	if not isInstance(inst) then
+		error("Debris:AddItem needs an Instance", 2)
+	end
+	task.delay(tonumber(lifetime) or 10, function()
+		if D[inst] and not D[inst].destroyed then
+			destroy(inst)
+		end
+	end)
+end
+
+local HttpService = {}
+function HttpService:JSONEncode(value)
+	return json.encode(value)
+end
+function HttpService:JSONDecode(text)
+	local ok, v = pcall(json.decode, tostring(text))
+	if not ok then
+		error("JSONDecode: not valid JSON", 2)
+	end
+	return v
+end
+function HttpService:GenerateGUID(braces)
+	local hex = "0123456789ABCDEF"
+	local out = string.gsub("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx", "[xy]", function(ch)
+		local v = ch == "x" and math.random(0, 15) or math.random(8, 11)
+		return string.sub(hex, v + 1, v + 1)
+	end)
+	return braces == false and out or "{" .. out .. "}"
+end
+
+-- Built-in parts of the game's UI a place can hide: StarterGui:SetCoreGuiEnabled("Backpack", false).
+local coreGui = { Backpack = true, Health = true, Chat = true, Emotes = true }
+Methods.StarterGui = {
+	SetCoreGuiEnabled = function(_, kind, enabled)
+		kind = tostring(kind)
+		if not table.find(enums.CoreGuiType, kind) then
+			error("unknown core UI " .. kind .. ' (Backpack, Health, Chat, Emotes or All)', 2)
+		end
+		for k in coreGui do
+			if kind == "All" or k == kind then
+				coreGui[k] = enabled == true
+				if role == "client" then
+					emit({ o = "coregui", k = k, on = coreGui[k] })
+				end
+			end
+		end
+	end,
+	GetCoreGuiEnabled = function(_, kind)
+		return coreGui[tostring(kind)] ~= false
+	end,
+}
+
+---------------------------------------------------------------------------
 -- Players and characters (the server owns health; clients own movement)
 ---------------------------------------------------------------------------
 local playersByUser = {} -- userId -> Player
@@ -1748,12 +2088,35 @@ local function spawnPosition()
 	return p.Position + v3((math.random() - 0.5) * p.Size.X * 0.6, p.Size.Y / 2 + 1.2, (math.random() - 0.5) * p.Size.Z * 0.6)
 end
 
+local function backpackOf(player)
+	return player and D[player] and Methods.Instance.FindFirstChildOfClass(player, "Backpack")
+end
+
+-- Every spawn starts with a fresh Backpack: a copy of each Tool in StarterPack.
+local function refillBackpack(player)
+	local bp = backpackOf(player)
+	if not bp then
+		return
+	end
+	for _, ch in table.clone(D[bp].children) do
+		destroy(ch)
+	end
+	if services.StarterPack then
+		for _, ch in D[services.StarterPack].children do
+			if D[ch].class.name == "Tool" then
+				setParent(clone(ch), bp)
+			end
+		end
+	end
+end
+
 local function loadCharacter(player)
 	local pd = D[player]
 	local old = pd.props.Character
 	if old and D[old] then
 		destroy(old)
 	end
+	refillBackpack(player)
 	local model = create("Model")
 	D[model].name = pd.name
 	local root = create("Part")
@@ -1789,6 +2152,30 @@ local function loadCharacter(player)
 	fireEvent(player, "CharacterAdded", model)
 end
 
+-- Server: puts `tool` in the character's hand; whatever it held goes back to the Backpack.
+local function equipTool(hum, tool)
+	local model = D[hum].parent
+	if not model or D[hum].props.Health <= 0 then
+		return
+	end
+	local player = Methods.Players.GetPlayerFromCharacter(nil, model)
+	local bp = backpackOf(player)
+	for _, ch in table.clone(D[model].children) do
+		if ch ~= tool and D[ch].class.name == "Tool" then
+			setParent(ch, bp)
+		end
+	end
+	if tool and D[tool].parent ~= model then
+		setParent(tool, model)
+	end
+end
+
+local function expectTool(tool)
+	if not isInstance(tool) or D[tool].class.name ~= "Tool" then
+		error("expected a Tool", 3)
+	end
+end
+
 Methods.Humanoid = {
 	TakeDamage = function(self, amount)
 		local p = D[self].props
@@ -1796,9 +2183,43 @@ Methods.Humanoid = {
 			self.Health = math.max(0, p.Health - (tonumber(amount) or 0))
 		end
 	end,
+	EquipTool = function(self, tool)
+		expectTool(tool)
+		if role == "client" then
+			emit({ o = "equip", id = D[tool].id })
+			return
+		end
+		equipTool(self, tool)
+	end,
+	UnequipTools = function(self)
+		if role == "client" then
+			emit({ o = "equip" })
+			return
+		end
+		equipTool(self, nil)
+	end,
+}
+
+Methods.Tool = {
+	-- Fires Activated as if the player clicked (on this side only).
+	Activate = function(self)
+		if D[self].props.Enabled then
+			fireEvent(self, "Activated")
+		end
+	end,
+	Deactivate = function(self)
+		fireEvent(self, "Deactivated")
+	end,
 }
 
 Methods.Player = {
+	-- LocalScripts: the pointer (Hit, Target, X, Y, Icon, Button1Down...).
+	GetMouse = function(self)
+		if role ~= "client" or D[self].props.UserId ~= localUserId then
+			error("GetMouse only works on the LocalPlayer in a LocalScript", 2)
+		end
+		return Mouse
+	end,
 	Kick = function(self, message)
 		if role ~= "server" then
 			error("Kick can only be called from a Script", 2)
@@ -1964,14 +2385,21 @@ local function runnable(inst)
 	end
 	local cls = d.class.name
 	if cls == "Script" and role == "server" then
-		local ws, sss = services.Workspace, services.ServerScriptService
-		return Methods.Instance.IsDescendantOf(inst, ws) or Methods.Instance.IsDescendantOf(inst, sss)
+		-- The Players service holds Backpacks, so Scripts in a player's Tools run too.
+		for _, svc in { services.Workspace, services.ServerScriptService, services.Players } do
+			if svc and Methods.Instance.IsDescendantOf(inst, svc) then
+				return true
+			end
+		end
+		return false
 	elseif cls == "LocalScript" and role == "client" then
 		local me = localUserId and playersByUser[localUserId]
 		if not me then
 			return false
 		end
-		return Methods.Instance.IsDescendantOf(inst, me)
+		-- Under the LocalPlayer (PlayerGui, PlayerScripts, Backpack) or in their character.
+		local char = D[me].props.Character
+		return Methods.Instance.IsDescendantOf(inst, me) or (char ~= nil and D[char] ~= nil and Methods.Instance.IsDescendantOf(inst, char))
 	end
 	return false
 end
@@ -2097,6 +2525,8 @@ local specialServices = {
 	TweenService = TweenService,
 	UserInputService = UserInputService,
 	LocalizationService = LocalizationService,
+	Debris = Debris,
+	HttpService = HttpService,
 }
 Methods.DataModel = {
 	GetService = function(_, name)
@@ -2127,6 +2557,8 @@ local function buildEnv()
 		UDim = table.freeze(UDim),
 		UDim2 = table.freeze(UDim2),
 		TweenInfo = table.freeze(TweenInfo),
+		RaycastParams = RaycastParams,
+		OverlapParams = RaycastParams,
 		Enum = Enum,
 		task = table.freeze(task),
 		wait = task.wait,
@@ -2185,6 +2617,15 @@ local function setupLocalPlayer()
 	local pl = services.Players
 	D[pl].extra = D[pl].extra or {}
 	D[pl].extra.LocalPlayer = me
+	-- workspace.CurrentCamera exists only on this device.
+	local ws = services.Workspace
+	if ws then
+		local cam = create("Camera")
+		D[cam].name = "Camera"
+		setParent(cam, ws)
+		D[ws].extra = D[ws].extra or {}
+		D[ws].extra.CurrentCamera = cam
+	end
 	local gui = create("PlayerGui")
 	D[gui].name = "PlayerGui"
 	setParent(gui, me)
@@ -2226,7 +2667,13 @@ function handlers.player_add(e)
 	d.props.DisplayName = tostring(e.display or e.name)
 	d.props.UserId = tonumber(e.userId) or 0
 	d.props.Language = tostring(e.lang or "en")
+	d.props.CameraMode = starterValue("CameraMode") or "Classic"
+	d.props.CameraMinZoom = starterValue("CameraMinZoom") or 0.5
+	d.props.CameraMaxZoom = starterValue("CameraMaxZoom") or 14
 	playersByUser[d.props.UserId] = p
+	local bp = create("Backpack")
+	D[bp].name = "Backpack"
+	setParent(bp, p)
 	setParent(p, services.Players)
 	fireEvent(services.Players, "PlayerAdded", p)
 	loadCharacter(p)
@@ -2306,6 +2753,95 @@ function handlers.touch(e)
 	local root = characterRoot(player)
 	if part and root and D[part].props.CanTouch then
 		fireEvent(part, e.ended and "TouchEnded" or "Touched", root)
+		-- Walking into a Tool lying in the world picks it up.
+		local tool = D[part] and D[part].parent
+		if role == "server" and not e.ended and D[part].name == "Handle" and tool and D[tool].class.name == "Tool" then
+			local hum = humanoidOf(player)
+			local ws = services.Workspace
+			if hum and D[hum].props.Health > 0 and not isCharacter(D[tool].parent) and Methods.Instance.IsDescendantOf(tool, ws)
+				and simTime - (D[tool].droppedAt or -10) > 1.5 then
+				setParent(tool, backpackOf(player))
+				if not Methods.Instance.FindFirstChildOfClass(D[hum].parent, "Tool") then
+					equipTool(hum, tool)
+				end
+			end
+		end
+	end
+end
+
+-- The player picked a tool in their hotbar, clicked with it, or dropped it.
+function handlers.tool(e)
+	local player = role == "server" and playersByUser[tonumber(e.userId)] or (localUserId and playersByUser[localUserId])
+	local hum = humanoidOf(player)
+	if not hum then
+		return
+	end
+	local model = D[hum].parent
+	local tool = e.id and byId[e.id]
+	if tool and D[tool].class.name ~= "Tool" then
+		return
+	end
+	if e.ev == "activate" or e.ev == "deactivate" then
+		if tool and D[tool].parent == model and D[tool].props.Enabled and D[hum].props.Health > 0 then
+			fireEvent(tool, e.ev == "activate" and "Activated" or "Deactivated")
+		end
+		return
+	end
+	if role ~= "server" then
+		return
+	end
+	if e.ev == "equip" and tool and D[tool].parent == backpackOf(player) then
+		equipTool(hum, tool)
+	elseif e.ev == "unequip" then
+		equipTool(hum, nil)
+	elseif e.ev == "drop" and tool and D[tool].parent == model and D[tool].props.CanBeDropped then
+		-- Lands in front of the character (the app says where "in front" is).
+		local root = characterRoot(player)
+		local at = decodeValue(e.p)
+		if typeOf(at) ~= "Vector3" or (root and (at - D[root].props.Position).Magnitude > 8) then
+			at = root and D[root].props.Position or v3(0, 5, 0)
+		end
+		local handle = findChild(tool, "Handle")
+		local delta = handle and at - D[handle].props.Position or v3(0, 0, 0)
+		for _, v in descendants(tool, {}) do
+			if D[v].class.isA.BasePart then
+				v.Position = D[v].props.Position + delta
+			end
+		end
+		D[tool].droppedAt = simTime
+		setParent(tool, services.Workspace)
+	end
+end
+
+-- client: where the pointer is and what's under it (sent by the app while it moves)
+function handlers.mouse(e)
+	local x, y = tonumber(e.x) or 0, tonumber(e.y) or 0
+	local moved = x ~= mouseState.x or y ~= mouseState.y
+	mouseState.x, mouseState.y = x, y
+	mouseState.hit = decodeValue(e.hit) or mouseState.hit
+	mouseState.origin = decodeValue(e.origin) or mouseState.origin
+	mouseState.dir = decodeValue(e.dir) or mouseState.dir
+	mouseState.target = e.target and byId[e.target] or nil
+	if moved then
+		mouseSignals.Move:_fire()
+		UIS.InputChanged:_fire(table.freeze({ KeyCode = "Unknown", UserInputType = "MouseMovement", Position = v2(x, y) }), false)
+	end
+end
+
+-- client: where the game's camera is (Camera.Position, Focus, LookVector)
+function handlers.camera(e)
+	local ws = services.Workspace
+	local cam = ws and D[ws].extra and D[ws].extra.CurrentCamera
+	if not cam or not D[cam] or D[cam].destroyed then
+		return
+	end
+	local pos, focus, look = decodeValue(e.p), decodeValue(e.f), decodeValue(e.look)
+	if D[cam].props.CameraType ~= "Scriptable" and isV3(pos) and isV3(focus) then
+		setProp(cam, "Position", pos, true)
+		setProp(cam, "Focus", focus, true)
+	end
+	if isV3(look) then
+		setProp(cam, "LookVector", look, true)
 	end
 end
 function handlers.click(e)
@@ -2337,13 +2873,27 @@ function handlers.gui(e)
 	end
 end
 function handlers.input(e)
-	UserInputService._down = UserInputService._down or {}
-	local input = table.freeze({ KeyCode = tostring(e.key), UserInputType = tostring(e.kind or "Keyboard") })
-	UserInputService._down[input.KeyCode] = e.down == true
+	local kind = tostring(e.kind or "Keyboard")
+	local key = kind == "Keyboard" and tostring(e.key) or "Unknown"
+	local pos = v2(tonumber(e.x) or mouseState.x, tonumber(e.y) or mouseState.y)
+	local input = table.freeze({ KeyCode = key, UserInputType = kind, Position = pos })
+	if kind == "MouseWheel" then
+		UIS.InputChanged:_fire(input, e.ui == true)
+		mouseSignals[e.down and "WheelForward" or "WheelBackward"]:_fire()
+		return
+	end
+	UIS._down[kind == "Keyboard" and key or kind] = e.down == true
 	if e.down then
-		UserInputService.InputBegan:_fire(input, e.ui == true)
+		UIS.InputBegan:_fire(input, e.ui == true)
 	else
-		UserInputService.InputEnded:_fire(input, e.ui == true)
+		UIS.InputEnded:_fire(input, e.ui == true)
+	end
+	if e.ui ~= true then
+		if kind == "MouseButton1" or kind == "Touch" then
+			mouseSignals[e.down and "Button1Down" or "Button1Up"]:_fire()
+		elseif kind == "MouseButton2" then
+			mouseSignals[e.down and "Button2Down" or "Button2Up"]:_fire()
+		end
 	end
 end
 -- client: replication from the server (same shape as the server's operations)
@@ -2419,6 +2969,10 @@ G.__init = hostCall(function(cfg)
 	localUserId = tonumber(cfg.userId)
 	playerLang = tostring(cfg.lang or "en")
 	stringsTable = cfg.strings or {}
+	local device = cfg.device or {}
+	UIS.TouchEnabled = device.touch == true
+	UIS.KeyboardEnabled = device.keyboard == true
+	UIS.MouseEnabled = device.mouse == true
 	math.randomseed(tonumber(cfg.seed) or 1)
 	DataModel = create("DataModel", "0")
 	D[DataModel].name = "Game"

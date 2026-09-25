@@ -5,6 +5,8 @@ extends CanvasLayer
 signal menu_requested
 signal chat_submitted(text: String)
 signal emote_picked(emote: String)
+## A tool picked in the hotbar or inventory (the one in hand again = put it away).
+signal tool_picked(id: String)
 
 var player: LocalPlayer
 var joystick: Joystick
@@ -39,6 +41,23 @@ var _cam_finger := -1
 var _pinch := {}
 var _mouse_look := false
 var _cam_btn: Button
+var _hp_row: HBoxContainer
+
+# Tools: 3 hotbar slots at the bottom and the whole inventory on demand.
+const HOTBAR_SLOTS := 3
+const SLOT := 62.0
+var _hotbar: HBoxContainer
+var _slots: Array[Button] = []
+var _bag_btn: Button
+var _inventory: PanelContainer
+var _inv_grid: HFlowContainer
+var _tools: Array = []  # [{id, name, icon, tip}] in pickup order
+var _bar: Array = []  # tool ids shown in the hotbar slots
+var _used := {}  # tool id -> last time it was picked (the oldest makes room)
+var _seen: Array = []  # tool ids in the order they first showed up
+var _equipped := ""
+var _core := {"Backpack": true, "Health": true, "Chat": true, "Emotes": true}
+var _crosshair: TextureRect
 
 
 func _ready() -> void:
@@ -96,6 +115,8 @@ func _ready() -> void:
 	_hp_label.add_theme_constant_override("outline_size", 6)
 	hp_row.add_child(_hp_label)
 	_root.add_child(hp_row)
+	_hp_row = hp_row
+	_build_tools()
 
 	# Closed chat: the last few messages float over the game and fade out.
 	_chat_log = UI.vbox(3)
@@ -202,6 +223,13 @@ func _ready() -> void:
 	add_child(wheel)
 	wheel.picked.connect(func(e): emote_picked.emit(e))
 
+	_crosshair = TextureRect.new()
+	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
+	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	_crosshair.visible = false
+	_root.add_child(_crosshair)
+
 	_overlay = ColorRect.new()
 	_overlay.theme = UI.theme
 	(_overlay as ColorRect).color = Color(UI.BG, 0.9)
@@ -229,6 +257,11 @@ func _ready() -> void:
 	_overlay_buttons = UI.hbox(12)
 	_overlay_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	ov.add_child(_overlay_buttons)
+
+
+## The first/third person button only shows where the place lets you switch.
+func set_view_toggle(on: bool) -> void:
+	_cam_btn.visible = on
 
 
 func bind_player(p: LocalPlayer) -> void:
@@ -264,6 +297,263 @@ func _icon_button(kind: String) -> Button:
 	return b
 
 
+# --- tools ------------------------------------------------------------------
+
+func _build_tools() -> void:
+	_hotbar = UI.hbox(8)
+	_hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_hotbar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_hotbar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hotbar.offset_bottom = -46
+	_hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hotbar.visible = false
+	_root.add_child(_hotbar)
+	_blockers.append(_hotbar)
+	for i in HOTBAR_SLOTS:
+		var b := _slot_button(i + 1)
+		b.pressed.connect(func(): _pick_slot(i))
+		_hotbar.add_child(b)
+		_slots.append(b)
+	_bag_btn = _icon_button("backpack")
+	_bag_btn.custom_minimum_size = Vector2(48, 48)
+	(_bag_btn.get_child(0) as Control).position = Vector2(11, 11)
+	_bag_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_bag_btn.pressed.connect(toggle_inventory)
+	_hotbar.add_child(_bag_btn)
+
+	_inventory = PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UI.BG, 0.92)
+	sb.set_corner_radius_all(22)
+	sb.set_content_margin_all(16)
+	_inventory.add_theme_stylebox_override("panel", sb)
+	_inventory.set_anchors_preset(Control.PRESET_CENTER)
+	_inventory.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_inventory.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_inventory.visible = false
+	_root.add_child(_inventory)
+	_blockers.append(_inventory)
+	var v := UI.vbox(12)
+	_inventory.add_child(v)
+	var head := UI.hbox(8)
+	v.add_child(head)
+	var title := UI.label(L.t("inventory"), 22, UI.TEXT, "black")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var close := _icon_button("close")
+	close.custom_minimum_size = Vector2(44, 44)
+	(close.get_child(0) as Control).position = Vector2(9, 9)
+	close.pressed.connect(toggle_inventory)
+	head.add_child(close)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(4 * (SLOT + 10), 2 * (SLOT + 10) + 20)
+	v.add_child(scroll)
+	_inv_grid = HFlowContainer.new()
+	_inv_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inv_grid.add_theme_constant_override("h_separation", 10)
+	_inv_grid.add_theme_constant_override("v_separation", 10)
+	scroll.add_child(_inv_grid)
+
+
+func _slot_button(number: int) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(SLOT, SLOT)
+	b.focus_mode = Control.FOCUS_NONE
+	b.clip_contents = true
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 8
+	icon.offset_top = 8
+	icon.offset_right = -8
+	icon.offset_bottom = -8
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(icon)
+	var name_label := UI.label("", 12, UI.TEXT, "bold")
+	name_label.name = "Name"
+	name_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	name_label.offset_left = 4
+	name_label.offset_right = -4
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.max_lines_visible = 3
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(name_label)
+	if number > 0:
+		var num := UI.label(str(number), 11, UI.MUTED, "black")
+		num.position = Vector2(6, 2)
+		num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(num)
+	_style_slot(b, false, false)
+	return b
+
+
+func _style_slot(b: Button, filled: bool, on: bool) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UI.BG_2, 0.82 if filled else 0.45)
+	sb.set_corner_radius_all(16)
+	if on:
+		sb.set_border_width_all(3)
+		sb.border_color = UI.ACCENT
+	for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+
+
+func _fill_slot(b: Button, t: Dictionary) -> void:
+	var icon: TextureRect = b.get_node("Icon")
+	var name_label: Label = b.get_node("Name")
+	icon.texture = null
+	name_label.text = str(t.get("name", ""))
+	b.tooltip_text = str(t.get("tip", ""))
+	var ref := str(t.get("icon", ""))
+	if ref != "":
+		AssetCache.fetch(ref, func(tex: Texture2D):
+			if tex and is_instance_valid(icon):
+				icon.texture = tex
+				name_label.text = "")
+	_style_slot(b, not t.is_empty(), t.get("id", "") == _equipped and _equipped != "")
+
+
+## The player's tools changed (picked up, lost, equipped...).
+func set_tools(list: Array, equipped: String) -> void:
+	# Keep the order tools were first seen in, wherever they move (hand, backpack).
+	for t in list:
+		if not _seen.has(t.id):
+			_seen.append(t.id)
+	var live := list.map(func(t): return t.id)
+	_seen = _seen.filter(func(id): return live.has(id))
+	list = list.duplicate()
+	list.sort_custom(func(a, b): return _seen.find(a.id) < _seen.find(b.id))
+	_tools = list
+	_equipped = equipped
+	var ids := list.map(func(t): return t.id)
+	_bar = _bar.filter(func(id): return ids.has(id))
+	# New tools fill empty slots in the order they were picked up.
+	for id in ids:
+		if _bar.size() >= HOTBAR_SLOTS:
+			break
+		if not _bar.has(id):
+			_bar.append(id)
+	# What's in hand is always in the hotbar.
+	if equipped != "" and not _bar.has(equipped):
+		_make_room(equipped)
+	_refresh_tools()
+
+
+func _make_room(id: String) -> void:
+	if _bar.size() < HOTBAR_SLOTS:
+		_bar.append(id)
+		return
+	var oldest := 0
+	for i in _bar.size():
+		if _bar[i] != _equipped and float(_used.get(_bar[i], 0)) < float(_used.get(_bar[oldest], 0)):
+			oldest = i
+	if _bar[oldest] == _equipped:
+		oldest = (oldest + 1) % _bar.size()
+	_bar[oldest] = id
+
+
+func _tool(id: String) -> Dictionary:
+	for t in _tools:
+		if t.id == id:
+			return t
+	return {}
+
+
+func _refresh_tools() -> void:
+	_hotbar.visible = _core.Backpack and not _tools.is_empty()
+	_bag_btn.visible = _tools.size() > HOTBAR_SLOTS
+	for i in HOTBAR_SLOTS:
+		var t := _tool(_bar[i]) if i < _bar.size() else {}
+		_slots[i].visible = i < maxi(_tools.size(), 1)
+		_fill_slot(_slots[i], t)
+	if not _core.Backpack:
+		_inventory.visible = false
+	if _inventory.visible:
+		_fill_inventory()
+
+
+func _fill_inventory() -> void:
+	for c in _inv_grid.get_children():
+		c.queue_free()
+	if _tools.is_empty():
+		_inv_grid.add_child(UI.label(L.t("inventory_empty"), 16, UI.MUTED))
+		return
+	for t in _tools:
+		var b := _slot_button(_bar.find(t.id) + 1)
+		_fill_slot(b, t)
+		var id: String = t.id
+		b.pressed.connect(func():
+			_used[id] = Time.get_ticks_msec()
+			if not _bar.has(id):
+				_make_room(id)
+			tool_picked.emit(id)
+			_inventory.visible = false)
+		_inv_grid.add_child(b)
+
+
+func _pick_slot(i: int) -> void:
+	if not _core.Backpack or i >= _bar.size():
+		return
+	_used[_bar[i]] = Time.get_ticks_msec()
+	tool_picked.emit(_bar[i])
+
+
+func toggle_inventory() -> void:
+	if not _core.Backpack:
+		return
+	_inventory.visible = not _inventory.visible
+	if _inventory.visible:
+		release_touches()
+		_fill_inventory()
+
+
+func inventory_open() -> bool:
+	return _inventory.visible
+
+
+## StarterGui:SetCoreGuiEnabled from the place's scripts.
+func set_core_gui(kind: String, on: bool) -> void:
+	_core[kind] = on
+	match kind:
+		"Backpack":
+			_refresh_tools()
+		"Health":
+			_hp_row.visible = on
+		"Chat":
+			set_chat_enabled(chat_enabled)
+		"Emotes":
+			emote_btn.visible = on
+			if not on:
+				wheel.close()
+
+
+## A dot (or the place's cursor image) in the middle while the mouse is locked.
+func set_crosshair(tex: Texture2D, on: bool) -> void:
+	_crosshair.visible = on
+	if tex:
+		_crosshair.texture = tex
+	elif _crosshair.texture == null or not _crosshair.has_meta("dot"):
+		var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		for y in 12:
+			for x in 12:
+				var d := Vector2(x - 5.5, y - 5.5).length()
+				if d < 5.5:
+					img.set_pixel(x, y, Color(0, 0, 0, 0.55) if d > 3.2 else Color.WHITE)
+		_crosshair.texture = ImageTexture.create_from_image(img)
+		_crosshair.set_meta("dot", true)
+	if tex:
+		_crosshair.remove_meta("dot")
+	_crosshair.size = _crosshair.texture.get_size()
+	_crosshair.position = (_root.size - _crosshair.size) / 2.0
+
+
 # --- public API -------------------------------------------------------------
 
 func set_server(_name: String, _players: int, _max_players: int) -> void:
@@ -278,6 +568,7 @@ var _chat_btn: Button
 ## Under-13 accounts have no chat: hide the log, the input and the button.
 func set_chat_enabled(on: bool) -> void:
 	chat_enabled = on
+	on = on and _core.Chat
 	_chat_log.visible = on and not _chat_expanded
 	_chat_btn.visible = on
 	if not on:
@@ -408,7 +699,7 @@ func _set_chat_expanded(on: bool, focus := false) -> void:
 
 
 func toggle_chat(focus := false) -> void:
-	if not chat_enabled:
+	if not chat_enabled or not _core.Chat:
 		return
 	_set_chat_expanded(not _chat_expanded, focus)
 
@@ -464,6 +755,16 @@ func _blocked(pos: Vector2) -> bool:
 		if b.is_visible_in_tree() and b.get_global_rect().has_point(pos):
 			return true
 	return false
+
+
+## Phones: may a tap here click the world (not the joystick, a button or a panel)?
+func tap_allowed(pos: Vector2) -> bool:
+	if _blocked(pos) or _overlay.visible or wheel.visible:
+		return false
+	for b in [jump_btn, emote_btn]:
+		if b.visible and b.get_global_rect().has_point(pos):
+			return false
+	return pos.x >= get_viewport().get_visible_rect().size.x * 0.42
 
 
 func _input(event: InputEvent) -> void:
@@ -533,7 +834,7 @@ func _desktop(event: InputEvent) -> void:
 			player.zoom_camera(-0.9)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			player.zoom_camera(0.9)
-	elif event is InputEventMouseMotion and (_mouse_look or player.first_person):
+	elif event is InputEventMouseMotion and (_mouse_look or player.first_person or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED):
 		if _mouse_look or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			player.rotate_camera(event.relative)
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -550,10 +851,15 @@ func _desktop(event: InputEvent) -> void:
 					toggle_chat(true)
 				get_viewport().set_input_as_handled()
 			KEY_B, KEY_G:
-				release_touches()
-				wheel.open()
+				if _core.Emotes and emote_btn.visible:
+					release_touches()
+					wheel.open()
 			KEY_V:
 				player.toggle_first_person()
+			KEY_1, KEY_2, KEY_3:
+				_pick_slot(event.keycode - KEY_1)
+			KEY_QUOTELEFT:
+				toggle_inventory()
 			KEY_R:
 				player.die()
 			KEY_SPACE:

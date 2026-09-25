@@ -28,6 +28,11 @@ var _parts := {}  # id -> {body, mesh, shape}
 var _texts := {}  # id -> Label3D
 var _lights := {}  # id -> OmniLight3D
 var _targets := {}  # id -> Transform3D (smoothed replicated movement)
+var _held := {}  # part id -> tool id, for parts of a Tool someone is holding
+var _holding: Array = []  # avatars that held something last frame
+## Game: the avatar drawn for a character Model id (null if none), so held tools
+## can follow its hand.
+var avatar_of: Callable
 var _sun: DirectionalLight3D
 var _env: Environment
 var _sky_mat: ShaderMaterial
@@ -160,6 +165,9 @@ func _is_sky_class(id: String) -> bool:
 
 func _build(id: String) -> void:
 	var c := tree.cls(id)
+	# A character's root is only a hitbox for scripts; players are drawn as Mellys.
+	if not editing and c == "Part" and tree.name_of(id) == "HumanoidRootPart" and _is_character(tree.parent_of(id)):
+		return
 	if StudioSchema.is_a(c, "BasePart"):
 		_build_part(id)
 	elif c == "Text3D":
@@ -182,6 +190,7 @@ func _destroy(id: String) -> void:
 		body.queue_free()
 		_parts.erase(id)
 		_targets.erase(id)
+		_held.erase(id)
 	if _texts.has(id):
 		_texts[id].queue_free()
 		_texts.erase(id)
@@ -200,10 +209,31 @@ func _transform_of(id: String) -> Transform3D:
 	return Transform3D(b, p)
 
 
+func _is_character(id: String) -> bool:
+	return id != "" and tree.cls(id) == "Model" and tree.child_of_class(id, "Humanoid") != ""
+
+
+## The Tool a part belongs to if that tool is in a character's hand, else "".
+func _held_tool(id: String) -> String:
+	var cur := tree.parent_of(id)
+	while cur != "" and cur != PlaceTree.ROOT:
+		if tree.cls(cur) == "Tool":
+			return cur if _is_character(tree.parent_of(cur)) else ""
+		cur = tree.parent_of(cur)
+	return ""
+
+
 func _build_part(id: String) -> void:
 	var anchored: bool = tree.prop(id, "Anchored")
+	var tool := "" if editing else _held_tool(id)
 	var body: CollisionObject3D
-	if editing or anchored:
+	if tool != "":
+		# Carried: moved with the hand every frame, touching nothing.
+		var hb := AnimatableBody3D.new()
+		hb.sync_to_physics = false
+		body = hb
+		_held[id] = tool
+	elif editing or anchored:
 		var ab := AnimatableBody3D.new()
 		ab.sync_to_physics = not editing
 		body = ab
@@ -218,12 +248,17 @@ func _build_part(id: String) -> void:
 	body.global_transform = _transform_of(id)
 	_parts[id] = {"body": body, "mesh": mesh, "shape": shape}
 	_style_part(id)
+	if tool != "":
+		body.collision_layer = 0
+		body.collision_mask = 0
 	# Lights and click detectors that were already inside this part.
 	for k in tree.kids(id):
 		_build(k)
 
 
 func _move_part(id: String) -> void:
+	if _held.has(id):
+		return  # follows the hand
 	var body: Node3D = _parts[id].body
 	var t := _transform_of(id)
 	if editing or body is RigidBody3D or body.global_position.distance_to(t.origin) > 12.0:
@@ -232,6 +267,47 @@ func _move_part(id: String) -> void:
 	else:
 		# Replicated movement arrives ~20 times a second; glide between updates.
 		_targets[id] = t
+
+
+func _process(_delta: float) -> void:
+	if not _held.is_empty() or not _holding.is_empty():
+		_follow_hands()
+
+
+## Held tools: every part keeps its place relative to the Handle, and the Handle
+## sits in the palm (shifted by the tool's GripOffset / GripRotation).
+func _follow_hands() -> void:
+	var now: Array = []
+	var by_tool := {}
+	for pid in _held:
+		var tid: String = _held[pid]
+		if not by_tool.has(tid):
+			by_tool[tid] = []
+		by_tool[tid].append(pid)
+	for tid in by_tool:
+		var avatar: MellyAvatar = avatar_of.call(tree.parent_of(tid)) if avatar_of.is_valid() else null
+		var hand: Node3D = avatar.hand_r() if avatar else null
+		var handle := tree.child_named(tid, "Handle")
+		if handle == "" or not _parts.has(handle):
+			handle = by_tool[tid][0]
+		var grip_rot: Vector3 = tree.prop(tid, "GripRotation")
+		var grip := Transform3D(Basis.from_euler(grip_rot * (PI / 180.0)), tree.prop(tid, "GripOffset"))
+		var base := Transform3D()
+		if hand:
+			base = hand.global_transform.orthonormalized() * grip * _transform_of(handle).affine_inverse()
+			if not now.has(avatar):
+				now.append(avatar)
+		for pid in by_tool[tid]:
+			var body: Node3D = _parts[pid].body
+			body.visible = hand != null
+			if hand:
+				body.global_transform = base * _transform_of(pid)
+	for a in _holding:
+		if is_instance_valid(a) and not now.has(a):
+			a.holding = false
+	for a in now:
+		a.holding = true
+	_holding = now
 
 
 func _physics_process(delta: float) -> void:
@@ -295,7 +371,7 @@ func _style_part(id: String) -> void:
 			bs.size = size
 			shape.shape = bs
 	var collide: bool = tree.prop(id, "CanCollide")
-	body.collision_layer = LAYER_WORLD if collide else LAYER_GHOST
+	body.collision_layer = 0 if _held.has(id) else (LAYER_WORLD if collide else LAYER_GHOST)
 	body.collision_mask = LAYER_WORLD if body is RigidBody3D else 0
 	var transparency: float = tree.prop(id, "Transparency")
 	# Invisible parts (like a character's root) are skipped by the renderer.

@@ -58,6 +58,8 @@ func send(m: Dictionary) -> void:
 			_events.append({"e": "touch", "userId": int(_me.id), "id": m.id, "ended": m.get("ended", false)})
 		"click":
 			_events.append({"e": "click", "userId": int(_me.id), "id": m.id})
+		"tool":
+			_events.append({"e": "tool", "userId": int(_me.id), "id": m.get("id"), "ev": str(m.get("ev", "")), "p": m.get("p")})
 		"dead":
 			_events.append({"e": "died", "userId": int(_me.id)})
 		"chat":

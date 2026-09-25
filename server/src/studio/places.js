@@ -43,6 +43,7 @@ export function templatePlace(name) {
         { c: 'ServerStorage', n: 'ServerStorage' },
         { c: 'StarterGui', n: 'StarterGui' },
         { c: 'StarterPlayer', n: 'StarterPlayer', k: [{ c: 'StarterPlayerScripts', n: 'StarterPlayerScripts' }] },
+        { c: 'StarterPack', n: 'StarterPack' },
       ],
     },
   };

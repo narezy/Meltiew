@@ -26,6 +26,7 @@ const TICK_HZ = 20;
 const MAX_EVENTS_PER_TICK = 40;
 const MAX_VM_FAILURES = 20;
 const LOG_LINES = 200;
+const TOOL_EVENTS = new Set(['equip', 'unequip', 'activate', 'deactivate', 'drop']);
 const EMPTY_SERVER_TTL_MS = 30_000;
 const WORLD_LIMIT = 400;
 export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead']);
@@ -368,6 +369,7 @@ export class GameHub {
       case 'invoke':
       case 'touch':
       case 'click':
+      case 'tool':
         return this.placeEvent(conn, m);
       case 'state':
         return this.state(conn, m);
@@ -405,6 +407,10 @@ export class GameHub {
     else if (m.t === 'invoke') server.inbox.push({ e: 'invoke', userId, id, rid: Number(m.rid) || 0, args: Array.isArray(m.args) ? m.args.slice(0, 20) : [] });
     else if (m.t === 'touch') server.inbox.push({ e: 'touch', userId, id, ended: m.ended === true });
     else if (m.t === 'click') server.inbox.push({ e: 'click', userId, id });
+    else if (m.t === 'tool' && TOOL_EVENTS.has(m.ev)) {
+      const p = Array.isArray(m.p?.$v3) ? { $v3: m.p.$v3.slice(0, 3).map(Number) } : undefined;
+      server.inbox.push({ e: 'tool', userId, id: m.id == null ? undefined : id, ev: m.ev, p });
+    }
   }
 
   async join(conn, m) {

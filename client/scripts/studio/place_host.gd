@@ -9,6 +9,10 @@ signal send(msg: Dictionary)
 signal output(line: Dictionary)
 signal spawn_requested(pos: Vector3)
 signal teleport_requested(pos: Vector3)
+## A LocalScript changed the cursor: UserInputService.MouseIcon / MouseIconEnabled / MouseBehavior.
+signal mouse_settings_changed
+## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
+signal core_gui_changed(kind: String, on: bool)
 
 const RUNTIME_PATH := "res://studio/runtime/runtime.luau"
 const MEMORY_MB := 64
@@ -21,6 +25,8 @@ var user_id := 0
 var lang := "en"
 var strings := {}
 var failed := ""
+var mouse_settings := {"icon": "", "enabled": true, "behavior": "Default"}
+var core_gui := {"Backpack": true, "Health": true, "Chat": true, "Emotes": true}
 
 var _vm: RefCounted
 var _touching := {}  # part id -> seconds since last contact
@@ -68,7 +74,9 @@ func start(p_user_id: int, p_lang: String, p_strings: Dictionary, snapshot: Arra
 		output.emit({"level": "error", "msg": "runtime: " + err})
 		return false
 	_vm.sandbox()
-	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data()})
+	var touch := DisplayServer.is_touchscreen_available()
+	var device := {"touch": touch, "keyboard": not touch or OS.has_feature("pc"), "mouse": not touch or OS.has_feature("pc")}
+	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device})
 	_call("__dispatch", snapshot)
 	_call("__start", "")
 	return true
@@ -139,6 +147,45 @@ func key_event(key: String, down: bool) -> void:
 		_call("__dispatch", [{"e": "input", "key": key, "down": down}])
 
 
+## Mouse buttons, taps and the wheel for UserInputService and the Mouse object.
+## `ui` = the press landed on the game's UI, not the world.
+func pointer_event(kind: String, down: bool, pos: Vector2, ui := false) -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "input", "kind": kind, "down": down, "x": pos.x, "y": pos.y, "ui": ui}])
+
+
+var _last_mouse := {}
+
+
+## Where the pointer is and what it points at (Mouse.Hit, Mouse.Target...).
+func mouse_state(pos: Vector2, origin: Vector3, dir: Vector3, hit: Vector3, target: String) -> void:
+	var m := {"e": "mouse", "x": roundf(pos.x), "y": roundf(pos.y), "hit": SValue.encode(hit.snappedf(0.01)),
+		"origin": SValue.encode(origin.snappedf(0.01)), "dir": SValue.encode(dir.snappedf(0.001)), "target": target if target != "" else null}
+	if _vm and m != _last_mouse:
+		_last_mouse = m
+		_call("__dispatch", [m])
+
+
+var _last_cam := {}
+
+
+## Where the game's camera is (workspace.CurrentCamera).
+func camera_state(pos: Vector3, focus: Vector3, look: Vector3) -> void:
+	var m := {"e": "camera", "p": SValue.encode(pos.snappedf(0.01)), "f": SValue.encode(focus.snappedf(0.01)), "look": SValue.encode(look.snappedf(0.001))}
+	if _vm and m != _last_cam:
+		_last_cam = m
+		_call("__dispatch", [m])
+
+
+## Clicking with a tool: LocalScripts hear it right away, the server gets told.
+func tool_event(tool_id: String, ev: String, extra := {}) -> void:
+	var msg := {"t": "tool", "ev": ev, "id": tool_id}
+	msg.merge(extra)
+	send.emit(msg)
+	if _vm and (ev == "activate" or ev == "deactivate"):
+		_call("__dispatch", [{"e": "tool", "id": tool_id, "ev": ev}])
+
+
 func _on_gui_event(id: String, ev: String, value: Variant) -> void:
 	if _vm:
 		_call("__dispatch", [{"e": "gui", "id": id, "ev": ev, "value": value}])
@@ -173,6 +220,18 @@ func _apply(ops: Array) -> void:
 				teleport_requested.emit(SValue.decode(op.pos))
 			"print":
 				output.emit(op)
+			"mouse":
+				mouse_settings = {"icon": str(op.get("icon", "")), "enabled": op.get("enabled", true) != false, "behavior": str(op.get("behavior", "Default"))}
+				mouse_settings_changed.emit()
+			"coregui":
+				core_gui[str(op.k)] = op.get("on", true) == true
+				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])
+			"equip":
+				# Humanoid:EquipTool / UnequipTools in a LocalScript: the server decides.
+				if op.get("id") != null:
+					send.emit({"t": "tool", "ev": "equip", "id": op.id})
+				else:
+					send.emit({"t": "tool", "ev": "unequip"})
 
 
 # --- things the game asks about ------------------------------------------------------
@@ -199,6 +258,58 @@ func local_humanoid() -> String:
 	if ch is Dictionary and ch.has("$i") and tree.has(str(ch["$i"])):
 		return tree.child_of_class(str(ch["$i"]), "Humanoid")
 	return ""
+
+
+## This player's character Model, or "".
+func character() -> String:
+	var me := local_player()
+	var ch: Variant = tree.prop(me, "Character") if me != "" else null
+	if ch is Dictionary and ch.has("$i") and tree.has(str(ch["$i"])):
+		return str(ch["$i"])
+	return ""
+
+
+## The Tool in this player's hand, or "".
+func equipped_tool() -> String:
+	var ch := character()
+	return tree.child_of_class(ch, "Tool") if ch != "" else ""
+
+
+## Every Tool this player has: the Backpack's, plus the one in hand.
+func tools() -> Array:
+	var out: Array = []
+	var me := local_player()
+	var bp := tree.child_of_class(me, "Backpack") if me != "" else ""
+	if bp != "":
+		for k in tree.kids(bp):
+			if tree.cls(k) == "Tool":
+				out.append(k)
+	var held := equipped_tool()
+	if held != "":
+		out.append(held)
+	return out
+
+
+## Who owns a character Model: their UserId, or 0.
+func user_of_character(model: String) -> int:
+	for k in tree.kids(tree.service("Players")):
+		if tree.cls(k) == "Player":
+			var ch: Variant = tree.prop(k, "Character")
+			if ch is Dictionary and str(ch.get("$i", "")) == model:
+				return int(tree.prop(k, "UserId"))
+	return 0
+
+
+## workspace.CurrentCamera ("" before the player is set up).
+func camera() -> String:
+	var ws := tree.service("Workspace")
+	return tree.child_of_class(ws, "Camera") if ws != "" else ""
+
+
+## A property of the local Player (camera rules), or its default.
+func player_prop(key: String) -> Variant:
+	var me := local_player()
+	return tree.prop(me, key) if me != "" else StudioSchema.default_of("Player", key)
 
 
 func starter(key: String) -> Variant:

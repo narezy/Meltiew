@@ -277,6 +277,8 @@ const TABLE := {
 	"console": ["Console", "Консоль"],
 	"place_unsupported": ["Scripts can't run on this device, so the place may not work.", "На этом устройстве скрипты не запускаются, поэтому плейс может не работать."],
 	"loading_place": ["Loading the place...", "Загружаем плейс..."],
+	"inventory": ["Inventory", "Инвентарь"],
+	"inventory_empty": ["Nothing here yet", "Пока пусто"],
 	"telegram": ["Our Telegram channel", "Наш Telegram-канал"],
 	"privacy": ["Privacy", "Приватность"],
 	"hide_friends": ["Hide my friends list", "Скрыть список друзей"],

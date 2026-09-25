@@ -66,7 +66,8 @@
   ],
   "CameraMode": [
    "Classic",
-   "LockFirstPerson"
+   "LockFirstPerson",
+   "LockThirdPerson"
   ],
   "EasingStyle": [
    "Linear",
@@ -109,6 +110,26 @@
    "Overcast",
    "Candy",
    "Custom"
+  ],
+  "CameraType": [
+   "Custom",
+   "Scriptable"
+  ],
+  "MouseBehavior": [
+   "Default",
+   "LockCenter",
+   "LockCurrentPosition"
+  ],
+  "CoreGuiType": [
+   "Backpack",
+   "Health",
+   "Chat",
+   "Emotes",
+   "All"
+  ],
+  "RaycastFilterType": [
+   "Exclude",
+   "Include"
   ]
  },
  "classes": {
@@ -305,11 +326,17 @@
      "type": "enum:CameraMode",
      "default": "Classic"
     },
+    "CameraMinZoom": {
+     "type": "number",
+     "default": 0.5,
+     "min": 0,
+     "max": 100
+    },
     "CameraMaxZoom": {
      "type": "number",
      "default": 14.0,
      "min": 1,
-     "max": 60
+     "max": 100
     },
     "AntiCheat": {
      "type": "bool",
@@ -328,6 +355,15 @@
    "service": true,
    "icon": "code",
    "category": "Service"
+  },
+  "StarterPack": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "box",
+   "category": "Service",
+   "doc": "Tools put here are copied into every player's Backpack each time their character spawns."
   },
   "Players": {
    "base": "Instance",
@@ -371,6 +407,22 @@
      "type": "string",
      "default": "en",
      "readonly": true
+    },
+    "CameraMode": {
+     "type": "enum:CameraMode",
+     "default": "Classic"
+    },
+    "CameraMinZoom": {
+     "type": "number",
+     "default": 0.5,
+     "min": 0,
+     "max": 100
+    },
+    "CameraMaxZoom": {
+     "type": "number",
+     "default": 14.0,
+     "min": 0.5,
+     "max": 100
     }
    },
    "events": [
@@ -392,6 +444,14 @@
    "events": [],
    "runtime": true,
    "icon": "code"
+  },
+  "Backpack": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "runtime": true,
+   "icon": "box",
+   "doc": "The player's inventory: the Tools they carry but don't hold. `player.Backpack`. Refilled from StarterPack on every spawn."
   },
   "Humanoid": {
    "base": "Instance",
@@ -459,6 +519,61 @@
    "icon": "box",
    "category": "3D",
    "creatable": true
+  },
+  "Tool": {
+   "base": "Instance",
+   "props": {
+    "ToolTip": {
+     "type": "string",
+     "default": ""
+    },
+    "TextureId": {
+     "type": "asset",
+     "default": ""
+    },
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "RequiresHandle": {
+     "type": "bool",
+     "default": true
+    },
+    "GripOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "GripRotation": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "CanBeDropped": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [
+    "Equipped",
+    "Unequipped",
+    "Activated",
+    "Deactivated"
+   ],
+   "icon": "tool",
+   "category": "3D",
+   "creatable": true,
+   "doc": "Something a player carries and holds in their right hand. Put a Part named **Handle** inside: that's where the hand grabs it, and every other part moves with it. Build it facing forward (−Z), the way it should point when held. Tools live in StarterPack (everyone gets one), in a player's Backpack, or lying in the Workspace (touching the Handle picks it up)."
   },
   "BasePart": {
    "base": "Instance",
@@ -1416,6 +1531,56 @@
    "category": "3D",
    "creatable": true,
    "doc": "Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down, front, back, left, right)."
+  },
+  "Camera": {
+   "base": "Instance",
+   "props": {
+    "CameraType": {
+     "type": "enum:CameraType",
+     "default": "Custom"
+    },
+    "FieldOfView": {
+     "type": "number",
+     "default": 70.0,
+     "min": 10,
+     "max": 120
+    },
+    "Position": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       10,
+       10
+      ]
+     }
+    },
+    "Focus": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "LookVector": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       -1
+      ]
+     },
+     "readonly": true
+    }
+   },
+   "events": [],
+   "runtime": true,
+   "icon": "camera",
+   "doc": "`workspace.CurrentCamera` in LocalScripts. With CameraType `Custom` the game moves it and Position, Focus and LookVector tell you where it is. Set CameraType to `Scriptable` and it stays at Position looking at Focus (cutscenes, menus, top-down views)."
   }
  },
  "services": [
@@ -1425,6 +1590,7 @@
   "ServerScriptService",
   "ServerStorage",
   "StarterGui",
-  "StarterPlayer"
+  "StarterPlayer",
+  "StarterPack"
  ]
 }
