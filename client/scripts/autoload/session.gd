@@ -90,15 +90,26 @@ func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(float(settings.volume), 0.0001)))
 
 
+## What someone wears: `accessories` from newer servers, else the single old `hat`.
+static func worn_of(u: Dictionary) -> Array:
+	var list: Variant = u.get("accessories")
+	if list is Array:
+		return list.map(func(x): return str(x))
+	var hat := str(u.get("hat", "none"))
+	return [] if hat == "none" or hat == "" else [hat]
+
+
 ## Stable fingerprint of how an avatar looks; used to cache/upload bust renders.
 static func look_hash(u: Dictionary) -> String:
 	var c := colors_of(u)
 	var parts := []
 	for part in BODY_PARTS:
 		parts.append(str(c[part]))
-	parts.append(str(u.get("hat", "none")))
+	var worn := worn_of(u)
+	worn.sort()
+	parts.append("+".join(worn))
 	parts.append(str(u.get("face", ":D")))
-	parts.append("v3")
+	parts.append("v4")
 	return "|".join(parts).md5_text().substr(0, 16)
 
 

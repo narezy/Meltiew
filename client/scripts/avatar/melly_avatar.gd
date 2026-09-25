@@ -29,10 +29,13 @@ var anim_player: AnimationPlayer
 var _model: Node3D
 var _body_mat: ShaderMaterial
 var _hat_root: BoneAttachment3D
+var _torso_root: BoneAttachment3D
+var _worn: Array = []
+var _worn_pending: Variant = null
+var _worn_built_version := -1
 var _head_top_above_bone := 0.35
 ## Rest-pose height of the top of Melly's head (metres, avatar space).
 const HEAD_TOP := 1.81
-var _hat_id := ""
 var _face_mat: StandardMaterial3D
 var _face_id := ":D"
 var _current := ""
@@ -72,17 +75,20 @@ func _ready() -> void:
 	var head := skeleton.find_bone("Head")
 	if head >= 0:
 		_head_top_above_bone = HEAD_TOP - (_model.transform * skeleton.get_bone_global_rest(head).origin).y
+	_torso_root = BoneAttachment3D.new()
+	_torso_root.bone_name = "Torso"
+	skeleton.add_child(_torso_root)
 	# Looks may have been set before we entered the tree.
 	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
-	var hat := _hat_id
-	_hat_id = ""
-	set_hat(hat if hat != "" else "none")
+	var pending: Array = _worn_pending if _worn_pending is Array else []
+	_worn_pending = null
+	set_accessories(pending)
 	play("idle")
 
 
 func apply_user(u: Dictionary) -> void:
 	set_colors(Session.colors_of(u))
-	set_hat(str(u.get("hat", "none")))
+	set_accessories(Session.worn_of(u))
 	set_face(str(u.get("face", ":D")))
 
 
@@ -116,7 +122,7 @@ func top_y() -> float:
 	if _hat_root == null:
 		return global_position.y + HEAD_TOP * scale.y
 	var top := _hat_root.global_position.y + _head_top_above_bone * global_basis.get_scale().y
-	for n in _hat_root.find_children("*", "MeshInstance3D", true, false):
+	for n in _hat_root.find_children("*", "MeshInstance3D", true, false) + _torso_root.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		if mi.visible:
 			top = maxf(top, (mi.global_transform * mi.get_aabb()).end.y)
@@ -127,18 +133,31 @@ func get_colors() -> Dictionary:
 	return _look_colors
 
 
-func set_hat(id: String) -> void:
+## Everything worn at once (hats, ears, a tail...), from the accessory catalog.
+func set_accessories(ids: Array) -> void:
 	if _hat_root == null:
-		_hat_id = id
+		_worn_pending = ids.duplicate()
 		return
-	if id == _hat_id:
+	if ids == _worn and _worn_built_version == Accessories.version:
 		return
-	_hat_id = id
-	for c in _hat_root.get_children():
-		c.queue_free()
-	var hat := Hats.build(id)
-	if hat:
-		_hat_root.add_child(hat)
+	_worn = ids.duplicate()
+	_worn_built_version = Accessories.version
+	for root in [_hat_root, _torso_root]:
+		for c in root.get_children():
+			c.queue_free()
+	for id in ids:
+		var node := Accessories.build(str(id))
+		if node:
+			(_torso_root if Accessories.bone_of(str(id)) == "Torso" else _hat_root).add_child(node)
+
+
+func get_accessories() -> Array:
+	return _worn.duplicate() if _worn_pending == null else (_worn_pending as Array).duplicate()
+
+
+## One hat only (older code paths).
+func set_hat(id: String) -> void:
+	set_accessories([] if id == "none" or id == "" else [id])
 
 
 ## Accepts network animation states: idle, walk, run, jump, fall, wave and the emotes.

@@ -1,16 +1,16 @@
 class_name AvatarPage
 extends HBoxContainer
-## Avatar editor: color each of the six body parts, pick a hat, edit profile.
+## Avatar editor: color each of the six body parts, face, accessories, profile.
 
 var _stage: AvatarStage
 var _colors := {}
-var _hat := "none"
+var _worn: Array = []
 var _face := ":D"
 var _face_buttons := {}
 var _selected_parts := ["torso"]
 var _part_buttons := {}
 var _swatch_buttons: Array[Button] = []
-var _hat_buttons := {}
+var _acc_buttons := {}
 var _save: Button
 var _name_edit: LineEdit
 var _bio_edit: TextEdit
@@ -25,7 +25,7 @@ func _ready() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 24)
 	_colors = Session.colors_of(Session.user)
-	_hat = str(Session.user.get("hat", "none"))
+	_worn = Session.worn_of(Session.user)
 	_face = str(Session.user.get("face", ":D"))
 
 	var compact := UI.is_compact()
@@ -56,7 +56,7 @@ func _ready() -> void:
 	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reset.pressed.connect(func():
 		_colors = Session.DEFAULT_COLORS.duplicate()
-		_hat = "none"
+		_worn = []
 		_face = ":D"
 		_apply_preview())
 	tools.add_child(reset)
@@ -69,8 +69,11 @@ func _ready() -> void:
 	var right := UI.vbox(14)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
-	var tabs := UI.hbox(8)
-	for t in [["colors", L.t("colors")], ["faces", L.t("faces")], ["hats", L.t("hats")], ["profile", L.t("profile")]]:
+	# Wraps into two rows when the column is narrow (phones, long translations).
+	var tabs := HFlowContainer.new()
+	tabs.add_theme_constant_override("h_separation", 8)
+	tabs.add_theme_constant_override("v_separation", 8)
+	for t in [["colors", L.t("colors")], ["faces", L.t("faces")], ["hats", L.t("accessories")], ["profile", L.t("profile")]]:
 		var b := UI.button(t[1], "flat", 46)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -141,8 +144,7 @@ func _build_colors_tab() -> Control:
 	v.add_child(parts)
 
 	v.add_child(UI.label(L.t("color"), 18, UI.MUTED, "bold"))
-	var grid := GridContainer.new()
-	grid.columns = 6 if UI.is_compact() else 8
+	var grid := HFlowContainer.new()
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
 	for hex in UI.SWATCHES:
@@ -261,22 +263,68 @@ func _build_faces_tab() -> Control:
 	return grid
 
 
+## Accessories from the server's catalog, with a picture each. Tap to put on or
+## take off; one per slot (a new hat replaces the old one).
 func _build_hats_tab() -> Control:
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.add_theme_constant_override("v_separation", 12)
-	for h in UI.HATS:
-		var b := UI.button(L.t(h.name), "flat", 64)
-		b.theme_type_variation = "ChipButton"
+	var v := UI.vbox(12)
+	var head := UI.hbox(10)
+	var hint := UI.label(L.t("acc_hint", [Accessories.max_worn]), 15, UI.MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(hint)
+	var off := UI.button(L.t("acc_take_off"), "ghost", 40)
+	off.add_theme_font_size_override("font_size", 15)
+	off.pressed.connect(func():
+		_worn = []
+		_apply_preview())
+	head.add_child(off)
+	v.add_child(head)
+	var grid := HFlowContainer.new()
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	v.add_child(grid)
+	for it in Accessories.items():
+		var id := str(it.id)
+		var b := Button.new()
 		b.toggle_mode = true
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.focus_mode = Control.FOCUS_NONE
+		b.theme_type_variation = "ChipButton"
+		b.custom_minimum_size = Vector2(118, 146)
+		var col := UI.vbox(2)
+		col.set_anchors_preset(Control.PRESET_FULL_RECT)
+		col.offset_left = 6
+		col.offset_right = -6
+		col.offset_top = 6
+		col.offset_bottom = -6
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(col)
+		var pic := TextureRect.new()
+		pic.custom_minimum_size = Vector2(96, 96)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(pic)
+		AccessoryThumbs.fetch(id, func(t: Texture2D):
+			if is_instance_valid(pic):
+				pic.texture = t)
+		var name := UI.label(Accessories.name_of(id), 14, UI.TEXT, "bold")
+		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name.max_lines_visible = 2
+		name.custom_minimum_size.x = 100
+		name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(name)
 		b.pressed.connect(func():
-			_hat = h.id
+			Sfx.click()
+			if id in _worn:
+				_worn.erase(id)
+			else:
+				_worn = Accessories.wear(_worn, id)
 			_apply_preview())
 		grid.add_child(b)
-		_hat_buttons[h.id] = b
-	return grid
+		_acc_buttons[id] = b
+	return v
 
 
 func _build_profile_tab() -> Control:
@@ -306,12 +354,12 @@ func _build_profile_tab() -> Control:
 
 func _apply_preview() -> void:
 	_stage.avatar.set_colors(_colors)
-	_stage.avatar.set_hat(_hat)
+	_stage.avatar.set_accessories(_worn)
 	_stage.avatar.set_face(_face)
 	for id in _face_buttons:
 		_face_buttons[id].button_pressed = id == _face
-	for id in _hat_buttons:
-		_hat_buttons[id].button_pressed = id == _hat
+	for id in _acc_buttons:
+		_acc_buttons[id].button_pressed = id in _worn
 	_refresh_swatches()
 	_set_dirty(true)
 
@@ -330,7 +378,7 @@ func _randomize() -> void:
 		var skin: String = ["#f5f1ec", "#ffd9c2", "#e8b48f", "#b07852", "#6b4431"].pick_random()
 		for part in ["head", "arm_l", "arm_r"]:
 			_colors[part] = skin
-	_hat = UI.HATS.pick_random().id
+	_worn = Accessories.random_look()
 	_face = Faces.LIST.pick_random()[0]
 	_apply_preview()
 	_stage.avatar.play("wave")
@@ -346,7 +394,7 @@ func _on_save() -> void:
 	_save.text = L.t("saving")
 	var r := await Api.request("PATCH", "/api/me", {
 		"colors": _colors,
-		"hat": _hat,
+		"accessories": _worn,
 		"face": _face,
 		"display_name": name,
 		"bio": _bio_edit.text.strip_edges(),

@@ -46,6 +46,7 @@ func _route() -> void:
 	var spin := Loading.spinner(34)
 	spin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_status.get_parent().add_child(spin)
+	Accessories.refresh()  # newest accessory catalog, in the background
 	var r := await Api.request("GET", "/api/me")
 	spin.queue_free()
 	if r.ok:

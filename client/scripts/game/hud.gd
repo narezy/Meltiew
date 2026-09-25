@@ -42,6 +42,7 @@ var _cam_btn: Button
 
 
 func _ready() -> void:
+	_make_badges()
 	layer = 10
 	_root = Control.new()
 	_root.theme = UI.theme
@@ -308,11 +309,42 @@ func big_message(text: String, seconds := 2.5) -> void:
 	t.tween_property(_toast_big, "modulate:a", 0.0, 0.4)
 
 
-func add_chat(author: String, text: String, color := UI.TEXT) -> void:
+var _badges := {}  # role -> Texture2D of its badge
+
+
+## Renders the owner/admin badges once into textures the chat can show inline.
+func _make_badges() -> void:
+	for role in ["owner", "admin"]:
+		var vp := SubViewport.new()
+		vp.transparent_bg = true
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		add_child(vp)
+		var b := UI.role_badge({"role": role}, 13)
+		b.theme = UI.theme
+		vp.add_child(b)
+		await get_tree().process_frame
+		vp.size = Vector2i(b.get_combined_minimum_size().ceil())
+		b.size = vp.size
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var tex := ImageTexture.create_from_image(vp.get_texture().get_image())
+		# RichTextLabel [img] takes a resource path, so give the texture one.
+		tex.take_over_path("res://__chat_badge_%s.tex" % role)
+		_badges[role] = tex
+		vp.queue_free()
+
+
+func add_chat(author: String, text: String, color := UI.TEXT, role := "") -> void:
 	var safe := text.replace("[", "[lb]")
 	var bb := ""
 	if author != "":
-		bb = "[b][color=#%s]%s:[/color][/b] %s" % [color.to_html(false), author.replace("[", "[lb]"), safe]
+		# Owner / admin badge after the name: the same pill as on profiles, as an image.
+		var badge := ""
+		if _badges.has(role):
+			var tex: Texture2D = _badges[role]
+			badge = " [img=%dx%d]%s[/img]" % [tex.get_width(), tex.get_height(), tex.resource_path]
+		bb = "[b][color=#%s]%s[/color][/b]%s[b][color=#%s]:[/color][/b] %s" % [
+			color.to_html(false), author.replace("[", "[lb]"), badge, color.to_html(false), safe]
 	else:
 		bb = "[color=#%s][i]%s[/i][/color]" % [UI.MUTED.lightened(0.25).to_html(false), safe]
 

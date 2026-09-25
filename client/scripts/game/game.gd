@@ -226,7 +226,7 @@ func _on_message(m: Dictionary) -> void:
 		"chat":
 			var id := int(m.id)
 			var is_me := id == my_id
-			hud.add_chat(str(m.name), str(m.m), UI.ACCENT if is_me else UI.MINT)
+			hud.add_chat(str(m.name), str(m.m), UI.ACCENT if is_me else UI.MINT, str(m.get("role", "")))
 			if is_me:
 				_my_bubble.show_text(str(m.m))
 			elif remotes.has(id):

@@ -420,4 +420,7 @@ const TABLE := {
 	"report_comment": ["Rude or spam", "Грубость или спам"],
 	"recently_played": ["Recently played", "Недавно играли"],
 	"joining_from_site": ["Joining from the website...", "Заходим с сайта..."],
+	"accessories": ["Accessories", "Аксессуары"],
+	"acc_hint": ["Tap to put on or take off. Up to {0} at once, one per spot.", "Нажми, чтобы надеть или снять. До {0} штук, по одной на каждое место."],
+	"acc_take_off": ["Take all off", "Снять всё"],
 }

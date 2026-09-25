@@ -524,6 +524,8 @@ export class GameHub {
     if (conn.chatBurst > 6) return conn.send({ t: 'sys', k: 'slow' });
     if (!conn.rules.chat) return conn.send({ t: 'sys', k: 'no_chat' });
     const base = { t: 'chat', id: conn.user.id, name: conn.user.display_name };
+    // Staff get their badge next to the name, like on profiles.
+    if (conn.user.role === 'owner' || conn.user.role === 'admin') base.role = conn.user.role;
     const raw = JSON.stringify({ ...base, m: text });
     const clean = JSON.stringify({ ...base, m: filterText(text) });
     for (const p of conn.server.players.values()) {

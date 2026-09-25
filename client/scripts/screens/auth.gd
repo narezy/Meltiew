@@ -226,4 +226,4 @@ func _randomize_look() -> void:
 	colors.leg_l = pants
 	colors.leg_r = pants
 	_stage.avatar.set_colors(colors)
-	_stage.avatar.set_hat(UI.HATS.pick_random().id)
+	_stage.avatar.set_accessories(Accessories.random_look())
