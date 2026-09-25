@@ -329,9 +329,11 @@ const pages = {
       <div class="row section-head"><h2 class="grow">${t('places')}</h2>
         <input id="pq" class="search" type="search" placeholder="${t('search_everything')}" autocomplete="off"></div>
       <div id="people"></div>
-      <div class="places" id="places"></div>`;
+      <div class="places" id="places">${'<div class="card place-card skel-card"><i class="skel" style="height:auto;aspect-ratio:16/9"></i><i class="skel" style="width:60%;height:20px"></i><i class="skel" style="width:40%"></i></div>'.repeat(3)}</div>`;
+    $('#fo').innerHTML = `<div class="carousel">${'<span class="chip"><i class="skel" style="width:76px;height:76px;border-radius:50%"></i><i class="skel" style="width:70px"></i></span>'.repeat(5)}</div>`;
     const loadPlaces = async () => {
       const q = $('#pq').value.trim();
+      $('#pq').classList.add('busy');
       const [r, people] = await Promise.all([
         api('GET', '/api/places' + (q ? '?q=' + encodeURIComponent(q) : '')),
         q.length >= 2 ? api('GET', '/api/users/search?q=' + encodeURIComponent(q)) : { users: [] },
@@ -339,6 +341,7 @@ const pages = {
       // Strangers open their profile; only friends are joined with one tap.
       $('#people').innerHTML = people.users.length ? `<div class="muted" style="font-weight:800;margin-bottom:8px">${t('users')}</div>
         <div class="carousel" style="margin-bottom:18px">${people.users.map((u) => friendChip(u.relation === 'friends' ? u : { ...u, playing: null })).join('')}</div>` : '';
+      $('#pq').classList.remove('busy');
       $('#places').innerHTML = r.places.length ? r.places.map(placeCard).join('') : `<div class="empty">${t('no_places')}</div>`;
     };
     let timer;
@@ -371,7 +374,7 @@ const pages = {
     root.innerHTML = `<h1>${t('friends')}</h1>
       <input id="q" placeholder="${t('search')}" autocomplete="off">
       <div class="tabs" style="margin:16px 0">${['friends', 'incoming', 'outgoing'].map((k, i) => `<button data-tab="${k}" class="${i === 0 ? 'on' : ''}">${t(['my_friends', 'requests', 'sent'][i])}</button>`).join('')}</div>
-      <div class="stack" id="list"></div>`;
+      <div class="stack" id="list">${'<div class="card row"><i class="skel" style="width:52px;height:52px;border-radius:50%"></i><span class="grow stack" style="gap:8px"><i class="skel" style="width:40%"></i><i class="skel" style="width:25%"></i></span></div>'.repeat(4)}</div>`;
     let data = await api('GET', '/api/friends');
     let tab = 'friends';
     const draw = (items, emptyKey) => {
@@ -530,7 +533,7 @@ async function profilePage(root, username) {
       ${more}
       ${me ? `<p class="muted">${t('edit_in_app')}</p>` : ''}
     </div></div>
-    <h2>${t('friends_of')}</h2><div id="pf"><div class="empty">…</div></div>`;
+    <h2>${t('friends_of')}</h2><div id="pf"><div class="loader"><i></i></div></div>`;
   mellyViewer($('#stage'), u);
   api('GET', `/api/users/${encodeURIComponent(u.username)}/friends`).then((r) => {
     const box = $('#pf');
@@ -909,7 +912,7 @@ async function messagesPage(root) {
   root.innerHTML = `<div class="dm">
     <div class="dm-side stack"><h1 style="margin:0">${t('messages')}</h1>
       <div class="tabs"><button data-tab="chats" class="on">${t('chats')}</button><button data-tab="requests">${t('dm_requests')}</button></div>
-      <div class="stack dm-list" id="convs"></div></div>
+      <div class="stack dm-list" id="convs"><div class="loader"><i></i></div></div></div>
     <div class="card dm-pane" id="pane"><div class="empty dm-empty">${icon('messages', 44)}<br>${t('pick_chat')}</div></div></div>`;
   let tab = 'chats';
   let convs = [];
@@ -940,6 +943,7 @@ async function messagesPage(root) {
     lastId = 0;
     root.querySelector('.dm').classList.add('chat-open');
     drawList();
+    $('#pane').innerHTML = '<div class="loader"><i></i></div>';
     const r = await api('GET', `/api/dm/${user.id}`);
     if (!current || current.id !== user.id) return;
     const u = r.user;
@@ -1155,7 +1159,7 @@ async function render() {
   renderNav(path);
   pollCounts();
   const root = $('#app');
-  root.innerHTML = '';
+  root.innerHTML = '<div class="loader"><i></i></div>';
   try {
     if (path.startsWith('/messages')) await messagesPage(root);
     else if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));

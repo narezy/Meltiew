@@ -43,7 +43,11 @@ func _route() -> void:
 		UI.goto("res://scenes/auth.tscn")
 		return
 	_status.text = L.t("connecting")
+	var spin := Loading.spinner(34)
+	spin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_status.get_parent().add_child(spin)
 	var r := await Api.request("GET", "/api/me")
+	spin.queue_free()
 	if r.ok:
 		Session.set_user(r.data.user)
 		Busts.sync_my_render()

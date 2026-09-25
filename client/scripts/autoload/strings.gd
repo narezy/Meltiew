@@ -8,6 +8,8 @@ const TABLE := {
 	"yes": ["Yes", "Да"],
 	"cancel": ["Cancel", "Отмена"],
 	"close": ["Close", "Закрыть"],
+	"load_failed": ["Couldn't load. Check your internet", "Не получилось загрузить. Проверь интернет"],
+	"loading_places": ["Loading places...", "Загружаем плейсы..."],
 	"retry": ["Try again", "Попробовать снова"],
 	"connecting": ["Connecting...", "Подключаемся..."],
 	"one_sec": ["One sec...", "Секунду..."],

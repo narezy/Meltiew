@@ -40,7 +40,7 @@ func _ready() -> void:
 	_box = UI.vbox(12)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_box)
-	_box.add_child(UI.label(L.t("loading_profile"), 20, UI.MUTED))
+	_box.add_child(Loading.block(L.t("loading_profile")))
 	_card.scale = Vector2(0.94, 0.94)
 	_card.pivot_offset = _card.custom_minimum_size / 2.0
 	_card.modulate.a = 0.0
@@ -61,7 +61,11 @@ func _load() -> void:
 	for c in _box.get_children():
 		c.queue_free()
 	if not r.ok:
-		_box.add_child(UI.label(r.message, 20, UI.DANGER))
+		_box.add_child(Loading.error_block(r.message, func():
+			for c in _box.get_children():
+				c.queue_free()
+			_box.add_child(Loading.block(L.t("loading_profile")))
+			_load()))
 		_add_close()
 		return
 	_render(r.data.user)
@@ -175,8 +179,13 @@ func _action_button(text: String, variant: String, path: String, u: Dictionary) 
 
 ## Friends preview: up to 7 busts, or a note when the list is hidden.
 func _load_friends(username: String, row: HBoxContainer) -> void:
+	var spin := Loading.spinner(26)
+	row.add_child(spin)
 	var r := await Api.request("GET", "/api/users/%s/friends" % username.uri_encode())
-	if not is_instance_valid(row) or not r.ok:
+	if not is_instance_valid(row):
+		return
+	spin.queue_free()
+	if not r.ok:
 		return
 	if r.data.hidden:
 		row.add_child(UI.label(L.t("friends_hidden"), 15, UI.MUTED))
@@ -193,6 +202,7 @@ func _load_friends(username: String, row: HBoxContainer) -> void:
 				self.username = username
 				for c in _box.get_children():
 					c.queue_free()
+				_box.add_child(Loading.block(L.t("loading_profile")))
 				_load())
 		row.add_child(b)
 	if list.size() > 7:

@@ -263,6 +263,7 @@ input[type="date"] { color-scheme: dark; }
   .nav-links { display: none; }
   .me-chip { padding: 3px; }
   .me-chip span { display: none; }
+  .lang { max-width: 118px; padding: 6px 8px; font-size: 14px; }
   .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     background: #1d1a26f2; backdrop-filter: blur(14px); border-top: 1px solid #ffffff12;
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); }
@@ -284,3 +285,13 @@ input[type="date"] { color-scheme: dark; }
   .dm { height: calc(100dvh - 150px); min-height: 380px; }
   .toast { width: calc(100vw - 28px); text-align: center; }
 }
+
+/* Loading */
+.loader { display: grid; place-items: center; min-height: 160px; }
+.loader i { width: 42px; height: 42px; border-radius: 50%; border: 4px solid #b89cff2e; border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.skel { display: block; height: 14px; border-radius: 8px; background: var(--card2); animation: pulse 1.4s ease-in-out infinite; }
+.skel-card { display: flex; flex-direction: column; gap: 10px; }
+@keyframes pulse { 50% { opacity: .45; } }
+input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transparent 40%); background-repeat: no-repeat;
+  background-size: 14px 14px; background-position: right 14px center; animation: pulse 0.8s ease-in-out infinite; }

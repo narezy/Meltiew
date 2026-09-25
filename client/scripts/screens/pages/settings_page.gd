@@ -157,6 +157,7 @@ func _section(parent: Control, title: String) -> VBoxContainer:
 
 
 func _load_blocked() -> void:
+	_blocked_box.add_child(Loading.spinner(30))
 	var r := await Api.request("GET", "/api/blocks")
 	if not is_inside_tree():
 		return

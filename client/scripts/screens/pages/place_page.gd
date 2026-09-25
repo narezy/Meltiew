@@ -39,7 +39,7 @@ func _ready() -> void:
 	_root = UI.vbox(20)
 	_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(_root)
-	_root.add_child(UI.label(L.t("loading"), 20, UI.MUTED))
+	_root.add_child(Loading.block(L.t("loading")))
 	_timer = Timer.new()
 	_timer.wait_time = 8.0
 	_timer.autostart = true
@@ -61,7 +61,16 @@ func _load() -> void:
 	if not is_inside_tree():
 		return
 	if not r.ok:
-		UI.toast(r.message, "error")
+		if _place.is_empty():
+			for c in _root.get_children():
+				c.queue_free()
+			_root.add_child(Loading.error_block(r.message, func():
+				for c in _root.get_children():
+					c.queue_free()
+				_root.add_child(Loading.block(L.t("loading")))
+				_load()))
+		else:
+			UI.toast(r.message, "error")
 		return
 	var first := _place.is_empty()
 	_place = r.data.place

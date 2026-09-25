@@ -55,6 +55,8 @@ func _ready() -> void:
 	_pane = UI.vbox(12)
 	right.add_child(_pane)
 	_empty_pane()
+	for i in 3:
+		_list.add_child(Loading.row_skeleton(46))
 
 	_poll = Timer.new()
 	_poll.wait_time = 3.0
@@ -80,10 +82,20 @@ func _tick() -> void:
 		_load_messages(false)
 
 
+var _list_loaded := false
+
+
 func _load_list() -> void:
 	var r := await Api.request("GET", "/api/dm")
-	if not is_inside_tree() or not r.ok:
+	if not is_inside_tree():
 		return
+	if not r.ok:
+		if not _list_loaded:
+			for c in _list.get_children():
+				c.queue_free()
+			_list.add_child(Loading.error_block(r.message, _load_list))
+		return
+	_list_loaded = true
 	_conversations = r.data.conversations
 	var reqs := _conversations.filter(func(c): return c.state == "incoming").size()
 	_tabs.requests.text = L.t("dm_requests") + (" (%d)" % reqs if reqs > 0 else "")
@@ -138,7 +150,9 @@ func _empty_pane() -> void:
 	var center := CenterContainer.new()
 	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var v := UI.vbox(10)
-	v.add_child(Icon.make("chat", 56, UI.LINE))
+	var icon := Icon.make("chat", 56, UI.LINE)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(icon)
 	var l := UI.label(L.t("pick_chat"), 18, UI.MUTED)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
@@ -150,6 +164,9 @@ func _open(u: Dictionary) -> void:
 	_current = u
 	_last_id = 0
 	_render_list()
+	for c in _pane.get_children():
+		c.queue_free()
+	_pane.add_child(Loading.block())
 	await _load_messages(true)
 
 

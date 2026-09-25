@@ -80,13 +80,21 @@ func _set_mode(mode: String) -> void:
 	_render()
 
 
+var _loaded := false
+
+
 func refresh() -> void:
 	var r := await Api.request("GET", "/api/friends")
 	if not is_inside_tree():
 		return
 	if not r.ok:
-		UI.toast(r.message, "error")
+		if not _loaded:
+			_clear()
+			_list.add_child(Loading.error_block(r.message, refresh))
+		else:
+			UI.toast(r.message, "error")
 		return
+	_loaded = true
 	_data = r.data
 	var n: int = _data.incoming.size()
 	_tab_buttons.incoming.text = L.t("requests") + (" (%d)" % n if n > 0 else "")
@@ -111,6 +119,10 @@ func _empty(text: String) -> void:
 
 func _render() -> void:
 	_clear()
+	if not _loaded:
+		for i in 4:
+			_list.add_child(Loading.row_skeleton())
+		return
 	var items: Array = _data.get(_mode, [])
 	if items.is_empty():
 		match _mode:
@@ -130,6 +142,8 @@ func _do_search() -> void:
 	if q.length() < 2:
 		_render()
 		return
+	_clear()
+	_list.add_child(Loading.block())
 	var r := await Api.request("GET", "/api/users/search?q=" + q.uri_encode())
 	if not is_inside_tree() or _search.text.strip_edges() != q:
 		return

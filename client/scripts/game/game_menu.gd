@@ -186,7 +186,7 @@ func _player_row(u: Dictionary) -> Control:
 		return c
 	var actions := UI.hbox(8)
 	row.add_child(actions)
-	actions.add_child(UI.label("...", 16, UI.MUTED))
+	actions.add_child(Loading.spinner(26))
 	_fill_actions(actions, u)
 	return c
 

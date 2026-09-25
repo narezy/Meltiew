@@ -14,11 +14,19 @@ var wheel: EmoteWheel
 
 var _root: Control
 const HP_W := 200.0
+const CHAT_W := 430.0
+## Messages shown while the chat is closed, and how many are kept to scroll back through.
+const CHAT_PEEK := 3
+const CHAT_HISTORY := 100
 
 var _hp_fill: Panel
 var _hp_label: Label
 var _hp_shown := 100.0
 var _chat_log: VBoxContainer
+var _chat_panel: PanelContainer
+var _chat_scroll: ScrollContainer
+var _chat_full: VBoxContainer
+var _chat_expanded := false
 var _chat_input_row: HBoxContainer
 var _chat_input: LineEdit
 var _stats_label: Label
@@ -88,16 +96,39 @@ func _ready() -> void:
 	hp_row.add_child(_hp_label)
 	_root.add_child(hp_row)
 
+	# Closed chat: the last few messages float over the game and fade out.
 	_chat_log = UI.vbox(3)
-	_chat_log.custom_minimum_size.x = 430
+	_chat_log.custom_minimum_size.x = CHAT_W
 	_chat_log.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tl.add_child(_chat_log)
 
+	# Open chat: the whole history on a dark backdrop you can scroll, plus the input.
+	_chat_panel = PanelContainer.new()
+	var cp := StyleBoxFlat.new()
+	cp.bg_color = Color(0, 0, 0, 0.45)
+	cp.set_corner_radius_all(18)
+	cp.content_margin_left = 12
+	cp.content_margin_right = 12
+	cp.content_margin_top = 10
+	cp.content_margin_bottom = 10
+	_chat_panel.add_theme_stylebox_override("panel", cp)
+	_chat_panel.visible = false
+	tl.add_child(_chat_panel)
+	var cv := UI.vbox(8)
+	_chat_panel.add_child(cv)
+	_chat_scroll = ScrollContainer.new()
+	_chat_scroll.custom_minimum_size = Vector2(CHAT_W, 230)
+	_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	cv.add_child(_chat_scroll)
+	_chat_full = UI.vbox(3)
+	_chat_full.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_chat_scroll.add_child(_chat_full)
+	_blockers.append(_chat_panel)
+
 	_chat_input_row = UI.hbox(8)
-	_chat_input_row.visible = false
-	tl.add_child(_chat_input_row)
+	cv.add_child(_chat_input_row)
 	_chat_input = UI.input(L.t("chat_placeholder"))
-	_chat_input.custom_minimum_size = Vector2(360, 50)
+	_chat_input.custom_minimum_size = Vector2(CHAT_W - 64, 50)
 	_chat_input.max_length = 200
 	_chat_input.text_submitted.connect(func(_t): _send_chat())
 	_chat_input_row.add_child(_chat_input)
@@ -245,10 +276,10 @@ var _chat_btn: Button
 ## Under-13 accounts have no chat: hide the log, the input and the button.
 func set_chat_enabled(on: bool) -> void:
 	chat_enabled = on
-	_chat_log.visible = on
+	_chat_log.visible = on and not _chat_expanded
 	_chat_btn.visible = on
 	if not on:
-		_chat_input_row.visible = false
+		_set_chat_expanded(false)
 
 
 func set_health(hp: float) -> void:
@@ -270,43 +301,77 @@ func big_message(text: String, seconds := 2.5) -> void:
 
 
 func add_chat(author: String, text: String, color := UI.TEXT) -> void:
+	var safe := text.replace("[", "[lb]")
+	var bb := ""
+	if author != "":
+		bb = "[b][color=#%s]%s:[/color][/b] %s" % [color.to_html(false), author.replace("[", "[lb]"), safe]
+	else:
+		bb = "[color=#%s][i]%s[/i][/color]" % [UI.MUTED.lightened(0.25).to_html(false), safe]
+
+	# Closed view: keep only the last few, fading after a while.
+	var peek := _chat_line(bb)
+	_chat_log.add_child(peek)
+	while _chat_log.get_child_count() > CHAT_PEEK:
+		var old := _chat_log.get_child(0)
+		_chat_log.remove_child(old)
+		old.queue_free()
+	var t := peek.create_tween()
+	t.tween_interval(14.0)
+	t.tween_property(peek, "modulate:a", 0.0, 1.5)
+
+	# Open view: full history; stays at the bottom unless you scrolled up to read.
+	var bar := _chat_scroll.get_v_scroll_bar()
+	var at_bottom := _chat_scroll.scroll_vertical >= bar.max_value - bar.page - 8.0
+	_chat_full.add_child(_chat_line(bb))
+	while _chat_full.get_child_count() > CHAT_HISTORY:
+		var old := _chat_full.get_child(0)
+		_chat_full.remove_child(old)
+		old.queue_free()
+	if at_bottom:
+		_scroll_chat_down()
+
+
+func _chat_line(bb: String) -> RichTextLabel:
 	var l := RichTextLabel.new()
 	l.bbcode_enabled = true
 	l.fit_content = true
 	l.scroll_active = false
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.custom_minimum_size.x = 430
+	# PASS lets a finger drag through a line to scroll the open chat.
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	l.custom_minimum_size.x = CHAT_W - 24
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
 	l.add_theme_constant_override("outline_size", 6)
-	var safe := text.replace("[", "[lb]")
-	if author != "":
-		l.text = "[b][color=#%s]%s:[/color][/b] %s" % [color.to_html(false), author.replace("[", "[lb]"), safe]
+	l.text = bb
+	return l
+
+
+func _scroll_chat_down() -> void:
+	await get_tree().process_frame
+	_chat_scroll.scroll_vertical = int(_chat_scroll.get_v_scroll_bar().max_value)
+
+
+func _set_chat_expanded(on: bool) -> void:
+	_chat_expanded = on
+	_chat_panel.visible = on
+	_chat_log.visible = chat_enabled and not on
+	if on:
+		_scroll_chat_down()
+		_chat_input.grab_focus()
 	else:
-		l.text = "[color=#%s][i]%s[/i][/color]" % [UI.MUTED.lightened(0.25).to_html(false), safe]
-	_chat_log.add_child(l)
-	while _chat_log.get_child_count() > 7:
-		var old := _chat_log.get_child(0)
-		_chat_log.remove_child(old)
-		old.queue_free()
-	var t := l.create_tween()
-	t.tween_interval(14.0)
-	t.tween_property(l, "modulate:a", 0.0, 1.5)
+		_chat_input.release_focus()
+		# Reopening the closed view shouldn't bring back long-faded messages.
+		for c in _chat_log.get_children():
+			c.modulate.a = 0.0
 
 
 func toggle_chat() -> void:
 	if not chat_enabled:
 		return
-	_chat_input_row.visible = not _chat_input_row.visible
-	if _chat_input_row.visible:
-		_chat_input.grab_focus()
-		for c in _chat_log.get_children():
-			c.modulate.a = 1.0
-	else:
-		_chat_input.release_focus()
+	_set_chat_expanded(not _chat_expanded)
 
 
 func chat_open() -> bool:
-	return _chat_input_row.visible and _chat_input.has_focus()
+	return _chat_expanded and _chat_input.has_focus()
 
 
 func _send_chat() -> void:
@@ -314,8 +379,9 @@ func _send_chat() -> void:
 	_chat_input.text = ""
 	if text != "":
 		chat_submitted.emit(text)
+	# Phones: hide the keyboard but keep the chat open to read replies.
 	if DisplayServer.is_touchscreen_available():
-		toggle_chat()
+		_chat_input.release_focus()
 
 
 func set_stats(fps: int, ping: int) -> void:
@@ -434,7 +500,11 @@ func _desktop(event: InputEvent) -> void:
 			return
 		match event.keycode:
 			KEY_ENTER, KEY_KP_ENTER, KEY_T, KEY_SLASH:
-				toggle_chat()
+				# Open chat that lost focus: jump back into typing instead of closing it.
+				if _chat_expanded:
+					_chat_input.grab_focus()
+				else:
+					toggle_chat()
 				get_viewport().set_input_as_handled()
 			KEY_B, KEY_G:
 				release_touches()

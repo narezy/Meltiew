@@ -12,6 +12,8 @@ var _search: LineEdit
 var _search_timer: Timer
 var _timer: Timer
 var _loading := false
+var _loaded_once := false
+var _search_spinner: Control
 
 
 func _ready() -> void:
@@ -39,13 +41,22 @@ func _ready() -> void:
 	_friends_box = UI.hbox(14)
 	fscroll.add_child(_friends_box)
 	_friends_section.add_child(fscroll)
-	_friends_section.visible = false
 	root.add_child(_friends_section)
+	# Until the first answer: round placeholders where friends will be.
+	for i in 5:
+		var sk := UI.vbox(6)
+		sk.add_child(Loading.skeleton(Vector2(74, 74), 37))
+		sk.add_child(Loading.skeleton(Vector2(74, 14), 7))
+		_friends_box.add_child(sk)
 
 	var ph := UI.hbox(12)
 	var pt := UI.label(L.t("places"), 24, UI.TEXT, "black")
 	pt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ph.add_child(pt)
+	_search_spinner = Loading.spinner(28)
+	_search_spinner.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_search_spinner.visible = false
+	ph.add_child(_search_spinner)
 	_search = UI.input(L.t("search_everything"))
 	_search.custom_minimum_size = Vector2(260 if UI.is_compact() else 320, 48)
 	_search.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -72,6 +83,8 @@ func _ready() -> void:
 	_places_box.add_theme_constant_override("h_separation", 18)
 	_places_box.add_theme_constant_override("v_separation", 18)
 	root.add_child(_places_box)
+	for i in 3:
+		_places_box.add_child(Loading.place_card_skeleton())
 
 	_timer = Timer.new()
 	_timer.wait_time = 10.0
@@ -94,6 +107,7 @@ func refresh_data() -> void:
 		return
 	_loading = true
 	var q := _search.text.strip_edges() if _search else ""
+	_search_spinner.visible = _loaded_once
 	var pr := await Api.request("GET", "/api/places" + ("?q=" + q.uri_encode() if q != "" else ""))
 	var fr := await Api.request("GET", "/api/friends")
 	var ur: Dictionary = {}
@@ -102,9 +116,17 @@ func refresh_data() -> void:
 	_loading = false
 	if not is_inside_tree():
 		return
+	_search_spinner.visible = false
 	_render_people(ur.data.users if ur.get("ok", false) else [])
 	if pr.ok:
+		_loaded_once = true
 		_render_places(pr.data.places)
+	elif not _loaded_once:
+		# First load failed: say so instead of leaving placeholders forever.
+		for c in _places_box.get_children():
+			c.queue_free()
+		_places_box.add_child(Loading.error_block(pr.message, refresh_data))
+		_friends_section.visible = false
 	if fr.ok:
 		_render_friends(fr.data.friends)
 		_menu().set_request_badge(fr.data.incoming.size())
