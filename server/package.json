@@ -1,0 +1,16 @@
+{
+  "name": "meltiew-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Meltiew backend: accounts, friends, profiles and realtime game servers",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

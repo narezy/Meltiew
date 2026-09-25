@@ -1,0 +1,45 @@
+import { DatabaseSync } from 'node:sqlite';
+import fs from 'node:fs';
+import path from 'node:path';
+
+export function openDb(file) {
+  if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS users (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      username     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      pass_hash    TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      bio          TEXT NOT NULL DEFAULT '',
+      skin_color   TEXT NOT NULL DEFAULT '#f5f1ec',
+      shirt_color  TEXT NOT NULL DEFAULT '#baa4e2',
+      pants_color  TEXT NOT NULL DEFAULT '#302d38',
+      hat          TEXT NOT NULL DEFAULT 'none',
+      created_at   INTEGER NOT NULL,
+      last_seen    INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      token      TEXT PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      used_at    INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+
+    -- One row per directed request. status: pending | accepted
+    CREATE TABLE IF NOT EXISTS friendships (
+      from_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      to_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status     TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (from_id, to_id)
+    );
+    CREATE INDEX IF NOT EXISTS friendships_to ON friendships(to_id);
+  `);
+  return db;
+}

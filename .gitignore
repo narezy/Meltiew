@@ -1,0 +1,8 @@
+node_modules/
+server/data/
+client/.godot/
+client/export/
+*.keystore
+*.apk
+*.aab
+.DS_Store
