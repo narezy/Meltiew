@@ -158,3 +158,17 @@ func _draw() -> void:
 		"shield":
 			_line([Vector2(12, 3), Vector2(20, 6), Vector2(19, 13), Vector2(12, 21), Vector2(5, 13), Vector2(4, 6), Vector2(12, 3)])
 			_line([Vector2(7, 7), Vector2(17, 17)])
+		"like":
+			_line([Vector2(3, 11), Vector2(7, 11), Vector2(7, 21), Vector2(3, 21), Vector2(3, 11)])
+			_line([Vector2(7, 11), Vector2(11, 3.5), Vector2(13, 4), Vector2(13.5, 9), Vector2(20, 9),
+				Vector2(21, 11), Vector2(19, 20), Vector2(17.5, 21), Vector2(7, 21)])
+		"dislike":
+			_line([Vector2(3, 13), Vector2(7, 13), Vector2(7, 3), Vector2(3, 3), Vector2(3, 13)])
+			_line([Vector2(7, 13), Vector2(11, 20.5), Vector2(13, 20), Vector2(13.5, 15), Vector2(20, 15),
+				Vector2(21, 13), Vector2(19, 4), Vector2(17.5, 3), Vector2(7, 3)])
+		"eye":
+			_arc(Vector2(12, 19), 11.0, PI * 1.2, PI * 1.8)
+			_arc(Vector2(12, 5), 11.0, PI * 0.2, PI * 0.8)
+			_circle(Vector2(12, 12), 3.0, true)
+		"back":
+			_line([Vector2(15, 4), Vector2(7, 12), Vector2(15, 20)])

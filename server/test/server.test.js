@@ -10,7 +10,7 @@ const base = `http://127.0.0.1:${PORT}`;
 async function call(method, path, body, token) {
   const res = await fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    headers: { 'content-type': 'application/json', 'x-client': 'app', 'x-client-version': '1.2.0', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, data: await res.json() };
@@ -18,7 +18,7 @@ async function call(method, path, body, token) {
 
 function connect(token) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}&v=1.2.0`);
     const inbox = [];
     const waiters = [];
     ws.on('message', (raw) => {
@@ -131,9 +131,9 @@ test('game servers cap at 10 players and sync state', async () => {
 });
 
 test('errors are localized by header', async () => {
-  const en = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"username":"alice","password":"nope"}' });
+  const en = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-client': 'web' }, body: '{"username":"alice","password":"nope"}' });
   assert.equal((await en.json()).message, 'Wrong username or password');
-  const ru = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-lang': 'ru' }, body: '{"username":"alice","password":"nope"}' });
+  const ru = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-lang': 'ru', 'x-client': 'web' }, body: '{"username":"alice","password":"nope"}' });
   assert.equal((await ru.json()).message, 'Неверный логин или пароль');
 });
 
@@ -246,4 +246,23 @@ test('admin endpoints are staff-only and bans lock the account', async () => {
   await call('POST', `/api/admin/users/${bob.id}`, { banned: false }, users.nrz);
   assert.equal((await call('POST', '/api/login', { username: 'bob', password: 'secret123' })).status, 200);
   assert.equal((await call('POST', '/api/admin/announce', { text: 'hello' }, users.nrz)).status, 200);
+});
+
+test('outdated apps are turned away, the website is not', async () => {
+  const old = await fetch(base + '/api/places', { headers: { 'x-client-version': '1.1.0' } });
+  assert.equal(old.status, 426);
+  assert.equal((await old.json()).error, 'update_required');
+  const none = await fetch(base + '/api/me');
+  assert.equal(none.status, 426);
+  const web = await fetch(base + '/api/me', { headers: { 'x-client': 'web' } });
+  assert.equal(web.status, 401);
+  assert.equal((await call('POST', '/api/admin/min-version', { version: '1.3.0' }, users.alice)).status, 403);
+  assert.equal((await call('POST', '/api/admin/min-version', { version: '1.3.0' }, users.nrz)).status, 200);
+  assert.equal((await call('GET', '/api/me', null, users.alice)).status, 426);
+  const reset = await fetch(base + '/api/admin/min-version', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-client': 'web', authorization: `Bearer ${users.nrz}` },
+    body: JSON.stringify({ version: '1.2.0' }),
+  });
+  assert.equal(reset.status, 200);
 });

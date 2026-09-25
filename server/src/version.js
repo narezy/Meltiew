@@ -1,0 +1,31 @@
+// App version gate: clients older than the minimum are turned away with 426.
+// The minimum defaults to the release this server ships with and can be raised
+// at runtime from the admin panel (stored in the config table).
+export const LATEST_CLIENT = '1.2.0';
+export const DOWNLOAD_PAGE = 'https://meltiew.narez.xyz/download';
+
+export function compareVersions(a, b) {
+  const pa = String(a || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0) ? -1 : 1;
+  }
+  return 0;
+}
+
+export function createVersionGate(db) {
+  const get = db.prepare("SELECT value FROM config WHERE key = 'min_client'");
+  const set = db.prepare("INSERT INTO config (key, value) VALUES ('min_client', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
+  const stored = get.get()?.value;
+  // A newly deployed server never accepts clients older than itself.
+  if (!stored || compareVersions(stored, LATEST_CLIENT) < 0) set.run(LATEST_CLIENT);
+  return {
+    min: () => get.get()?.value || LATEST_CLIENT,
+    setMin: (v) => set.run(v),
+    /** Web requests are never gated; app requests must carry a recent enough version. */
+    allows(client, version) {
+      if (client === 'web') return true;
+      return compareVersions(version, this.min()) >= 0;
+    },
+  };
+}

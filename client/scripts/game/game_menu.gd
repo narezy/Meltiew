@@ -134,9 +134,6 @@ func show_tab(id: String) -> void:
 			var note := UI.label(L.t("graphics_note"), 15, UI.MUTED)
 			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			_body.add_child(note)
-			var apply := UI.button(L.t("apply"), "ghost", 48)
-			apply.pressed.connect(func(): settings_changed.emit())
-			_body.add_child(apply)
 		"help":
 			_body.add_child(UI.label(L.t("controls"), 26, UI.TEXT, "black"))
 			for line in ["help_move", "help_camera", "help_zoom", "help_jump", "help_emotes", "help_chat", "help_reset"]:
@@ -162,7 +159,7 @@ func _player_row(u: Dictionary) -> Control:
 	row.add_child(UI.avatar_badge(u, 50))
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label(str(u.display_name), 19, UI.TEXT, "bold"))
+	col.add_child(UI.name_row(u, 19))
 	col.add_child(UI.label("@" + str(u.username), 15, UI.MUTED))
 	row.add_child(col)
 	if int(u.id) == int(Session.user.get("id", -1)):

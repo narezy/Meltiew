@@ -1,9 +1,8 @@
 class_name HomePage
 extends ScrollContainer
-## Home: featured playground, live server browser, friends who are online.
+## Home: friends who are online, and the grid of places to play.
 
-var _online_label: Label
-var _servers_box: VBoxContainer
+var _places_box: HFlowContainer
 var _friends_box: HBoxContainer
 var _friends_section: Control
 var _timer: Timer
@@ -23,8 +22,6 @@ func _ready() -> void:
 	head.add_child(UI.label(L.t("home_sub"), 19, UI.MUTED))
 	root.add_child(head)
 
-	root.add_child(_build_hero())
-
 	_friends_section = UI.vbox(12)
 	_friends_section.add_child(UI.label(L.t("friends_online"), 24, UI.TEXT, "black"))
 	var fscroll := ScrollContainer.new()
@@ -36,28 +33,14 @@ func _ready() -> void:
 	_friends_section.visible = false
 	root.add_child(_friends_section)
 
-	var sh := UI.hbox(12)
-	sh.add_child(UI.label(L.t("servers_title"), 24, UI.TEXT, "black"))
-	sh.add_child(UI.spacer())
-	var refresh := UI.button("", "ghost", 48)
-	refresh.custom_minimum_size.x = 48
-	var ric := Icon.make("refresh", 22)
-	ric.set_anchors_preset(Control.PRESET_CENTER)
-	ric.position = Vector2(-11, -11)
-	refresh.add_child(ric)
-	refresh.pressed.connect(refresh_data)
-	sh.add_child(refresh)
-	var create := UI.button(L.t("new_server"), "ghost", 48)
-	create.icon = null
-	create.pressed.connect(func(): _menu().play("new"))
-	sh.add_child(create)
-	root.add_child(sh)
-	_servers_box = UI.vbox(10)
-	root.add_child(_servers_box)
-	_servers_box.add_child(_empty_row(L.t("loading_servers")))
+	root.add_child(UI.label(L.t("places"), 24, UI.TEXT, "black"))
+	_places_box = HFlowContainer.new()
+	_places_box.add_theme_constant_override("h_separation", 18)
+	_places_box.add_theme_constant_override("v_separation", 18)
+	root.add_child(_places_box)
 
 	_timer = Timer.new()
-	_timer.wait_time = 8.0
+	_timer.wait_time = 10.0
 	_timer.autostart = true
 	_timer.timeout.connect(refresh_data)
 	add_child(_timer)
@@ -72,128 +55,68 @@ func refresh() -> void:
 	refresh_data()
 
 
-func _build_hero() -> Control:
-	var hero := UI.card(16, UI.CARD, 26)
-	var row := UI.hbox(24)
-	hero.add_child(row)
-	var cover_tex: Texture2D = load("res://assets/playground_cover.png") if ResourceLoader.exists("res://assets/playground_cover.png") else null
-	var cover := RoundedImage.new(cover_tex, 20)
-	cover.custom_minimum_size = Vector2(420, 236)
-	row.add_child(cover)
-	var info := UI.vbox(10)
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(info)
-	var tag := UI.label(L.t("featured_tag"), 14, UI.ACCENT, "black")
-	info.add_child(tag)
-	info.add_child(UI.label(L.t("playground"), 32, UI.TEXT, "black"))
-	var desc := UI.label(L.t("playground_desc"), 18, UI.MUTED)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.add_child(desc)
-	var stat := UI.hbox(8)
-	stat.add_child(UI.dot(UI.ONLINE, 10))
-	_online_label = UI.label("...", 17, UI.TEXT, "bold")
-	stat.add_child(_online_label)
-	info.add_child(stat)
-	var buttons := UI.hbox(12)
-	var play := UI.button(L.t("play"), "primary", 60)
-	play.custom_minimum_size.x = 200
-	var pic := Icon.make("play", 20, UI.INK)
-	pic.position = Vector2(26, 20)
-	play.add_child(pic)
-	play.add_theme_constant_override("h_separation", 0)
-	play.text = "    " + L.t("play")
-	play.pressed.connect(func(): _menu().play("auto"))
-	buttons.add_child(play)
-	info.add_child(buttons)
-	return hero
-
-
-func _empty_row(text: String) -> Control:
-	var c := UI.card(22, Color(UI.CARD, 0.6), 20)
-	var l := UI.label(text, 18, UI.MUTED)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	c.add_child(l)
-	return c
-
-
 func refresh_data() -> void:
 	if _loading:
 		return
 	_loading = true
-	var sr := await Api.request("GET", "/api/servers?game=playground")
+	var pr := await Api.request("GET", "/api/places")
 	var fr := await Api.request("GET", "/api/friends")
 	_loading = false
 	if not is_inside_tree():
 		return
-	if sr.ok:
-		_render_servers(sr.data.servers)
-	else:
-		for c in _servers_box.get_children():
-			c.queue_free()
-		_servers_box.add_child(_empty_row(sr.message))
+	if pr.ok:
+		_render_places(pr.data.places)
 	if fr.ok:
 		_render_friends(fr.data.friends)
 		_menu().set_request_badge(fr.data.incoming.size())
 
 
-func _render_servers(servers: Array) -> void:
-	for c in _servers_box.get_children():
+func _render_places(places: Array) -> void:
+	for c in _places_box.get_children():
 		c.queue_free()
-	var total := 0
-	for s in servers:
-		total += int(s.players)
-	_online_label.text = L.t("playing_now", [total, L.plural(total, "players_word")])
-	if servers.is_empty():
-		_servers_box.add_child(_empty_row(L.t("no_servers")))
-		return
-	for s in servers:
-		_servers_box.add_child(_server_row(s))
+	for p in places:
+		_places_box.add_child(place_card(p, func(): _menu().open_place(str(p.id))))
 
 
-func _server_row(s: Dictionary) -> Control:
-	var c := UI.card(16, UI.CARD, 20)
-	var row := UI.hbox(16)
-	c.add_child(row)
-	var col := UI.vbox(4)
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UI.label(L.field(s, "name"), 20, UI.TEXT, "bold"))
-	var friends: Array = s.get("friends", [])
-	var sub := L.t("friends_here", [", ".join(friends)]) if friends.size() > 0 else L.t("server_id", [s.id])
-	col.add_child(UI.label(sub, 16, UI.MINT if friends.size() > 0 else UI.MUTED))
-	row.add_child(col)
-
-	var players := int(s.players)
-	var max_p := int(s.max_players)
-	var meter := UI.vbox(6)
-	meter.custom_minimum_size.x = 160
-	meter.alignment = BoxContainer.ALIGNMENT_CENTER
-	var ml := UI.label("%d / %d" % [players, max_p], 17, UI.TEXT, "bold")
-	ml.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	meter.add_child(ml)
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.max_value = max_p
-	bar.value = players
-	bar.custom_minimum_size.y = 10
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = UI.BG_2
-	bg.set_corner_radius_all(5)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = UI.DANGER if players >= max_p else UI.ACCENT
-	fill.set_corner_radius_all(5)
-	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", fill)
-	meter.add_child(bar)
-	row.add_child(meter)
-
-	var full := players >= max_p
-	var join := UI.button(L.t("full") if full else L.t("join"), "ghost" if full else "mint", 52)
-	join.custom_minimum_size.x = 130
-	join.disabled = full
-	join.pressed.connect(func(): _menu().play(str(s.id)))
-	row.add_child(join)
+## Card used on Home: cover, name, author, rating and players online.
+static func place_card(p: Dictionary, on_open: Callable) -> Control:
+	var c := UI.card(12, UI.CARD, 22)
+	c.custom_minimum_size.x = 330
+	var v := UI.vbox(8)
+	c.add_child(v)
+	var cover := RoundedImage.new(PlacePage.cover_for(p), 16)
+	cover.custom_minimum_size = Vector2(306, 172)
+	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(cover)
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", 6)
+	pad.add_theme_constant_override("margin_right", 6)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(pad)
+	var info := UI.vbox(4)
+	pad.add_child(info)
+	info.add_child(UI.label(L.field(p, "name"), 22, UI.TEXT, "black"))
+	var author: Dictionary = p.get("author", {})
+	var by := UI.hbox(6)
+	by.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	by.add_child(UI.label(L.t("by"), 15, UI.MUTED))
+	by.add_child(UI.name_row(author, 15, UI.MUTED, "bold"))
+	info.add_child(by)
+	var stats := UI.hbox(14)
+	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats.add_child(_stat_chip("heart", PlacePage.rating_text(p)))
+	stats.add_child(_stat_chip("users", L.t("n_playing", [int(p.playing)])))
+	info.add_child(stats)
+	UI.on_tap(c, on_open)
 	return c
+
+
+static func _stat_chip(icon: String, text: String) -> Control:
+	var h := UI.hbox(6)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(Icon.make(icon, 16, UI.MUTED))
+	h.add_child(UI.label(text, 15, UI.MUTED, "bold"))
+	return h
 
 
 func _render_friends(friends: Array) -> void:
@@ -203,18 +126,16 @@ func _render_friends(friends: Array) -> void:
 	_friends_section.visible = online.size() > 0
 	for f in online:
 		var c := UI.card(14, UI.CARD, 20)
-		c.custom_minimum_size.x = 250
+		c.custom_minimum_size.x = 260
 		var row := UI.hbox(12)
 		c.add_child(row)
 		row.add_child(UI.avatar_badge(f, 50))
 		var col := UI.vbox(2)
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var nl := UI.label(str(f.display_name), 18, UI.TEXT, "bold")
-		nl.clip_text = true
-		col.add_child(nl)
+		col.add_child(UI.name_row(f, 18))
 		var playing: Variant = f.get("playing")
 		if playing is Dictionary:
-			col.add_child(UI.label(L.t("on_playground"), 15, UI.MINT))
+			col.add_child(UI.label(L.t("playing_on", [L.field(playing, "server_name")]), 14, UI.MINT))
 			var join := UI.button(L.t("join"), "mint", 36)
 			join.add_theme_font_size_override("font_size", 16)
 			join.pressed.connect(func(): _menu().play(str(playing.server_id)))

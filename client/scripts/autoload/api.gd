@@ -6,6 +6,8 @@ const DEFAULT_URL := "https://meltiew.narez.xyz"
 const TIMEOUT_SEC := 12.0
 
 signal unauthorized
+## The server refused this app version; carries the download page URL.
+signal update_required(message: String, url: String)
 
 ## Override with `-- --server=http://127.0.0.1:7350` for local testing.
 var BASE_URL := DEFAULT_URL
@@ -22,7 +24,13 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	http.timeout = TIMEOUT_SEC
 	http.use_threads = OS.get_name() != "Web"
 	add_child(http)
-	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json", "X-Lang: " + L.lang])
+	var headers := PackedStringArray([
+		"Content-Type: application/json",
+		"Accept: application/json",
+		"X-Lang: " + L.lang,
+		"X-Client: app",
+		"X-Client-Version: " + version(),
+	])
 	if Session.token != "":
 		headers.append("Authorization: Bearer " + Session.token)
 	var methods := {
@@ -46,6 +54,8 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var data: Variant = JSON.parse_string(raw.get_string_from_utf8())
 	if typeof(data) != TYPE_DICTIONARY:
 		data = {}
+	if code == 426:
+		update_required.emit(str(data.get("message", "")), str(data.get("download", BASE_URL + "/download")))
 	if code == 401 and Session.token != "" and path != "/api/login":
 		unauthorized.emit()
 	if code >= 200 and code < 300:
@@ -57,9 +67,13 @@ func _fail(status: int, code: String, message: String) -> Dictionary:
 	return {"ok": false, "status": status, "error": code, "message": message, "data": {}}
 
 
+static func version() -> String:
+	return str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
+
+
 func avatar_url(user_id: int) -> String:
 	return "%s/api/avatar/%d.png" % [BASE_URL, user_id]
 
 
 func ws_url() -> String:
-	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode() + "&lang=" + L.lang
+	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode() + "&lang=" + L.lang + "&v=" + version()

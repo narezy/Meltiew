@@ -24,7 +24,8 @@ static func slider(parent: Control, title: String, key: String, lo: float, hi: f
 	s.value_changed.connect(func(x):
 		val.text = fmt.call(x)
 		Session.settings[key] = x
-		Session.apply_settings())
+		Session.apply_settings()
+		Session.settings_changed.emit())
 	s.drag_ended.connect(func(_c): Session.save_settings())
 	parent.add_child(s)
 	return s
@@ -59,6 +60,7 @@ static func toggle(parent: Control, title: String, key: String) -> CheckButton:
 	t.button_pressed = bool(Session.settings.get(key, false))
 	t.add_theme_font_size_override("font_size", 19)
 	t.focus_mode = Control.FOCUS_NONE
+	t.mouse_filter = Control.MOUSE_FILTER_PASS
 	t.toggled.connect(func(on):
 		Session.settings[key] = on
 		Session.save_settings())

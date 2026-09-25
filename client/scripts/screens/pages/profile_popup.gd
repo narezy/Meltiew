@@ -72,7 +72,7 @@ func _render(u: Dictionary) -> void:
 	var top := UI.hbox(10)
 	var names := UI.vbox(0)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	names.add_child(UI.label(str(u.display_name), 32, UI.TEXT, "black"))
+	names.add_child(UI.name_row(u, 32, UI.TEXT, "black"))
 	names.add_child(UI.label("@" + str(u.username), 18, UI.MUTED))
 	top.add_child(names)
 	var x := UI.button("", "ghost", 48)

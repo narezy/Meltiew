@@ -96,10 +96,16 @@ func attach_player(p: LocalPlayer) -> void:
 func apply_quality(q: String) -> void:
 	if _sun:
 		_sun.shadow_enabled = q != "low"
-		_sun.directional_shadow_max_distance = 45.0 if q == "medium" else 70.0
+		_sun.directional_shadow_max_distance = 35.0 if q == "medium" else 70.0
+		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if q == "medium" else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	if _env:
 		_env.glow_enabled = q == "high"
 		_env.fog_enabled = q != "low"
+		_env.adjustment_enabled = q != "low"
+	for c in _clouds:
+		c.visible = q != "low"
+	for b in _balloons:
+		b.visible = q != "low"
 
 
 # --- builder helpers --------------------------------------------------------

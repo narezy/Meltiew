@@ -3,6 +3,7 @@ import { GAMES, MAX_PLAYERS } from './game.js';
 import { BODY_PARTS, COLOR_RE, parseColors } from './colors.js';
 import { msg, pickLang } from './i18n.js';
 import fs from 'node:fs';
+import { createVersionGate, DOWNLOAD_PAGE, LATEST_CLIENT } from './version.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -65,6 +66,7 @@ export function clientIp(req) {
 
 export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
   fs.mkdirSync(renderDir, { recursive: true });
+  const gate = createVersionGate(db);
   const launches = new Map(); // userId -> { server, game, at }
   const authLimiter = new RateLimiter(20, 60_000);
   const writeLimiter = new RateLimiter(120, 60_000);
@@ -262,7 +264,23 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
   }
 
   const routes = {
-    'GET /api/health': () => ({ ok: true, users: q.countUsers.get().n, time: Date.now() }),
+    'GET /api/health': () => ({
+      ok: true,
+      users: q.countUsers.get().n,
+      time: Date.now(),
+      latest_client: LATEST_CLIENT,
+      min_client: gate.min(),
+      download: DOWNLOAD_PAGE,
+    }),
+
+    'POST /api/admin/min-version': (req, body) => {
+      const { user } = requireStaff(req);
+      if (user.role !== 'owner') throw new HttpError(403, 'forbidden');
+      const v = String(body.version ?? '').trim();
+      if (!/^\d+\.\d+\.\d+$/.test(v)) throw bad('bad_name');
+      gate.setMin(v);
+      return { min_client: gate.min() };
+    },
 
     'POST /api/register': async (req, body) => {
       if (!authLimiter.allow('reg:' + clientIp(req))) throw new HttpError(429, 'slow_down');
@@ -643,12 +661,22 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
         'access-control-allow-origin': '*',
-        'access-control-allow-headers': 'authorization, content-type, x-lang',
+        'access-control-allow-headers': 'authorization, content-type, x-lang, x-client, x-client-version',
         'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS',
       });
       res.end(body);
     };
     if (req.method === 'OPTIONS') return send(204, {});
+    // Outdated apps get a clear "please update" instead of half-working.
+    const ungated = url.pathname === '/api/health' || url.pathname.startsWith('/api/avatar/');
+    if (!ungated && !gate.allows(req.headers['x-client'], req.headers['x-client-version'])) {
+      return send(426, {
+        error: 'update_required',
+        message: msg('update_required', lang, { v: gate.min() }),
+        min_client: gate.min(),
+        download: DOWNLOAD_PAGE,
+      });
+    }
     let matchedPath = false;
     for (const r of compiled) {
       const m = r.re.exec(url.pathname);
@@ -679,5 +707,5 @@ export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNE
     return send(matchedPath ? 405 : 404, { error: 'not_found', message: msg('not_found', lang) });
   }
 
-  return { handle, userForToken, blockSet, friendSet, countVisit: (id) => pq.visit.run(id) };
+  return { handle, userForToken, blockSet, friendSet, countVisit: (id) => pq.visit.run(id), gate };
 }

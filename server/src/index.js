@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { openDb } from './db.js';
 import { createApi, clientIp } from './api.js';
-import { pickLang } from './i18n.js';
+import { pickLang, msg } from './i18n.js';
 import { GameHub } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -94,10 +94,16 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      const lang = url.searchParams.get('lang') === 'ru' ? 'ru' : pickLang(req);
+      if (!api.gate.allows('app', url.searchParams.get('v'))) {
+        ws.send(JSON.stringify({ t: 'kicked', code: 'update', m: msg('update_required', lang, { v: api.gate.min() }) }));
+        ws.close(4003, 'update');
+        return;
+      }
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
       log(`ws open ${auth.user.username} from ${clientIp(req)}`);
-      hub.attach(ws, auth.user, url.searchParams.get('lang') === 'ru' ? 'ru' : pickLang(req));
+      hub.attach(ws, auth.user, lang);
     });
   });
 

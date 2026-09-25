@@ -66,6 +66,7 @@ func _ready() -> void:
 	menu.reset_requested.connect(func(): player.die())
 	menu.leave_requested.connect(_confirm_leave)
 	menu.settings_changed.connect(_apply_quality)
+	Session.settings_changed.connect(_on_settings_changed)
 	_apply_quality()
 
 	Net.connected.connect(_on_connected)
@@ -77,23 +78,44 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	Net.close()
+	var vp := get_viewport()
+	vp.scaling_3d_scale = 1.0
+	Engine.max_fps = 0
 	get_tree().quit_on_go_back = true
 	get_tree().set_auto_accept_quit(true)
 
 
+var _applied_quality := ""
+
+
+func _on_settings_changed() -> void:
+	_apply_quality()
+	hud.set_stats(int(Engine.get_frames_per_second()), _ping_ms)
+
+
 func _apply_quality() -> void:
+	var q := str(Session.settings.quality)
+	if q == _applied_quality:
+		return
+	_applied_quality = q
 	var vp := get_viewport()
-	match str(Session.settings.quality):
+	match q:
 		"low":
-			vp.scaling_3d_scale = 0.7
+			vp.scaling_3d_scale = 0.6
 			vp.msaa_3d = Viewport.MSAA_DISABLED
+			player.camera.far = 140.0
+			Engine.max_fps = 40
 		"medium":
-			vp.scaling_3d_scale = 0.85
+			vp.scaling_3d_scale = 0.8
 			vp.msaa_3d = Viewport.MSAA_2X
+			player.camera.far = 400.0
+			Engine.max_fps = 60
 		_:
 			vp.scaling_3d_scale = 1.0
 			vp.msaa_3d = Viewport.MSAA_4X
-	world.apply_quality(str(Session.settings.quality))
+			player.camera.far = 700.0
+			Engine.max_fps = 60
+	world.apply_quality(q)
 
 
 func _notification(what: int) -> void:
@@ -181,6 +203,9 @@ func _on_message(m: Dictionary) -> void:
 					hud.add_chat("", L.t("sys_left", [m.get("n", "")]))
 				"slow":
 					hud.add_chat("", L.t("sys_slow"))
+				"admin":
+					hud.add_chat("Meltiew", str(m.get("m", "")), Color("#ffd166"))
+					hud.big_message(str(m.get("m", "")), 3.5)
 		"emote":
 			var id := int(m.id)
 			if remotes.has(id) and m.e == "heart":
@@ -200,8 +225,18 @@ func _on_message(m: Dictionary) -> void:
 				])
 		"kicked":
 			_leaving = true
-			hud.show_overlay(L.t("err_duplicate"), [[L.t("to_menu"), _leave]])
 			Net.close()
+			match str(m.get("code", "")):
+				"update":
+					UI.show_update_required(str(m.get("m", "")), Api.BASE_URL + "/download")
+				"banned":
+					hud.show_overlay(L.t("kicked_banned"), [[L.t("to_menu"), _leave]])
+				"kicked":
+					hud.show_overlay(L.t("kicked_admin"), [[L.t("to_menu"), _leave]])
+				"closed":
+					hud.show_overlay(L.t("server_closed"), [[L.t("to_menu"), _leave]])
+				_:
+					hud.show_overlay(L.t("err_duplicate"), [[L.t("to_menu"), _leave]])
 		"pong":
 			_ping_ms = Time.get_ticks_msec() - int(m.c)
 

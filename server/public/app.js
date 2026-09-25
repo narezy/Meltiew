@@ -84,6 +84,7 @@ async function api(method, path, body) {
     headers: {
       'content-type': 'application/json',
       'x-lang': state.lang,
+      'x-client': 'web',
       ...(state.token ? { authorization: 'Bearer ' + state.token } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,

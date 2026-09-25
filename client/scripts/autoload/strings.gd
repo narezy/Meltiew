@@ -53,7 +53,7 @@ const TABLE := {
 
 	# Home
 	"hello_name": ["Hi, {0}!", "Привет, {0}!"],
-	"home_sub": ["What are we playing today? One place for now, but it's a fun one.", "Во что сегодня играем? Пока выбор простой, но очень весёлый."],
+	"home_sub": ["What are we playing today?", "Во что сегодня играем?"],
 	"friends_online": ["Friends online", "Друзья онлайн"],
 	"servers_title": ["Playground servers", "Серверы площадки"],
 	"new_server": ["New server", "Новый сервер"],
@@ -219,6 +219,26 @@ const TABLE := {
 	"emote_sit": ["Sit", "Сесть"],
 	"emote_clap": ["Clap", "Хлопать"],
 	"emote_laugh": ["Laugh", "Смех"],
+
+	"places": ["Places", "Плейсы"],
+	"by": ["by", "от"],
+	"n_playing": ["{0} playing", "играют: {0}"],
+	"n_visits": ["{0} visits", "посещений: {0}"],
+	"rating": ["{0} liked", "{0} лайков"],
+	"back": ["Back", "Назад"],
+	"loading": ["Loading...", "Загрузка..."],
+	"about_place": ["About", "Описание"],
+	"created_on": ["Created {0}", "Создан {0}"],
+	"play_hint": ["Play puts you on a server with your friends if any are playing.", "«Играть» закинет тебя на сервер к друзьям, если они играют."],
+	"update_title": ["Time to update", "Пора обновиться"],
+	"update_body": ["A new version of Meltiew is out. Download it to keep playing.", "Вышла новая версия Meltiew. Скачай её, чтобы играть дальше."],
+	"update_button": ["Download update", "Скачать обновление"],
+	"your_version": ["Your version: {0}", "Твоя версия: {0}"],
+	"kicked_banned": ["Your account was banned", "Твой аккаунт заблокирован"],
+	"kicked_admin": ["An admin removed you from the server", "Админ выгнал тебя с сервера"],
+	"server_closed": ["This server was closed", "Этот сервер закрыли"],
+	"role_owner": ["OWNER", "ОВНЕР"],
+	"role_admin": ["ADMIN", "АДМИН"],
 
 	# World signs
 	"sign_trampolines": ["trampolines", "батуты"],

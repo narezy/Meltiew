@@ -68,6 +68,7 @@ func _ready() -> void:
 	_toast_box.add_theme_constant_override("separation", 8)
 	_fade_layer.add_child(_toast_box)
 	Api.unauthorized.connect(_on_unauthorized)
+	Api.update_required.connect(show_update_required)
 
 
 func _on_unauthorized() -> void:
@@ -77,6 +78,53 @@ func _on_unauthorized() -> void:
 	Session.clear()
 	toast(L.t("session_expired"), "error")
 	goto("res://scenes/auth.tscn")
+
+
+var _update_layer: CanvasLayer
+
+
+## Full-screen, non-dismissable "please update" screen for outdated app versions.
+func show_update_required(message: String, url: String) -> void:
+	if _update_layer:
+		return
+	Net.close()
+	_update_layer = CanvasLayer.new()
+	_update_layer.layer = 120
+	add_child(_update_layer)
+	var bg := ColorRect.new()
+	bg.theme = theme
+	bg.color = BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_update_layer.add_child(bg)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.add_child(center)
+	var v := vbox(18)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(v)
+	var mark := TextureRect.new()
+	mark.texture = load("res://assets/logo_mark.png")
+	mark.custom_minimum_size = Vector2(110, 110)
+	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(mark)
+	var title := label(L.t("update_title"), 34, TEXT, "black")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	var body := label(message if message != "" else L.t("update_body"), 20, MUTED)
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size.x = 560
+	v.add_child(body)
+	var b := button(L.t("update_button"), "primary", 60)
+	b.custom_minimum_size.x = 300
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.pressed.connect(func(): OS.shell_open(url))
+	v.add_child(b)
+	var ver := label(L.t("your_version", [Api.version()]), 15, MUTED)
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(ver)
 
 
 # --- scene flow -------------------------------------------------------------
@@ -166,6 +214,7 @@ func input(placeholder: String, secret := false) -> LineEdit:
 
 func card(pad := 20, color := CARD, radius := 22) -> PanelContainer:
 	var p := PanelContainer.new()
+	p.mouse_filter = Control.MOUSE_FILTER_PASS
 	p.add_theme_stylebox_override("panel", _box(color, radius, pad, pad))
 	return p
 
@@ -446,3 +495,28 @@ func on_tap(c: Control, cb: Callable) -> void:
 				start[0] = e.global_position
 			elif e.global_position.distance_to(start[0]) < 14.0:
 				cb.call())
+
+
+## Small colored chip for staff roles ("OWNER", "ADMIN"); null for everyone else.
+func role_badge(u: Dictionary, size := 13) -> Control:
+	var role := str(u.get("role", "user"))
+	if role != "owner" and role != "admin":
+		return null
+	var l := label(L.t("role_" + role), size, INK, "black")
+	var sb := _box(Color("#ffd166") if role == "owner" else MINT, 8, 7, 1)
+	l.add_theme_stylebox_override("normal", sb)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## Display name with the role badge next to it.
+func name_row(u: Dictionary, size := 20, color := TEXT, weight := "bold") -> HBoxContainer:
+	var row := hbox(8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var n := label(str(u.get("display_name", "?")), size, color, weight)
+	row.add_child(n)
+	var badge := role_badge(u, maxi(11, size - 7))
+	if badge:
+		row.add_child(badge)
+	return row

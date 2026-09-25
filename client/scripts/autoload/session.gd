@@ -10,6 +10,8 @@ const DEFAULT_COLORS := {
 }
 
 signal user_changed
+## Emitted whenever a setting changes, so open screens can apply it right away.
+signal settings_changed
 
 var token := ""
 var user: Dictionary = {}
@@ -61,6 +63,7 @@ func save_settings() -> void:
 		s.set_value("settings", key, settings[key])
 	s.save(SETTINGS_FILE)
 	apply_settings()
+	settings_changed.emit()
 
 
 func apply_settings() -> void:

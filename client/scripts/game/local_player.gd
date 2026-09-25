@@ -22,8 +22,6 @@ const MAX_FALL := 50.0
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER := 0.14
 const TURN_SPEED := 9.0
-const SAFE_IMPACT := 21.0
-const DAMAGE_PER_MS := 5.0
 const RESPAWN_DELAY := 3.0
 const EYE_HEIGHT := 1.62
 
@@ -233,8 +231,6 @@ func _physics_process(delta: float) -> void:
 	var now_floor := is_on_floor()
 	if now_floor and not _was_on_floor:
 		landed.emit(_fall_speed)
-		if _fall_speed > SAFE_IMPACT:
-			take_damage((_fall_speed - SAFE_IMPACT) * DAMAGE_PER_MS)
 		_fall_speed = 0.0
 	_was_on_floor = now_floor
 

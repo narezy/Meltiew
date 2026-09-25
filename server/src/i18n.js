@@ -24,6 +24,7 @@ export const MESSAGES = {
   forbidden: ["You don't have access to this", 'Нет доступа'],
   kicked: ['You were removed from the server by an admin', 'Админ выгнал тебя с сервера'],
   no_place: ['Place not found', 'Плейс не найден'],
+  update_required: ['A new Meltiew is out ({v}). Please update the app.', 'Вышла новая версия Meltiew ({v}). Обнови приложение.'],
   internal: ['Something broke on the server', 'Что-то сломалось на сервере'],
   not_found: ['No such endpoint', 'Нет такого метода'],
   // Game socket

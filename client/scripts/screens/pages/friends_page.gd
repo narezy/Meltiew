@@ -162,7 +162,7 @@ func _row(u: Dictionary, relation: String) -> Control:
 	var col := UI.vbox(2)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var name_row := UI.hbox(8)
-	name_row.add_child(UI.label(str(u.display_name), 20, UI.TEXT, "bold"))
+	name_row.add_child(UI.name_row(u, 20))
 	name_row.add_child(UI.label("@" + str(u.username), 16, UI.MUTED))
 	col.add_child(name_row)
 	var st := status_text(u)

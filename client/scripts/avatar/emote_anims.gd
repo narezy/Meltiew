@@ -12,6 +12,25 @@ static func install(ap: AnimationPlayer) -> void:
 	for spec in [_dance(), _cheer(), _sit(), _clap(), _laugh()]:
 		if not lib.has_animation(spec.name):
 			lib.add_animation(spec.name, _build(spec))
+	# The imported clips never key the torso position (and some skip bones), so after
+	# an emote like Sit the pose would stick. Give every clip explicit rest keys.
+	for clip in ["Idle", "Walk", "Jump", "Wave"]:
+		if lib.has_animation(clip):
+			_complete(lib.get_animation(clip))
+
+
+static func _complete(a: Animation) -> void:
+	for bone in ["Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]:
+		var path := NodePath("Melly/Skeleton3D:" + bone)
+		if a.find_track(path, Animation.TYPE_ROTATION_3D) == -1:
+			var t := a.add_track(Animation.TYPE_ROTATION_3D)
+			a.track_set_path(t, path)
+			a.rotation_track_insert_key(t, 0.0, Quaternion.IDENTITY)
+	var torso := NodePath("Melly/Skeleton3D:Torso")
+	if a.find_track(torso, Animation.TYPE_POSITION_3D) == -1:
+		var tp := a.add_track(Animation.TYPE_POSITION_3D)
+		a.track_set_path(tp, torso)
+		a.position_track_insert_key(tp, 0.0, TORSO_REST)
 
 
 static func q(x := 0.0, y := 0.0, z := 0.0) -> Quaternion:

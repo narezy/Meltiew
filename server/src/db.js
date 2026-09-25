@@ -60,6 +60,12 @@ export function openDb(file) {
       created_at      INTEGER NOT NULL
     );
 
+    -- Small key/value store for runtime settings (e.g. the minimum app version).
+    CREATE TABLE IF NOT EXISTS config (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS place_votes (
       place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
       user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

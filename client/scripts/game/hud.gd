@@ -120,10 +120,16 @@ func _ready() -> void:
 	tr.add_child(chat_btn)
 	_blockers.append(tr)
 
-	_stats_label = UI.label("", 14, UI.MUTED)
-	_stats_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_stats_label.offset_top = -28
-	_stats_label.offset_left = 20
+	# FPS/ping readout, top center where no control ever covers it.
+	_stats_label = UI.label("", 15, UI.TEXT, "bold")
+	_stats_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_stats_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_stats_label.offset_top = 12
+	_stats_label.offset_bottom = 36
+	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_stats_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	_stats_label.add_theme_constant_override("outline_size", 6)
+	_stats_label.visible = bool(Session.settings.show_fps)
 	_root.add_child(_stats_label)
 
 	_toast_big = UI.label("", 34, UI.TEXT, "black")
@@ -147,7 +153,9 @@ func _ready() -> void:
 	jump_btn.pressed_down.connect(func():
 		if player:
 			player.request_jump())
-	emote_btn.pressed_down.connect(func(): wheel.open())
+	emote_btn.pressed_down.connect(func():
+		release_touches()
+		wheel.open())
 	if not DisplayServer.is_touchscreen_available():
 		jump_btn.visible = false
 		var hint := UI.label(L.t("desktop_hint"), 14, Color(1, 1, 1, 0.75))
@@ -351,7 +359,14 @@ func _blocked(pos: Vector2) -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	if player == null or _overlay.visible or wheel.visible:
+	if player == null:
+		return
+	# Finger releases must always reach the buttons and joystick, even while the
+	# emote wheel or an overlay is open, or they'd stay "held" forever.
+	if event is InputEventScreenTouch and not event.pressed:
+		_touch(event)
+		return
+	if _overlay.visible or wheel.visible:
 		return
 	if event is InputEventScreenTouch:
 		_touch(event)
@@ -423,6 +438,7 @@ func _desktop(event: InputEvent) -> void:
 				toggle_chat()
 				get_viewport().set_input_as_handled()
 			KEY_B, KEY_G:
+				release_touches()
 				wheel.open()
 			KEY_V:
 				player.toggle_first_person()

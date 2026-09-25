@@ -159,14 +159,30 @@ func _refresh_me() -> void:
 	_me_box.add_child(UI.avatar_badge(u, 44))
 	var col := UI.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name := UI.label(str(u.get("display_name", "")), 18, UI.TEXT, "bold")
-	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name.clip_text = true
-	col.add_child(name)
+	col.add_child(UI.name_row(u, 18))
 	var handle := UI.label("@" + str(u.get("username", "")), 15, UI.MUTED)
 	handle.clip_text = true
 	col.add_child(handle)
 	_me_box.add_child(col)
+
+
+var _open_place_id := "playground"
+
+
+func open_place(id: String) -> void:
+	_open_place_id = id
+	_page_id = ""
+	open_page("place")
+	# Places live under Home in the sidebar.
+	_highlight("home")
+
+
+func _highlight(id: String) -> void:
+	for pid in _nav_buttons:
+		var on: bool = pid == id
+		_nav_buttons[pid].button_pressed = on
+		_nav_icons[pid][0].color = UI.ACCENT if on else UI.MUTED
+		_nav_icons[pid][1].add_theme_color_override("font_color", UI.TEXT if on else UI.MUTED)
 
 
 func open_page(id: String) -> void:
@@ -175,12 +191,9 @@ func open_page(id: String) -> void:
 			_page.refresh()
 		return
 	_page_id = id
-	last_page = id
-	for pid in _nav_buttons:
-		var on: bool = pid == id
-		_nav_buttons[pid].button_pressed = on
-		_nav_icons[pid][0].color = UI.ACCENT if on else UI.MUTED
-		_nav_icons[pid][1].add_theme_color_override("font_color", UI.TEXT if on else UI.MUTED)
+	if id != "place":
+		last_page = id
+	_highlight(id)
 	if _page:
 		_page.queue_free()
 	match id:
@@ -190,6 +203,9 @@ func open_page(id: String) -> void:
 			_page = AvatarPage.new()
 		"settings":
 			_page = SettingsPage.new()
+		"place":
+			_page = PlacePage.new()
+			_page.place_id = _open_place_id
 		_:
 			_page = HomePage.new()
 	_page.set_meta("menu", self)
