@@ -253,7 +253,7 @@ const icon = (name, size = 22) => `<svg class="ic" width="${size}" height="${siz
 const TELEGRAM = 'https://t.me/meltiew';
 
 // Unread messages and friend requests, shown as badges in the navigation.
-const counts = { friends: 0, messages: 0 };
+const counts = { friends: 0, messages: 0, social: 0 };
 function paintBadges() {
   document.querySelectorAll('[data-count]').forEach((el) => {
     const n = counts[el.dataset.count] || 0;
@@ -267,15 +267,18 @@ async function pollCounts() {
     const n = await api('GET', '/api/notifications');
     counts.friends = n.friend_requests;
     counts.messages = n.dm_unread + n.dm_requests;
+    counts.social = counts.friends + counts.messages;
     paintBadges();
   } catch {}
 }
 setInterval(pollCounts, 15000);
 
 function renderNav(path) {
-  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends'], ['/messages', 'messages']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
-  const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/') : path.startsWith(href));
-  const count = (key) => (key === 'friends' || key === 'messages' ? `<b class="count" data-count="${key}" hidden></b>` : '');
+  // Friends and chats share one tab; its badge counts requests and unread messages together.
+  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/')
+    : href === '/friends' ? path.startsWith('/friends') || path.startsWith('/messages') : path.startsWith(href));
+  const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>' : '');
   $('#nav').innerHTML = `
     <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
     <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${t(key)}${count(key)}</a>`).join('')}</div>
@@ -289,8 +292,7 @@ function renderNav(path) {
   $('#langsel').addEventListener('change', (e) => setLang(e.target.value));
   // Phones get an app-style tab bar at the bottom instead of a row of links.
   const bar = $('#tabbar');
-  const tabs = state.me ? links.filter(([href]) => href !== '/download') : links;
-  bar.innerHTML = tabs.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
+  bar.innerHTML = links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
   paintBadges();
 }
 
@@ -371,7 +373,7 @@ const pages = {
 
   async '/friends'(root) {
     if (!state.me) return go('/login');
-    root.innerHTML = `<h1>${t('friends')}</h1>
+    root.innerHTML = `${socialHeader('friends')}
       <input id="q" placeholder="${t('search')}" autocomplete="off">
       <div class="tabs" style="margin:16px 0">${['friends', 'incoming', 'outgoing'].map((k, i) => `<button data-tab="${k}" class="${i === 0 ? 'on' : ''}">${t(['my_friends', 'requests', 'sent'][i])}</button>`).join('')}</div>
       <div class="stack" id="list">${'<div class="card row"><i class="skel" style="width:52px;height:52px;border-radius:50%"></i><span class="grow stack" style="gap:8px"><i class="skel" style="width:40%"></i><i class="skel" style="width:25%"></i></span></div>'.repeat(4)}</div>`;
@@ -542,7 +544,7 @@ async function profilePage(root, username) {
     else if (!r.friends.length) box.innerHTML = `<div class="empty">${t('no_friends_short')}</div>`;
     else box.innerHTML = `<div class="carousel wrap">${r.friends.map(friendChip).join('')}</div>`;
   }).catch(() => {});
-  $('#dm')?.addEventListener('click', () => { state.dmOpen = u; go('/messages'); });
+  $('#dm')?.addEventListener('click', () => { state.dmOpen = u; go('/friends/chats'); });
   $('#report')?.addEventListener('click', () => reportDialog(u));
   root.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', async () => {
     try {
@@ -907,10 +909,19 @@ async function placePage(root, id) {
 
 // --- direct messages -------------------------------------------------------------
 
+// Friends and chats are one section on the website: a switch on top of both pages.
+function socialHeader(active) {
+  return `<div class="row social-head"><h1 class="grow" style="margin:0">${t('friends')}</h1>
+    <div class="segment">
+      <a href="/friends/chats" data-link class="${active === 'chats' ? 'on' : ''}">${icon('messages', 18)}${t('chats')}<b class="count" data-count="messages" hidden></b></a>
+      <a href="/friends" data-link class="${active === 'friends' ? 'on' : ''}">${icon('friends', 18)}${t('friends')}<b class="count" data-count="friends" hidden></b></a>
+    </div></div>`;
+}
+
 async function messagesPage(root) {
-  if (!state.me) { sessionStorage.setItem('after_login', '/messages'); return go('/login'); }
-  root.innerHTML = `<div class="dm">
-    <div class="dm-side stack"><h1 style="margin:0">${t('messages')}</h1>
+  if (!state.me) { sessionStorage.setItem('after_login', '/friends/chats'); return go('/login'); }
+  root.innerHTML = `${socialHeader('chats')}<div class="dm">
+    <div class="dm-side stack">
       <div class="tabs"><button data-tab="chats" class="on">${t('chats')}</button><button data-tab="requests">${t('dm_requests')}</button></div>
       <div class="stack dm-list" id="convs"><div class="loader"><i></i></div></div></div>
     <div class="card dm-pane" id="pane"><div class="empty dm-empty">${icon('messages', 44)}<br>${t('pick_chat')}</div></div></div>`;
@@ -1161,7 +1172,7 @@ async function render() {
   const root = $('#app');
   root.innerHTML = '<div class="loader"><i></i></div>';
   try {
-    if (path.startsWith('/messages')) await messagesPage(root);
+    if (path.startsWith('/messages') || path.startsWith('/friends/chats')) await messagesPage(root);
     else if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));
     else if (path.startsWith('/place/')) await placePage(root, decodeURIComponent(path.slice(7)));
     else if (path === '/admin') await adminPage(root);

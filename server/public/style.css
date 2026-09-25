@@ -219,7 +219,7 @@ label.radio input { width: auto; accent-color: var(--accent); }
 input[type="date"] { color-scheme: dark; }
 
 /* Messages */
-.dm { display: grid; grid-template-columns: 320px 1fr; gap: 18px; height: calc(100vh - 190px); min-height: 460px; }
+.dm { display: grid; grid-template-columns: 320px 1fr; gap: 18px; height: calc(100vh - 250px); min-height: 460px; }
 .dm-side { min-height: 0; }
 .dm-list { overflow-y: auto; min-height: 0; flex: 1; padding-right: 4px; }
 .conv { width: 100%; padding: 12px; border: 0; color: var(--text); text-align: left; gap: 12px; border-radius: 18px; }
@@ -295,3 +295,11 @@ input[type="date"] { color-scheme: dark; }
 @keyframes pulse { 50% { opacity: .45; } }
 input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transparent 40%); background-repeat: no-repeat;
   background-size: 14px 14px; background-position: right 14px center; animation: pulse 0.8s ease-in-out infinite; }
+
+/* Friends + chats switch */
+.social-head { flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+.segment { display: flex; background: var(--bg2); border-radius: 16px; padding: 4px; gap: 4px; }
+.segment a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; color: var(--muted); font-weight: 800; }
+.segment a.on { background: var(--accent); color: var(--ink); }
+.segment a.on .count { background: var(--ink); color: var(--accent); }
+@media (max-width: 760px) { .segment { width: 100%; } .segment a { flex: 1; justify-content: center; } }
