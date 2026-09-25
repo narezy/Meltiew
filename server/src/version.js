@@ -1,7 +1,7 @@
 // App version gate: clients older than the minimum are turned away with 426.
 // The minimum defaults to the release this server ships with and can be raised
 // at runtime from the admin panel (stored in the config table).
-export const LATEST_CLIENT = '1.4.0';
+export const LATEST_CLIENT = '1.4.1';
 export const DOWNLOAD_PAGE = 'https://meltiew.narez.xyz/download';
 
 export function compareVersions(a, b) {
