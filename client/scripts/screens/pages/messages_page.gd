@@ -131,7 +131,7 @@ func _render_list() -> void:
 		col.add_child(prev)
 		row.add_child(col)
 		if int(conv.unread) > 0:
-			var badge := UI.label(str(conv.unread), 14, UI.INK, "black")
+			var badge := UI.label(str(int(conv.unread)), 14, UI.INK, "black")
 			var sb := StyleBoxFlat.new()
 			sb.bg_color = UI.PINK
 			sb.set_corner_radius_all(11)

@@ -172,7 +172,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       playing: hub.playerCount(p.id),
       max_players: studio ? p.max_players : MAX_PLAYERS,
       author: author
-        ? { id: author.id, username: author.username, display_name: author.display_name, role: author.role, render: author.render_hash }
+        ? authorCard(author)
         : { id: 0, username: p.author_username, display_name: p.author_username, role: 'owner', render: '' },
     };
   }
@@ -219,17 +219,24 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     return { online: Date.now() - u.last_seen < ONLINE_WINDOW_MS, playing: null };
   }
 
+  // What an avatar looks like: enough for the app to draw a portrait or a character.
+  function lookOf(u) {
+    return { colors: parseColors(u.colors), hat: u.hat, face: u.face || ':D', render: u.render_hash || '' };
+  }
+
+  /** A small author card (places, comments) that still draws the right avatar. */
+  function authorCard(u) {
+    return { id: u.id, username: u.username, display_name: u.display_name, role: u.role || 'user', ...lookOf(u) };
+  }
+
   function publicProfile(u, viewerId = null) {
     const out = {
       id: u.id,
       username: u.username,
       display_name: u.display_name,
       bio: u.bio,
-      colors: parseColors(u.colors),
-      hat: u.hat,
-      render: u.render_hash || '',
+      ...lookOf(u),
       role: u.role || 'user',
-      face: u.face || ':D',
       created_at: u.created_at,
       friends: q.countFriends.get(u.id, u.id).n,
       ...presence(u),
@@ -923,7 +930,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
   Object.assign(
     routes,
-    createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, isFriend, placeView, pickLang }),
+    createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 
   const compiled = Object.entries(routes).map(([key, handler]) => {

@@ -502,7 +502,7 @@ func _apply_lighting() -> void:
 	var ambient := Color("#8d88a8")
 	var fog := true
 	var fog_color := Color("#d9ecff")
-	var fog_end := 220.0
+	var fog_end := 500.0
 	var shadows := true
 	if lid != "":
 		clock = float(tree.prop(lid, "ClockTime"))
@@ -558,7 +558,12 @@ func _apply_lighting() -> void:
 	_env.ambient_light_energy = 0.9 if day else 0.5
 	_env.fog_enabled = fog and _quality != "low"
 	_env.fog_light_color = fog_color
-	_env.fog_density = clampf(2.2 / maxf(fog_end, 10.0), 0.0005, 0.2)
+	# Linear, like FogStart/FogEnd: clear up close, fully fogged at FogEnd.
+	_env.fog_mode = Environment.FOG_MODE_DEPTH
+	_env.fog_density = 1.0
+	_env.fog_depth_begin = maxf(fog_end, 10.0) * 0.35
+	_env.fog_depth_end = maxf(fog_end, 10.0)
+	_env.fog_depth_curve = 1.0
 	_env.fog_sky_affect = 0.0
 
 

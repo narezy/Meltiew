@@ -124,15 +124,25 @@ static func _clap() -> Dictionary:
 	}
 
 
+## Giggle: one hand over the mouth, the other on the belly, a slight bend forward,
+## shoulders and head shaking in quick "ha-ha-ha" bursts. For the torso +X bends
+## forward (it grows up from its pivot); for arms -X swings them forward.
 static func _laugh() -> Dictionary:
-	var L := 0.45
+	var L := 1.2
+	var torso := []
+	var head := []
+	var arm_l := []
+	var arm_r := []
+	var steps := 12
+	for i in steps + 1:
+		var t := L * i / steps
+		var ha := 1.0 if i % 2 == 1 else 0.0  # every other key is a "ha"
+		var sway := sin(TAU * i / steps)
+		torso.append([t, q(0.1 + 0.06 * ha, sway * 0.1, sway * 0.04)])
+		head.append([t, q(0.08 + 0.08 * ha, sway * 0.12, 0.18)])
+		arm_l.append([t, q(-0.85 - 0.06 * ha, 0, -0.42)])
+		arm_r.append([t, q(-1.95 + 0.07 * ha, 0.35, 0.72)])
 	return {
 		"name": "Laugh", "length": L,
-		"rot": {
-			"Torso": [[0.0, q(-0.12, 0, 0)], [L * 0.5, q(-0.2, 0, 0)], [L, q(-0.12, 0, 0)]],
-			"Head": [[0.0, q(-0.35, 0, 0)], [L * 0.5, q(-0.5, 0, 0)], [L, q(-0.35, 0, 0)]],
-			"ArmL": [[0.0, q(-0.5, 0, -0.35)], [L * 0.5, q(-0.6, 0, -0.3)], [L, q(-0.5, 0, -0.35)]],
-			"ArmR": [[0.0, q(-0.5, 0, 0.35)], [L * 0.5, q(-0.6, 0, 0.3)], [L, q(-0.5, 0, 0.35)]],
-		},
-		"pos": [[0.0, TORSO_REST], [L * 0.5, TORSO_REST + Vector3(0, 0.08, 0)], [L, TORSO_REST]],
+		"rot": {"Torso": torso, "Head": head, "ArmL": arm_l, "ArmR": arm_r},
 	}

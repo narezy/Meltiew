@@ -13,7 +13,7 @@ const COVER_MAX_BYTES = 3 * 1024 * 1024;
 const MAX_PLACES_PER_USER = 50;
 
 export function createStudioRoutes(ctx) {
-  const { db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, isFriend, placeView, pickLang } = ctx;
+  const { db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang } = ctx;
   const q = {
     mine: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY updated_at DESC"),
     countMine: db.prepare("SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0"),
@@ -37,7 +37,7 @@ export function createStudioRoutes(ctx) {
     asset: db.prepare('SELECT * FROM assets WHERE id = ?'),
     insertAsset: db.prepare('INSERT INTO assets (id, owner_id, name, mime, size, width, height, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
     deleteAsset: db.prepare('DELETE FROM assets WHERE id = ?'),
-    comments: db.prepare(`SELECT c.*, u.username, u.display_name, u.role, u.render_hash FROM place_comments c JOIN users u ON u.id = c.user_id
+    comments: db.prepare(`SELECT c.*, u.username, u.display_name, u.role, u.render_hash, u.colors, u.hat, u.face FROM place_comments c JOIN users u ON u.id = c.user_id
       WHERE c.place_id = ? AND c.id < ? AND u.banned = 0 ORDER BY c.id DESC LIMIT 30`),
     comment: db.prepare('SELECT * FROM place_comments WHERE id = ?'),
     insertComment: db.prepare('INSERT INTO place_comments (place_id, user_id, body, created_at) VALUES (?, ?, ?, ?)'),
@@ -270,7 +270,7 @@ export function createStudioRoutes(ctx) {
         id: c.id,
         body: c.user_id !== user.id && rules.filter_dm ? filterText(c.body) : c.body,
         created_at: c.created_at,
-        author: { id: c.user_id, username: c.username, display_name: c.display_name, role: c.role, render: c.render_hash },
+        author: authorCard({ ...c, id: c.user_id }),
         can_delete: c.user_id === user.id || row.owner_id === user.id || isStaff(user),
       }));
       return { comments: list, enabled: !!row.comments_enabled || row.kind !== 'studio', can_post: chatRules(user.birthdate).chat };

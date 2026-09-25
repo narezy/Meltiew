@@ -36,11 +36,14 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var methods := {
 		"GET": HTTPClient.METHOD_GET,
 		"POST": HTTPClient.METHOD_POST,
+		"PUT": HTTPClient.METHOD_PUT,
 		"PATCH": HTTPClient.METHOD_PATCH,
 		"DELETE": HTTPClient.METHOD_DELETE,
 	}
+	# An unknown method must fail, not quietly turn into a GET that "succeeds".
+	assert(methods.has(method), "unsupported HTTP method " + method)
 	var payload := "" if body == null else JSON.stringify(body)
-	var err := http.request(BASE_URL + path, headers, methods.get(method, HTTPClient.METHOD_GET), payload)
+	var err := http.request(BASE_URL + path, headers, methods[method], payload)
 	if err != OK:
 		http.queue_free()
 		return _fail(0, "network", L.t("err_request"))

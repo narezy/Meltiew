@@ -415,8 +415,20 @@ const pages = {
       <div class="stack" id="list">${'<div class="card row"><i class="skel" style="width:52px;height:52px;border-radius:50%"></i><span class="grow stack" style="gap:8px"><i class="skel" style="width:40%"></i><i class="skel" style="width:25%"></i></span></div>'.repeat(4)}</div>`;
     let data = await api('GET', '/api/friends');
     let tab = 'friends';
-    const draw = (items, emptyKey) => {
-      $('#list').innerHTML = items.length ? items.map(userRow).join('') : `<div class="empty">${t(emptyKey)}</div>`;
+    const actions = (u) => (tab === 'incoming'
+      ? `<button class="btn small mint" data-fr="/api/friends/accept" data-uid="${u.id}">${t('accept')}</button><button class="btn small ghost" data-fr="/api/friends/remove" data-uid="${u.id}">${t('decline')}</button>`
+      : tab === 'outgoing' ? `<button class="btn small ghost" data-fr="/api/friends/remove" data-uid="${u.id}">${t('cancel_request')}</button>` : '');
+    const draw = (items, emptyKey, plain = false) => {
+      $('#list').innerHTML = items.length ? items.map((u) => userRow(u, plain ? '' : actions(u))).join('') : `<div class="empty">${t(emptyKey)}</div>`;
+      $('#list').querySelectorAll('[data-fr]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          await api('POST', b.dataset.fr, { user_id: Number(b.dataset.uid) });
+          data = await api('GET', '/api/friends');
+          show();
+          pollCounts();
+        } catch (e) { toast(e.message, 'error'); b.disabled = false; }
+      }));
     };
     const show = () => draw(data[tab], { friends: 'no_friends', incoming: 'no_requests', outgoing: 'no_sent' }[tab]);
     root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
@@ -432,7 +444,7 @@ const pages = {
         const q = $('#q').value.trim();
         if (q.length < 2) return show();
         const r = await api('GET', '/api/users/search?q=' + encodeURIComponent(q));
-        draw(r.users, 'nobody');
+        draw(r.users, 'nobody', true);
       }, 300);
     });
     root.addEventListener('refresh', async () => { data = await api('GET', '/api/friends'); show(); });
@@ -539,11 +551,12 @@ function authPage(root, mode) {
   });
 }
 
-function userRow(u) {
-  return `<div class="card row">${bust(u)}
+// `actions`: extra buttons, e.g. accepting or declining a friend request.
+function userRow(u, actions = '') {
+  return `<div class="card row user-row">${bust(u)}
     <div class="grow"><a href="/u/${encodeURIComponent(u.username)}" data-link><b>${nameHtml(u)}</b> <span class="muted">@${esc(u.username)}</span></a><div style="margin-top:6px">${status(u)}</div></div>
     ${u.playing ? `<button class="btn small mint" data-play="${esc(u.playing.server_id)}">${t('join')}</button>` : ''}
-    <a class="btn small ghost" href="/u/${encodeURIComponent(u.username)}" data-link>›</a></div>`;
+    ${actions || `<a class="btn small ghost" href="/u/${encodeURIComponent(u.username)}" data-link>›</a>`}</div>`;
 }
 
 async function profilePage(root, username) {

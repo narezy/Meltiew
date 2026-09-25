@@ -125,7 +125,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | SkyHorizon | Color3 | Color3.fromHex("#d9ecff") |  |
 | FogEnabled | bool | true |  |
 | FogColor | Color3 | Color3.fromHex("#d9ecff") |  |
-| FogEnd | number | 220 | min 10 |
+| FogEnd | number | 500 | min 10 |
 | Shadows | bool | true |  |
 
 ### ReplicatedStorage

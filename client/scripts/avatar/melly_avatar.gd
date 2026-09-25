@@ -22,6 +22,7 @@ const CLIPS := {
 	"clap": ["Clap", 1.0, 0.15],
 	"laugh": ["Laugh", 1.0, 0.15],
 }
+const LAUGH_FACE := "xD"
 const EMOTES := ["wave", "dance", "cheer", "sit", "clap", "laugh"]
 
 var anim_player: AnimationPlayer
@@ -89,7 +90,8 @@ func get_face() -> String:
 
 func _apply_face() -> void:
 	if _face_mat:
-		_face_mat.albedo_texture = Faces.texture(_face_id)
+		# Laughing borrows a laughing face; the chosen one comes back after.
+		_face_mat.albedo_texture = Faces.texture(LAUGH_FACE if _current == "laugh" else _face_id)
 
 
 func set_colors(colors: Dictionary) -> void:
@@ -126,7 +128,10 @@ func play(state: String) -> void:
 	# A one-shot wave keeps playing over "idle" until it finishes.
 	if _current == "wave" and state == "idle" and anim_player.is_playing():
 		return
+	var was := _current
 	_current = state
+	if was == "laugh" or state == "laugh":
+		_apply_face()
 	if state == "fall":
 		anim_player.play("Jump", 0.2, 1.0)
 		anim_player.seek(0.32, true)

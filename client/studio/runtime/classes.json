@@ -200,7 +200,7 @@
     },
     "FogEnd": {
      "type": "number",
-     "default": 220.0,
+     "default": 500.0,
      "min": 10
     },
     "Shadows": {

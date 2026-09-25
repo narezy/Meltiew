@@ -344,3 +344,9 @@ input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transp
   .tile b { font-size: 24px; }
   .studio-row img { width: 96px; }
 }
+@media (max-width: 760px) { .user-row { flex-wrap: wrap; } }
+/* Chats never grow the page: the grid row and both columns scroll inside. */
+.dm { grid-template-rows: minmax(0, 1fr); }
+.dm > * { min-height: 0; min-width: 0; }
+.conv .grow { min-width: 0; }
+.dm-pane .msgs { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
