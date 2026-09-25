@@ -1,10 +1,12 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { openDb } from './db.js';
 import { createApi, clientIp } from './api.js';
+import { pickLang } from './i18n.js';
 import { GameHub } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -37,22 +39,31 @@ function serveStatic(req, res) {
   }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) {
-      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Не найдено');
+      // Single-page site: extensionless paths (/play, /u/name) get the app shell.
+      if (!path.extname(rel)) {
+        const shell = path.join(PUBLIC_DIR, 'index.html');
+        res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache' });
+        fs.createReadStream(shell).pipe(res);
+        return;
+      }
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Not found');
       return;
     }
     res.writeHead(200, {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'content-length': st.size,
-      'cache-control': 'public, max-age=300',
+      'cache-control': path.extname(file) === '.html' ? 'no-cache' : 'public, max-age=300',
     });
     fs.createReadStream(file).pipe(res);
   });
 }
 
-export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE } = {}) {
+export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, renderDir } = {}) {
   const db = openDb(dbFile);
-  const hub = new GameHub({ log });
-  const api = createApi({ db, hub });
+  const renders = renderDir || (dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-renders-${process.pid}`) : path.join(path.dirname(dbFile), 'renders'));
+  let api;
+  const hub = new GameHub({ log, loadBlocks: (id) => api.blockSet(id) });
+  api = createApi({ db, hub, renderDir: renders });
 
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {
@@ -81,7 +92,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE } = {})
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
       log(`ws open ${auth.user.username} from ${clientIp(req)}`);
-      hub.attach(ws, auth.user);
+      hub.attach(ws, auth.user, url.searchParams.get('lang') === 'ru' ? 'ru' : pickLang(req));
     });
   });
 

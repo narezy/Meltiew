@@ -129,3 +129,58 @@ test('game servers cap at 10 players and sync state', async () => {
   a.close();
   b.close();
 });
+
+test('errors are localized by header', async () => {
+  const en = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"username":"alice","password":"nope"}' });
+  assert.equal((await en.json()).message, 'Wrong username or password');
+  const ru = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-lang': 'ru' }, body: '{"username":"alice","password":"nope"}' });
+  assert.equal((await ru.json()).message, 'Неверный логин или пароль');
+});
+
+test('blocking hides chat and prevents friend requests', async () => {
+  const a = await connect(users.alice);
+  a.send2({ t: 'join', server: 'new' });
+  const wa = await a.next((m) => m.t === 'welcome');
+  const b = await connect(users.bob);
+  b.send2({ t: 'join', server: wa.server.id });
+  await b.next((m) => m.t === 'welcome');
+  let r = await call('POST', '/api/blocks/add', { username: 'bob' }, users.alice);
+  assert.equal(r.data.relation, 'blocked');
+  b.send2({ t: 'chat', m: 'spam' });
+  a.send2({ t: 'chat', m: 'visible' });
+  const got = await a.next((m) => m.t === 'chat');
+  assert.equal(got.m, 'visible', 'blocked sender must be filtered');
+  r = await call('POST', '/api/friends/request', { username: 'alice' }, users.bob);
+  assert.equal(r.status, 403);
+  r = await call('GET', '/api/blocks', null, users.alice);
+  assert.equal(r.data.users[0].username, 'bob');
+  await call('POST', '/api/blocks/remove', { username: 'bob' }, users.alice);
+  assert.equal((await call('GET', '/api/blocks', null, users.alice)).data.users.length, 0);
+  a.close();
+  b.close();
+});
+
+test('launch queue is consumed once', async () => {
+  let r = await call('POST', '/api/launch', { server: 'nope' }, users.alice);
+  assert.equal(r.status, 404);
+  r = await call('POST', '/api/launch', { server: 'new' }, users.alice);
+  assert.equal(r.status, 200);
+  r = await call('GET', '/api/launch', null, users.alice);
+  assert.equal(r.data.launch.server, 'new');
+  r = await call('GET', '/api/launch', null, users.alice);
+  assert.equal(r.data.launch, null);
+});
+
+test('bust render upload is validated and served', async () => {
+  const bogus = await call('POST', '/api/me/render', { hash: 'abc', png: Buffer.from('hello').toString('base64') }, users.alice);
+  assert.equal(bogus.status, 400);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100)]);
+  const ok = await call('POST', '/api/me/render', { hash: 'abc123', png: png.toString('base64') }, users.alice);
+  assert.equal(ok.status, 200);
+  const me = await call('GET', '/api/me', null, users.alice);
+  assert.equal(me.data.user.render, 'abc123');
+  const img = await fetch(`${base}/api/avatar/${me.data.user.id}.png`);
+  assert.equal(img.headers.get('content-type'), 'image/png');
+  const missing = await fetch(`${base}/api/avatar/9999.png`, { redirect: 'manual' });
+  assert.equal(missing.status, 302);
+});

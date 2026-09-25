@@ -38,6 +38,21 @@ export function openDb(file) {
       PRIMARY KEY (from_id, to_id)
     );
     CREATE INDEX IF NOT EXISTS friendships_to ON friendships(to_id);
+
+    -- user_id no longer sees blocked_id (chat, requests).
+    CREATE TABLE IF NOT EXISTS blocks (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, blocked_id)
+    );
   `);
+  migrate(db);
   return db;
+}
+
+/** Additive migrations for databases created by older versions. */
+function migrate(db) {
+  const cols = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name));
+  if (!cols.has('render_hash')) db.exec("ALTER TABLE users ADD COLUMN render_hash TEXT NOT NULL DEFAULT ''");
 }
