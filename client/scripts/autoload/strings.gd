@@ -57,7 +57,7 @@ const TABLE := {
 	"hello_name": ["Hi, {0}!", "Привет, {0}!"],
 	"home_sub": ["What are we playing today?", "Во что сегодня играем?"],
 	"friends_online": ["Friends online", "Друзья онлайн"],
-	"servers_title": ["Playground servers", "Серверы площадки"],
+	"servers_title": ["Servers", "Серверы"],
 	"new_server": ["New server", "Новый сервер"],
 	"loading_servers": ["Loading servers...", "Загружаем серверы..."],
 	"featured_tag": ["FEATURED", "ИЗБРАННОЕ"],
@@ -403,4 +403,19 @@ const TABLE := {
 	"st_open": ["Open", "Открыть"],
 	"st_create": ["Create", "Создать"],
 	"st_delete_place_q": ["Delete this place?", "Удалить плейс?"],
+
+	# Place comments and reports
+	"comments": ["Comments", "Комментарии"],
+	"comments_off": ["The author turned comments off.", "Автор выключил комментарии."],
+	"comment_placeholder": ["Say something nice about this place", "Скажи что-нибудь хорошее про плейс"],
+	"comments_too_young": ["Comments open up at 13.", "Комментарии доступны с 13 лет."],
+	"no_comments": ["No comments yet. Be the first!", "Комментариев пока нет. Будь первым!"],
+	"load_more": ["Show more", "Показать ещё"],
+	"delete": ["Delete", "Удалить"],
+	"delete_comment_q": ["Delete this comment?", "Удалить комментарий?"],
+	"send": ["Send", "Отправить"],
+	"report_place_title": ["Report this place", "Пожаловаться на плейс"],
+	"report_comment_title": ["Report this comment", "Пожаловаться на комментарий"],
+	"report_place": ["Inappropriate place", "Неприемлемый плейс"],
+	"report_comment": ["Rude or spam", "Грубость или спам"],
 }

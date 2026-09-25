@@ -537,7 +537,8 @@ func name_row(u: Dictionary, size := 20, color := TEXT, weight := "bold") -> HBo
 
 
 ## Report dialog: pick a reason, optional details, sends to the admin queue.
-func report(parent: Node, u: Dictionary) -> void:
+## `about` = {"place_id": ...} or {"comment_id": ...} reports that instead of the player.
+func report(parent: Node, u: Dictionary, about := {}) -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 60
 	parent.add_child(layer)
@@ -554,13 +555,23 @@ func report(parent: Node, u: Dictionary) -> void:
 	center.add_child(c)
 	var v := vbox(12)
 	c.add_child(v)
-	v.add_child(label(L.t("report_title", [u.get("display_name", "")]), 24, TEXT, "black"))
-	var reason := ["chat"]
+	var title := L.t("report_title", [u.get("display_name", "")])
+	var reasons := ["chat", "name", "avatar", "cheating", "other"]
+	if about.has("place_id"):
+		title = L.t("report_place_title")
+		reasons = ["place", "name", "other"]
+	elif about.has("comment_id"):
+		title = L.t("report_comment_title")
+		reasons = ["comment", "chat", "other"]
+	var t := label(title, 24, TEXT, "black")
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(t)
+	var reason := [reasons[0]]
 	var chips := HFlowContainer.new()
 	chips.add_theme_constant_override("h_separation", 8)
 	chips.add_theme_constant_override("v_separation", 8)
 	v.add_child(chips)
-	for r in ["chat", "name", "avatar", "cheating", "other"]:
+	for r in reasons:
 		var b := button(L.t("report_" + r), "flat", 42)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -584,7 +595,9 @@ func report(parent: Node, u: Dictionary) -> void:
 	send.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	send.pressed.connect(func():
 		send.disabled = true
-		var r := await Api.request("POST", "/api/report", {"user_id": u.get("id"), "reason": reason[0], "details": details.text})
+		var body := {"user_id": u.get("id"), "reason": reason[0], "details": details.text}
+		body.merge(about)
+		var r := await Api.request("POST", "/api/report", body)
 		toast(str(r.data.get("message", L.t("done"))) if r.ok else r.message, "ok" if r.ok else "error")
 		layer.queue_free())
 	row.add_child(send)

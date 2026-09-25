@@ -12,6 +12,9 @@ var _place: Dictionary = {}
 var _root: VBoxContainer
 var _vote_box: HBoxContainer
 var _servers_box: VBoxContainer
+var _comments_box: VBoxContainer
+var _comments: Array = []
+var _comments_more := false
 var _stats_box: HFlowContainer
 var _cover: RoundedImage
 var _timer: Timer
@@ -145,6 +148,13 @@ func _build() -> void:
 	var hint := UI.label(L.t("play_hint"), 14, UI.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(hint)
+	if str(_place.get("kind", "")) == "studio" and int(author.get("id", 0)) != int(Session.user.get("id", -1)):
+		var rep := UI.button(L.t("report_place_title"), "flat", 36)
+		rep.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		rep.add_theme_color_override("font_color", UI.DANGER)
+		rep.add_theme_font_size_override("font_size", 15)
+		rep.pressed.connect(func(): UI.report(self, author, {"place_id": place_id}))
+		info.add_child(rep)
 
 	var about := UI.card(20, UI.CARD, 22)
 	var av := UI.vbox(8)
@@ -166,6 +176,9 @@ func _build() -> void:
 	_root.add_child(sh)
 	_servers_box = UI.vbox(10)
 	_root.add_child(_servers_box)
+	_comments_box = UI.vbox(10)
+	_root.add_child(_comments_box)
+	_load_comments()
 
 
 func _fetch_image(url: String, target: TextureRect) -> void:
@@ -328,3 +341,104 @@ func _server_row(s: Dictionary) -> Control:
 	join.pressed.connect(func(): _menu().play(str(s.id), place_id))
 	row.add_child(join)
 	return c
+
+
+# --- comments ------------------------------------------------------------------------
+
+func _load_comments(more := false) -> void:
+	var path := "/api/places/%s/comments" % place_id.uri_encode()
+	if more and not _comments.is_empty():
+		path += "?before=%d" % int(_comments[-1].id)
+	var r := await Api.request("GET", path)
+	if not is_inside_tree() or not r.ok:
+		return
+	var list: Array = r.data.comments
+	_comments = _comments + list if more else list
+	_comments_more = list.size() >= 30
+	_render_comments(bool(r.data.enabled), bool(r.data.can_post))
+
+
+func _render_comments(enabled: bool, can_post: bool) -> void:
+	for c in _comments_box.get_children():
+		c.queue_free()
+	_comments_box.add_child(UI.label(L.t("comments"), 24, UI.TEXT, "black"))
+	if not enabled:
+		_comments_box.add_child(UI.label(L.t("comments_off"), 17, UI.MUTED))
+		return
+	if can_post:
+		var row := UI.hbox(10)
+		var input := UI.input(L.t("comment_placeholder"))
+		input.max_length = 500
+		input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(input)
+		var send := UI.button(L.t("send"), "primary", 52)
+		row.add_child(send)
+		var post := func(_t = ""):
+			var text := input.text.strip_edges()
+			if text == "":
+				return
+			send.disabled = true
+			var r := await Api.request("POST", "/api/places/%s/comments" % place_id.uri_encode(), {"text": text})
+			send.disabled = false
+			if not r.ok:
+				UI.toast(r.message, "error")
+				return
+			_comments.push_front(r.data.comment)
+			_render_comments(enabled, can_post)
+		send.pressed.connect(post)
+		input.text_submitted.connect(post)
+		_comments_box.add_child(row)
+	else:
+		_comments_box.add_child(UI.label(L.t("comments_too_young"), 16, UI.MUTED))
+	if _comments.is_empty():
+		_comments_box.add_child(UI.label(L.t("no_comments"), 17, UI.MUTED))
+	for c in _comments:
+		_comments_box.add_child(_comment_row(c, enabled, can_post))
+	if _comments_more:
+		var more := UI.button(L.t("load_more"), "ghost", 44)
+		more.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		more.pressed.connect(func(): _load_comments(true))
+		_comments_box.add_child(more)
+
+
+func _comment_row(c: Dictionary, enabled: bool, can_post: bool) -> Control:
+	var card := UI.card(16, UI.CARD, 16)
+	var row := UI.hbox(12)
+	card.add_child(row)
+	var author: Dictionary = c.author
+	var badge := UI.avatar_badge(author, 40)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(badge)
+	UI.on_tap(badge, func(): _menu().show_profile(str(author.username)))
+	var col := UI.vbox(4)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var head := UI.hbox(8)
+	head.add_child(UI.name_row(author, 16))
+	head.add_child(UI.label(UI.relative_time(float(c.created_at)), 13, UI.MUTED))
+	col.add_child(head)
+	var body := UI.label(str(c.body), 16, UI.TEXT)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(body)
+	row.add_child(col)
+	var actions := UI.vbox(2)
+	if c.get("can_delete", false):
+		var del := UI.button(L.t("delete"), "flat", 32)
+		del.add_theme_font_size_override("font_size", 14)
+		del.pressed.connect(func():
+			if not await UI.confirm(self, L.t("delete_comment_q"), str(c.body).left(80), L.t("delete"), true):
+				return
+			var r := await Api.request("DELETE", "/api/places/%s/comments/%d" % [place_id.uri_encode(), int(c.id)])
+			if r.ok:
+				_comments.erase(c)
+				_render_comments(enabled, can_post)
+			else:
+				UI.toast(r.message, "error"))
+		actions.add_child(del)
+	if int(author.get("id", 0)) != int(Session.user.get("id", -1)):
+		var rep := UI.button(L.t("report"), "flat", 32)
+		rep.add_theme_font_size_override("font_size", 14)
+		rep.add_theme_color_override("font_color", UI.DANGER)
+		rep.pressed.connect(func(): UI.report(self, author, {"comment_id": int(c.id)}))
+		actions.add_child(rep)
+	row.add_child(actions)
+	return card
