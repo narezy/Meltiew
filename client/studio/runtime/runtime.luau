@@ -2012,7 +2012,7 @@ propHooks.Script = {
 propHooks.LocalScript = propHooks.Script
 
 ---------------------------------------------------------------------------
--- Building the tree from a place (.marp) and from the network
+-- Building the tree from a place (.melt) and from the network
 ---------------------------------------------------------------------------
 -- Place instance JSON: { c = class, n = name, p = { props }, k = { children } }
 local function buildFromPlace(node, parent)

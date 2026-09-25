@@ -5,7 +5,7 @@ import path from 'node:path';
 import { chatRules } from '../age.js';
 import { MAX_PLACE_PLAYERS } from '../game.js';
 import { filterText } from '../filter.js';
-import { VISIBILITIES, cleanI18n, decodeImage, templatePlace, validateMarp } from './places.js';
+import { VISIBILITIES, cleanI18n, decodeImage, templatePlace, validateMelt } from './places.js';
 
 export const ASSET_LIMIT_COUNT = 100;
 export const ASSET_LIMIT_BYTES = 25 * 1024 * 1024;
@@ -107,40 +107,44 @@ export function createStudioRoutes(ctx) {
       if (!writeLimiter.allow('studio:' + user.id)) throw new HttpError(429, 'slow_down');
       if (q.countMine.get(user.id).n >= MAX_PLACES_PER_USER) throw bad('too_many_places');
       const name = cleanText(body.name, 60) || 'My place';
-      let marp = templatePlace(name);
-      if (body.marp) {
+      let melt = templatePlace(name);
+      // Apps before 1.4.1 still send the place as `marp`.
+      body.melt ??= body.marp;
+      if (body.melt) {
         try {
-          marp = validateMarp(body.marp);
+          melt = validateMelt(body.melt);
         } catch (e) {
           throw new HttpError(400, 'bad_place', { r: e.reason || '' });
         }
-        marp.meta.name = name || marp.meta.name;
+        melt.meta.name = name || melt.meta.name;
       }
       const id = store.newId();
       const now = Date.now();
       q.insert.run(id, name, name, user.username, now, user.id, now);
-      store.write(id, marp);
-      q.saveMeta.run(name, marp.meta.i18n.name.ru || name, marp.meta.description, marp.meta.i18n.description.ru || marp.meta.description, JSON.stringify(marp.meta.i18n), now, id);
+      store.write(id, melt);
+      q.saveMeta.run(name, melt.meta.i18n.name.ru || name, melt.meta.description, melt.meta.i18n.description.ru || melt.meta.description, JSON.stringify(melt.meta.i18n), now, id);
       return { place: studioView(q.one.get(id), user, pickLang(req)) };
     },
 
     'GET /api/studio/places/:id': (req, _b, _u, params) => {
       const { user, row } = ownPlace(req, params.id);
-      return { place: studioView(row, user, pickLang(req)), marp: store.load(row.id) };
+      const melt = store.load(row.id);
+      return { place: studioView(row, user, pickLang(req)), melt, marp: melt }; // marp: for apps before 1.4.1
     },
 
-    // Saves the whole place. Name, description and their translations come from marp.meta.
+    // Saves the whole place. Name, description and their translations come from melt.meta.
     'PUT /api/studio/places/:id': (req, body, _u, params) => {
       const { user, row } = ownPlace(req, params.id);
       if (!writeLimiter.allow('studio:' + user.id)) throw new HttpError(429, 'slow_down');
-      let marp;
+      let melt;
+      body.melt ??= body.marp; // apps before 1.4.1
       try {
-        marp = validateMarp(body.marp);
+        melt = validateMelt(body.melt);
       } catch (e) {
         throw new HttpError(400, 'bad_place', { r: e.reason || '' });
       }
-      store.write(row.id, marp);
-      const m = marp.meta;
+      store.write(row.id, melt);
+      const m = melt.meta;
       q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
       return { place: studioView(q.one.get(row.id), user, pickLang(req)) };
     },
@@ -160,8 +164,8 @@ export function createStudioRoutes(ctx) {
       // Name, description and their translations (the website edits these without
       // the whole place): the place file's meta and the list columns move together.
       if (body.name !== undefined || body.description !== undefined || body.i18n !== undefined) {
-        const marp = store.load(row.id);
-        const m = marp.meta;
+        const melt = store.load(row.id);
+        const m = melt.meta;
         if (body.name !== undefined) {
           const name = cleanText(body.name, 60);
           if (name.length < 1) throw bad('bad_name');
@@ -171,7 +175,7 @@ export function createStudioRoutes(ctx) {
         if (body.i18n !== undefined) {
           m.i18n = { name: cleanI18n(body.i18n?.name), description: cleanI18n(body.i18n?.description) };
         }
-        store.write(row.id, marp);
+        store.write(row.id, melt);
         q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
       }
       return { place: studioView(q.one.get(row.id), user, pickLang(req)) };

@@ -34,8 +34,8 @@ var pending_server := "auto"
 var pending_game := "playground"
 ## Studio: the place being edited (id and its unsaved state), and the place being play-tested.
 var studio_place_id := ""
-var studio_marp: Dictionary = {}
-var test_marp: Dictionary = {}
+var studio_melt: Dictionary = {}
+var test_melt: Dictionary = {}
 
 
 func _ready() -> void:

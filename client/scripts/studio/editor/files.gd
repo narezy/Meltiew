@@ -1,6 +1,6 @@
 class_name StudioFiles
 extends RefCounted
-## Opening and saving files (images, .marp places) with the system dialog where
+## Opening and saving files (images, .melt places) with the system dialog where
 ## there is one (desktop, Android), Godot's own dialog otherwise.
 
 

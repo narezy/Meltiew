@@ -41,8 +41,8 @@ func _ready() -> void:
 	get_tree().quit_on_go_back = false
 	get_tree().set_auto_accept_quit(false)
 	_is_place = Session.pending_game != "playground"
-	if not Session.test_marp.is_empty():
-		net = LocalNet.new(Session.test_marp)
+	if not Session.test_melt.is_empty():
+		net = LocalNet.new(Session.test_melt)
 		add_child(net)
 	else:
 		net = Net
@@ -152,7 +152,7 @@ func _notification(what: int) -> void:
 	# "Play" on the website while already in a game: go there instead.
 	if what == NOTIFICATION_APPLICATION_RESUMED:
 		var launch := Launcher.take()
-		if not launch.is_empty() and Session.test_marp.is_empty():
+		if not launch.is_empty() and Session.test_melt.is_empty():
 			_leaving = true
 			net.close()
 			Api.request("GET", "/api/launch")
@@ -353,7 +353,7 @@ func _start_place(p: Dictionary) -> void:
 func _on_output(line: Dictionary) -> void:
 	console_lines.append(line)
 	# A Studio play test hands its output back to the editor.
-	if not Session.test_marp.is_empty():
+	if not Session.test_melt.is_empty():
 		var out: Array = Session.get_meta("test_output", [])
 		out.append(line)
 		Session.set_meta("test_output", out)
@@ -587,8 +587,8 @@ func _leave() -> void:
 	_leaving = true
 	net.close()
 	# A Studio play test goes back to the editor.
-	if not Session.test_marp.is_empty():
-		Session.test_marp = {}
+	if not Session.test_melt.is_empty():
+		Session.test_melt = {}
 		UI.goto("res://scenes/studio.tscn")
 		return
 	UI.goto("res://scenes/main_menu.tscn")

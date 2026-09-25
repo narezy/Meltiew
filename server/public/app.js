@@ -100,7 +100,7 @@ const T = {
     comments_too_young: 'Comments open up at 13.', no_comments: 'No comments yet. Be the first!', load_more: 'Show more', delete_comment_q: 'Delete this comment?',
     report_place: 'Report this place', report_comment: 'Report this comment', r_place: 'Inappropriate place', r_comment: 'Rude or spam comment',
     report_about_place: 'Place:', report_open_place: 'Open the place',
-    doc_start: 'Getting started', doc_scripting: 'Scripting', doc_ui: 'User interface', doc_strings: 'Translations', doc_marp: 'The .marp file', doc_classes: 'Class reference',
+    doc_start: 'Getting started', doc_scripting: 'Scripting', doc_ui: 'User interface', doc_strings: 'Translations', doc_melt: 'The .melt file', doc_classes: 'Class reference',
   },
   ru: {
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
@@ -173,7 +173,7 @@ const T = {
     comments_too_young: 'Комментарии доступны с 13 лет.', no_comments: 'Комментариев пока нет. Будь первым!', load_more: 'Показать ещё', delete_comment_q: 'Удалить комментарий?',
     report_place: 'Пожаловаться на плейс', report_comment: 'Пожаловаться на комментарий', r_place: 'Неприемлемый плейс', r_comment: 'Грубость или спам',
     report_about_place: 'Плейс:', report_open_place: 'Открыть плейс',
-    doc_start: 'С чего начать', doc_scripting: 'Скрипты', doc_ui: 'Интерфейс', doc_strings: 'Переводы', doc_marp: 'Файл .marp', doc_classes: 'Справочник классов',
+    doc_start: 'С чего начать', doc_scripting: 'Скрипты', doc_ui: 'Интерфейс', doc_strings: 'Переводы', doc_melt: 'Файл .melt', doc_classes: 'Справочник классов',
   },
 };
 
@@ -1156,7 +1156,7 @@ async function studioPage(root) {
 }
 
 // Studio docs: markdown files next to the site, rendered with marked.
-const DOC_PAGES = [['index', 'doc_start'], ['scripting', 'doc_scripting'], ['ui', 'doc_ui'], ['strings', 'doc_strings'], ['marp', 'doc_marp'], ['classes', 'doc_classes']];
+const DOC_PAGES = [['index', 'doc_start'], ['scripting', 'doc_scripting'], ['ui', 'doc_ui'], ['strings', 'doc_strings'], ['melt', 'doc_melt'], ['classes', 'doc_classes']];
 let markedLib = null;
 async function docsPage(root, page) {
   if (!DOC_PAGES.some(([p]) => p === page)) page = 'index';

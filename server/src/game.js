@@ -70,7 +70,7 @@ export class GameHub {
    * @param {(userId:number)=>Set<number>} [opts.loadBlocks] ids this user has blocked
    */
   /**
-   * @param {object} [opts.places] studio places: { load(id) -> marp, row(id), canJoin(user, id), visit(id, userId), playtime(id, userId, ms) }
+   * @param {object} [opts.places] studio places: { load(id) -> melt, row(id), canJoin(user, id), visit(id, userId), playtime(id, userId, ms) }
    */
   constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {}, places = null, onCheat = () => {} } = {}) {
     this.servers = new Map(); // id -> server
@@ -101,13 +101,13 @@ export class GameHub {
   /** A server for a studio place: its own sandboxed Luau VM running the place's scripts. */
   async createPlaceServer(placeId) {
     const row = this.places.row(placeId);
-    const marp = this.places.load(placeId);
-    if (!row || !marp) throw new Error('no place');
+    const melt = this.places.load(placeId);
+    if (!row || !melt) throw new Error('no place');
     const vm = await PlaceVM.create();
     let id;
     do id = crypto.randomBytes(3).toString('hex'); while (this.servers.has(id));
     this.nameCounter += 1;
-    const starter = (marp.tree.k || []).find((n) => n.c === 'StarterPlayer')?.p || {};
+    const starter = (melt.tree.k || []).find((n) => n.c === 'StarterPlayer')?.p || {};
     const server = {
       id,
       game: placeId,
@@ -121,7 +121,7 @@ export class GameHub {
       ownerId: row.owner_id,
       chat: starter.ChatEnabled !== false,
       emotes: starter.EmotesEnabled !== false,
-      strings: marp.strings || {},
+      strings: melt.strings || {},
       vm,
       inbox: [],
       shared: [],
@@ -132,7 +132,7 @@ export class GameHub {
       lastStep: Date.now(),
     };
     this.servers.set(id, server);
-    this.routeOps(server, vm.init({ role: 'server', place: marp, seed: crypto.randomInt(1 << 30) }));
+    this.routeOps(server, vm.init({ role: 'server', place: melt, seed: crypto.randomInt(1 << 30) }));
     this.routeOps(server, vm.start());
     this.log(`place server ${id} created for ${placeId}`);
     return server;

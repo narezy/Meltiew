@@ -176,8 +176,8 @@ func remove(id: String) -> void:
 
 # --- place files -------------------------------------------------------------------
 
-## Loads a .marp tree ({c, n, p, k}), giving every instance a fresh id with `prefix`.
-func load_marp_tree(tree: Dictionary, prefix := "e") -> void:
+## Loads a .melt tree ({c, n, p, k}), giving every instance a fresh id with `prefix`.
+func load_melt_tree(tree: Dictionary, prefix := "e") -> void:
 	var counter := [0]
 	for ch in tree.get("k", []):
 		_load_node(ch, ROOT, prefix, counter)
@@ -192,8 +192,8 @@ func _load_node(n: Dictionary, parent: String, prefix: String, counter: Array) -
 	return id
 
 
-## Serializes a subtree back to .marp form, leaving out values equal to defaults.
-func to_marp_node(id: String) -> Dictionary:
+## Serializes a subtree back to .melt form, leaving out values equal to defaults.
+func to_melt_node(id: String) -> Dictionary:
 	var n: Dictionary = nodes[id]
 	var out := {"c": n.c, "n": n.n}
 	var props := {}
@@ -205,14 +205,14 @@ func to_marp_node(id: String) -> Dictionary:
 		out["p"] = props
 	var ks: Array = []
 	for k in n.kids:
-		ks.append(to_marp_node(k))
+		ks.append(to_melt_node(k))
 	if not ks.is_empty():
 		out["k"] = ks
 	return out
 
 
-func to_marp_tree() -> Dictionary:
+func to_melt_tree() -> Dictionary:
 	var ks: Array = []
 	for k in kids(ROOT):
-		ks.append(to_marp_node(k))
+		ks.append(to_melt_node(k))
 	return {"c": "DataModel", "k": ks}

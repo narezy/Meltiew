@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { startServer } from '../src/index.js';
 import { LATEST_CLIENT } from '../src/version.js';
-import { templatePlace, validateMarp } from '../src/studio/places.js';
+import { templatePlace, validateMelt } from '../src/studio/places.js';
 
 let app;
 const PORT = 17351;
@@ -84,17 +84,17 @@ after(async () => {
 const v3 = (x, y, z) => ({ $v3: [x, y, z] });
 
 function gamePlace() {
-  const marp = templatePlace('Coin Rush');
-  const ws = marp.tree.k.find((n) => n.c === 'Workspace');
+  const melt = templatePlace('Coin Rush');
+  const ws = melt.tree.k.find((n) => n.c === 'Workspace');
   ws.k.push({
     c: 'Part',
     n: 'Coin',
     p: { Position: v3(4, 1, 0), Color: { $c3: '#ffd166' }, Shape: 'Ball' },
     k: [{ c: 'Script', n: 'Pickup', p: { Source: 'script.Parent.Touched:Connect(function(hit) local p = game.Players:GetPlayerFromCharacter(hit.Parent) if p then p.leaderstats.Coins.Value += 1 end end)' } }],
   });
-  const rs = marp.tree.k.find((n) => n.c === 'ReplicatedStorage');
+  const rs = melt.tree.k.find((n) => n.c === 'ReplicatedStorage');
   rs.k = [{ c: 'RemoteEvent', n: 'Hello' }, { c: 'RemoteFunction', n: 'Double' }];
-  const sss = marp.tree.k.find((n) => n.c === 'ServerScriptService');
+  const sss = melt.tree.k.find((n) => n.c === 'ServerScriptService');
   sss.k = [
     {
       c: 'Script',
@@ -112,19 +112,19 @@ print("secret server code")`,
       },
     },
   ];
-  marp.strings = { welcome: { en: 'Welcome!', ru: 'Добро пожаловать!' } };
-  marp.meta.i18n.name = { ru: 'Монетная гонка', es: 'Carrera de monedas' };
-  return marp;
+  melt.strings = { welcome: { en: 'Welcome!', ru: 'Добро пожаловать!' } };
+  melt.meta.i18n.name = { ru: 'Монетная гонка', es: 'Carrera de monedas' };
+  return melt;
 }
 
-test('marp validation keeps known classes and rejects junk', () => {
+test('melt validation keeps known classes and rejects junk', () => {
   const sss = templatePlace('New').tree.k.find((n) => n.c === 'ServerScriptService');
   assert.equal(sss.k[0].c, 'Script', 'new places start with a server script');
-  const clean = validateMarp(gamePlace());
+  const clean = validateMelt(gamePlace());
   assert.equal(clean.tree.c, 'DataModel');
-  assert.throws(() => validateMarp({ format: 'marp', tree: { c: 'DataModel', k: [{ c: 'Nuke' }] } }), /unknown class/);
-  assert.throws(() => validateMarp({ format: 'zip' }), /not a .marp/);
-  const extra = validateMarp({ format: 'marp', tree: { c: 'DataModel', k: [{ c: 'Workspace', p: { Gravity: 10, Hacks: 1 } }] } });
+  assert.throws(() => validateMelt({ format: 'melt', tree: { c: 'DataModel', k: [{ c: 'Nuke' }] } }), /unknown class/);
+  assert.throws(() => validateMelt({ format: 'zip' }), /not a .melt/);
+  const extra = validateMelt({ format: 'melt', tree: { c: 'DataModel', k: [{ c: 'Workspace', p: { Gravity: 10, Hacks: 1 } }] } });
   assert.deepEqual(extra.tree.k[0].p, { Gravity: 10 });
 });
 
@@ -134,7 +134,7 @@ test('create, save, publish, play, comment and stats', async () => {
   assert.equal(r.status, 200, r.raw);
   const id = r.data.place.id;
   assert.equal(r.data.place.visibility, 'private');
-  r = await call('PUT', `/api/studio/places/${id}`, { marp: gamePlace() }, users.maker);
+  r = await call('PUT', `/api/studio/places/${id}`, { melt: gamePlace() }, users.maker);
   assert.equal(r.status, 200, r.raw);
   assert.equal(r.data.place.version, 3);
 
@@ -256,4 +256,18 @@ test('the app ships the same runtime and schema as the server', async () => {
   const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
   assert.equal(read('../../client/studio/runtime/runtime.luau'), read('../src/studio/runtime/runtime.luau'), 'run tools/sync_runtime.sh');
   assert.equal(read('../../client/studio/runtime/classes.json'), read('../src/studio/runtime/classes.json'), 'run tools/sync_runtime.sh');
+});
+
+test('places saved by apps before the .melt rename still work', async () => {
+  let r = await call('POST', '/api/studio/places', { name: 'Old app' }, users.maker);
+  const id = r.data.place.id;
+  const old = templatePlace('Old app');
+  old.format = 'marp';
+  old.meta.name = 'Renamed by an old app';
+  r = await call('PUT', `/api/studio/places/${id}`, { marp: old }, users.maker);
+  assert.equal(r.status, 200, r.raw);
+  r = await call('GET', `/api/studio/places/${id}`, null, users.maker);
+  assert.equal(r.data.melt.meta.name, 'Renamed by an old app');
+  assert.equal(r.data.melt.format, 'melt');
+  assert.deepEqual(r.data.marp, r.data.melt);
 });

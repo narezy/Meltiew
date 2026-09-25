@@ -1,12 +1,12 @@
-# The .marp file
+# The .melt file
 
-A **.marp** file is a whole place in one JSON file: the object tree with every property, the scripts' source, the translations and the name and description. **File → Export** in Studio writes one, **Import** reads one. It's plain text, so it works fine in git and can be written by other tools.
+A **.melt** file is a whole place in one JSON file: the object tree with every property, the scripts' source, the translations and the name and description. **File → Export** in Studio writes one, **Import** reads one. It's plain text, so it works fine in git and can be written by other tools.
 
 ## Shape
 
 ```json
 {
-  "format": "marp",
+  "format": "melt",
   "version": 1,
   "meta": {
     "name": "Obby",
@@ -43,7 +43,7 @@ A **.marp** file is a whole place in one JSON file: the object tree with every p
 
 | Field | Meaning |
 |---|---|
-| `format`, `version` | Always `"marp"` and `1` for now. |
+| `format`, `version` | Always `"melt"` and `1` for now. (Files from before the rename say `"marp"` and have a `.marp` extension; they still open.) |
 | `meta.name`, `meta.description` | The place's name (up to 60 characters) and description (up to 1000), in English or your main language. |
 | `meta.i18n` | Translations of the name and description, by language code. |
 | `strings` | [Translation keys](strings.md): `key → { language: text }`. |

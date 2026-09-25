@@ -339,10 +339,10 @@ func _open_place() -> void:
 	place_id = Session.studio_place_id
 	settings.place_id = place_id
 	# Back from a play test: continue with the unsaved state.
-	if not Session.studio_marp.is_empty():
-		_load(Session.studio_marp)
+	if not Session.studio_melt.is_empty():
+		_load(Session.studio_melt)
 		doc._set_dirty(Session.get_meta("studio_dirty", false))
-		Session.studio_marp = {}
+		Session.studio_melt = {}
 		for line in Session.get_meta("test_output", []):
 			log_line(line)
 		Session.set_meta("test_output", [])
@@ -352,12 +352,12 @@ func _open_place() -> void:
 	if not r.ok:
 		log_line({"level": "error", "msg": r.message})
 		return
-	_load(r.data.marp if r.data.marp is Dictionary else {})
+	_load(r.data.melt if r.data.melt is Dictionary else {})
 	_status.text = ""
 
 
-func _load(marp: Dictionary) -> void:
-	doc.load_marp(marp)
+func _load(melt: Dictionary) -> void:
+	doc.load_melt(melt)
 	explorer.rebind()
 	props.rebind()
 	view.rebind()
@@ -376,7 +376,7 @@ func save() -> bool:
 	scripts._commit()
 	_saving = true
 	_status.text = L.t("saving")
-	var r := await Api.request("PUT", "/api/studio/places/" + place_id, {"marp": doc.to_marp()})
+	var r := await Api.request("PUT", "/api/studio/places/" + place_id, {"melt": doc.to_melt()})
 	_saving = false
 	_autosave = AUTOSAVE_SEC
 	if r.ok:
@@ -406,19 +406,19 @@ func _close() -> void:
 
 func _export() -> void:
 	scripts._commit()
-	var data := JSON.stringify(doc.to_marp(), "\t").to_utf8_buffer()
-	var name := str(doc.meta.get("name", "place")).validate_filename() + ".marp"
-	StudioFiles.save_file(name, ["*.marp ; Meltiew place"], data, func(path): log_line({"level": "info", "msg": L.t("st_exported", [path])}))
+	var data := JSON.stringify(doc.to_melt(), "\t").to_utf8_buffer()
+	var name := str(doc.meta.get("name", "place")).validate_filename() + ".melt"
+	StudioFiles.save_file(name, ["*.melt ; Meltiew place"], data, func(path): log_line({"level": "info", "msg": L.t("st_exported", [path])}))
 
 
-## Imports a .marp file as a new place in your list and opens it.
+## Imports a .melt file as a new place in your list and opens it.
 func _import() -> void:
-	StudioFiles.open_file(["*.marp ; Meltiew place"], func(path: String, bytes: PackedByteArray):
-		var marp: Variant = JSON.parse_string(bytes.get_string_from_utf8())
-		if not (marp is Dictionary and marp.get("format") == "marp"):
+	StudioFiles.open_file(["*.melt ; Meltiew place", "*.marp ; Meltiew place (old)"], func(path: String, bytes: PackedByteArray):
+		var melt: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if not (melt is Dictionary and melt.get("format") in ["melt", "marp"]):
 			UI.toast(L.t("st_bad_file"), "error")
 			return
-		var r := await Api.request("POST", "/api/studio/places", {"name": str(marp.get("meta", {}).get("name", path.get_file().get_basename())), "marp": marp})
+		var r := await Api.request("POST", "/api/studio/places", {"name": str(melt.get("meta", {}).get("name", path.get_file().get_basename())), "melt": melt})
 		if not r.ok:
 			UI.toast(r.message, "error")
 			return
@@ -434,10 +434,10 @@ func _open_settings() -> void:
 ## Runs the place right here: server scripts in a local VM, you as the only player.
 func play_test() -> void:
 	scripts._commit()
-	var marp := doc.to_marp()
-	Session.studio_marp = marp
+	var melt := doc.to_melt()
+	Session.studio_melt = melt
 	Session.set_meta("studio_dirty", doc.dirty)
-	Session.test_marp = marp
+	Session.test_melt = melt
 	Session.pending_game = "test"
 	Session.pending_server = "auto"
 	UI.goto("res://scenes/game.tscn")

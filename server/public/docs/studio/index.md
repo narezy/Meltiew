@@ -9,7 +9,7 @@ It lives in the app, in the **Studio** tab. It's made for a computer with a mous
 - [Scripting](scripting.md): scripts, events, players and characters, remotes, tweens, input
 - [User interface](ui.md): ScreenGui, frames, buttons, layouts, rounded corners
 - [Translations](strings.md): one place in every player's language
-- [The .marp file](marp.md): what a place looks like on disk
+- [The .melt file](melt.md): what a place looks like on disk
 - [Class reference](classes.md): every object, property, method and event
 
 ## Your first place
@@ -106,7 +106,7 @@ Players can like places, leave comments and report places or comments that break
 
 ## Import and export
 
-**File → Export** saves the place as a `.marp` file: one JSON file with the whole place, scripts included. **Import** opens one in the current place (or as a new place from the Studio tab). Images are referenced by ID, so they only show up for places made on the same account.
+**File → Export** saves the place as a `.melt` file: one JSON file with the whole place, scripts included. **Import** opens one in the current place (or as a new place from the Studio tab). Images are referenced by ID, so they only show up for places made on the same account.
 
 ## Limits
 

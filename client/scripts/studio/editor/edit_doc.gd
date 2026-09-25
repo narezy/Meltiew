@@ -21,22 +21,22 @@ var _batching := 0
 var _clipboard: Array = []
 
 
-func load_marp(marp: Dictionary) -> void:
+func load_melt(melt: Dictionary) -> void:
 	tree = PlaceTree.new()
-	tree.load_marp_tree(marp.get("tree", {}), "e")
+	tree.load_melt_tree(melt.get("tree", {}), "e")
 	_next = tree.nodes.size() + 1
-	meta = marp.get("meta", meta)
+	meta = melt.get("meta", meta)
 	if not meta.has("i18n"):
 		meta["i18n"] = {"name": {}, "description": {}}
-	strings = marp.get("strings", {})
+	strings = melt.get("strings", {})
 	selection.clear()
 	_undo.clear()
 	_redo.clear()
 	_set_dirty(false)
 
 
-func to_marp() -> Dictionary:
-	return {"format": "marp", "version": 1, "meta": meta, "strings": strings, "tree": tree.to_marp_tree()}
+func to_melt() -> Dictionary:
+	return {"format": "melt", "version": 1, "meta": meta, "strings": strings, "tree": tree.to_melt_tree()}
 
 
 func new_id() -> String:

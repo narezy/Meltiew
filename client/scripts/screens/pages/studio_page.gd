@@ -1,7 +1,7 @@
 class_name StudioPage
 extends ScrollContainer
 ## Studio home: your places with their status and numbers. Create a new one,
-## import a .marp file, open, play, see stats or delete.
+## import a .melt file, open, play, see stats or delete.
 
 var _list: VBoxContainer
 
@@ -98,7 +98,7 @@ func _row(p: Dictionary) -> Control:
 	var edit := UI.button(L.t("st_open"), "primary", 44)
 	edit.pressed.connect(func():
 		Session.studio_place_id = str(p.id)
-		Session.studio_marp = {}
+		Session.studio_melt = {}
 		UI.goto("res://scenes/studio.tscn"))
 	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(edit)
@@ -136,7 +136,7 @@ func _create() -> void:
 		UI.toast(r.message, "error")
 		return
 	Session.studio_place_id = str(r.data.place.id)
-	Session.studio_marp = {}
+	Session.studio_melt = {}
 	UI.goto("res://scenes/studio.tscn")
 
 
@@ -181,12 +181,12 @@ func _ask_name() -> String:
 
 
 func _import() -> void:
-	StudioFiles.open_file(["*.marp ; Meltiew place"], func(path: String, bytes: PackedByteArray):
-		var marp: Variant = JSON.parse_string(bytes.get_string_from_utf8())
-		if not (marp is Dictionary and marp.get("format") == "marp"):
+	StudioFiles.open_file(["*.melt ; Meltiew place", "*.marp ; Meltiew place (old)"], func(path: String, bytes: PackedByteArray):
+		var melt: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if not (melt is Dictionary and melt.get("format") in ["melt", "marp"]):
 			UI.toast(L.t("st_bad_file"), "error")
 			return
-		var r := await Api.request("POST", "/api/studio/places", {"name": str(marp.get("meta", {}).get("name", path.get_file().get_basename())), "marp": marp})
+		var r := await Api.request("POST", "/api/studio/places", {"name": str(melt.get("meta", {}).get("name", path.get_file().get_basename())), "melt": melt})
 		if r.ok:
 			refresh()
 		else:

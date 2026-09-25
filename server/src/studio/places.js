@@ -1,12 +1,12 @@
-// Studio places on disk and in the database: .marp files, covers, access rules and stats.
+// Studio places on disk and in the database: .melt files, covers, access rules and stats.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { SCHEMA } from './vm.js';
 
-export const MARP_FORMAT = 'marp';
-export const MARP_VERSION = 1;
-export const MAX_MARP_BYTES = 8 * 1024 * 1024;
+export const MELT_FORMAT = 'melt';
+export const MELT_VERSION = 1;
+export const MAX_MELT_BYTES = 8 * 1024 * 1024;
 export const MAX_NODES = 20000;
 export const MAX_SOURCE = 200 * 1024;
 export const VISIBILITIES = ['private', 'friends', 'public'];
@@ -18,8 +18,8 @@ const RUNTIME_ONLY = new Set(Object.entries(SCHEMA.classes).filter(([, c]) => c.
 export function templatePlace(name) {
   const v3 = (x, y, z) => ({ $v3: [x, y, z] });
   return {
-    format: MARP_FORMAT,
-    version: MARP_VERSION,
+    format: MELT_FORMAT,
+    version: MELT_VERSION,
     meta: { name, description: '', i18n: { name: {}, description: {} } },
     strings: {},
     tree: {
@@ -95,28 +95,29 @@ export function cleanI18n(obj) {
   return out;
 }
 
-/** Validates an uploaded .marp and returns a cleaned copy (throws bad_place). */
-export function validateMarp(marp) {
-  if (!marp || typeof marp !== 'object') throw badPlace('not a place file');
-  if (marp.format !== MARP_FORMAT) throw badPlace('not a .marp file');
-  if (!marp.tree || marp.tree.c !== 'DataModel') throw badPlace('missing tree');
-  const meta = marp.meta || {};
+/** Validates an uploaded .melt and returns a cleaned copy (throws bad_place). */
+export function validateMelt(melt) {
+  if (!melt || typeof melt !== 'object') throw badPlace('not a place file');
+  // .marp was the old name of the format; those files still open.
+  if (melt.format !== MELT_FORMAT && melt.format !== 'marp') throw badPlace('not a .melt file');
+  if (!melt.tree || melt.tree.c !== 'DataModel') throw badPlace('missing tree');
+  const meta = melt.meta || {};
   const strings = {};
   let n = 0;
-  for (const [key, langs] of Object.entries(marp.strings || {})) {
+  for (const [key, langs] of Object.entries(melt.strings || {})) {
     if (++n > 5000) break;
     if (typeof key === 'string' && key.length <= 100) strings[key] = cleanI18n(langs);
   }
   return {
-    format: MARP_FORMAT,
-    version: MARP_VERSION,
+    format: MELT_FORMAT,
+    version: MELT_VERSION,
     meta: {
       name: String(meta.name || 'Untitled').slice(0, 60),
       description: String(meta.description || '').slice(0, 1000),
       i18n: { name: cleanI18n(meta.i18n?.name), description: cleanI18n(meta.i18n?.description) },
     },
     strings,
-    tree: cleanNode(marp.tree, 0, { n: 0 }),
+    tree: cleanNode(melt.tree, 0, { n: 0 }),
   };
 }
 
@@ -160,7 +161,11 @@ export class PlaceStore {
     this.mediaDir = path.join(dataDir, 'place_media');
     this.assetDir = path.join(dataDir, 'assets');
     for (const d of [this.dir, this.mediaDir, this.assetDir]) fs.mkdirSync(d, { recursive: true });
-    this.cache = new Map(); // id -> { version, marp }
+    // Place files used to be *.marp; the format is called .melt now.
+    for (const f of fs.readdirSync(this.dir)) {
+      if (f.endsWith('.marp')) fs.renameSync(path.join(this.dir, f), path.join(this.dir, f.slice(0, -5) + '.melt'));
+    }
+    this.cache = new Map(); // id -> { version, melt }
     this.q = {
       one: db.prepare('SELECT * FROM places WHERE id = ? AND deleted = 0'),
       touchPlayer: db.prepare(`INSERT INTO place_players (place_id, user_id, visits, playtime_ms, first_at, last_at) VALUES (?, ?, 1, 0, ?, ?)
@@ -178,12 +183,12 @@ export class PlaceStore {
 
   file(id) {
     if (!/^p[0-9a-f]{10}$/.test(id)) throw new Error('bad place id');
-    return path.join(this.dir, id + '.marp');
+    return path.join(this.dir, id + '.melt');
   }
 
-  write(id, marp) {
+  write(id, melt) {
     const f = this.file(id);
-    fs.writeFileSync(f + '.tmp', JSON.stringify(marp));
+    fs.writeFileSync(f + '.tmp', JSON.stringify(melt));
     fs.renameSync(f + '.tmp', f);
     this.cache.delete(id);
   }
@@ -193,15 +198,15 @@ export class PlaceStore {
     const row = this.q.one.get(id);
     if (!row || row.kind !== 'studio') return null;
     const hit = this.cache.get(id);
-    if (hit && hit.version === row.version) return hit.marp;
-    let marp;
+    if (hit && hit.version === row.version) return hit.melt;
+    let melt;
     try {
-      marp = JSON.parse(fs.readFileSync(this.file(id), 'utf8'));
+      melt = JSON.parse(fs.readFileSync(this.file(id), 'utf8'));
     } catch {
       return null;
     }
-    this.cache.set(id, { version: row.version, marp });
-    return marp;
+    this.cache.set(id, { version: row.version, melt });
+    return melt;
   }
 
   remove(id) {

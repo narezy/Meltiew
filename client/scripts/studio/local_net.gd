@@ -10,7 +10,7 @@ signal message(msg: Dictionary)
 
 const TIME_LIMIT := 0.25
 
-var marp: Dictionary
+var melt: Dictionary
 var _vm: RefCounted
 var _open := false
 var _me := {}
@@ -21,7 +21,7 @@ var _mine: Array = []
 
 
 func _init(place: Dictionary) -> void:
-	marp = place
+	melt = place
 
 
 func connect_to_game() -> void:
@@ -74,11 +74,11 @@ func _join() -> void:
 		message.emit({"t": "error", "code": "not_found", "m": "runtime: " + err})
 		return
 	_vm.sandbox()
-	_route(_call("__init", {"role": "server", "place": marp, "seed": randi(), "schema": StudioSchema.data()}))
+	_route(_call("__init", {"role": "server", "place": melt, "seed": randi(), "schema": StudioSchema.data()}))
 	_route(_call("__start", ""))
 	var snap: Variant = JSON.parse_string(_vm.call_function("__snapshot", "", TIME_LIMIT))
 	var starter: Dictionary = {}
-	for n in marp.tree.get("k", []):
+	for n in melt.tree.get("k", []):
 		if n.get("c") == "StarterPlayer":
 			starter = n.get("p", {})
 	message.emit({
@@ -87,7 +87,7 @@ func _join() -> void:
 		"you": int(_me.id),
 		"chat": starter.get("ChatEnabled", true) != false,
 		"emotes": starter.get("EmotesEnabled", true) != false,
-		"place": {"id": "test", "strings": marp.get("strings", {}), "snapshot": snap if snap is Array else []},
+		"place": {"id": "test", "strings": melt.get("strings", {}), "snapshot": snap if snap is Array else []},
 		"spawn": [0, 5, 0],
 		"players": [],
 	})
