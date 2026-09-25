@@ -184,3 +184,66 @@ test('bust render upload is validated and served', async () => {
   const missing = await fetch(`${base}/api/avatar/9999.png`, { redirect: 'manual' });
   assert.equal(missing.status, 302);
 });
+
+test('places list, votes and owner author', async () => {
+  const reg = await call('POST', '/api/register', { username: 'nrz', password: 'secret123', display_name: 'Narez' });
+  users.nrz = reg.data.token;
+  assert.equal(reg.data.user.role, 'owner');
+  let r = await call('GET', '/api/places', null, users.alice);
+  assert.equal(r.data.places[0].id, 'playground');
+  assert.equal(r.data.places[0].author.username, 'nrz');
+  assert.equal(r.data.places[0].author.role, 'owner');
+  r = await call('POST', '/api/places/playground/vote', { value: 1 }, users.alice);
+  assert.equal(r.data.place.likes, 1);
+  assert.equal(r.data.place.my_vote, 1);
+  r = await call('POST', '/api/places/playground/vote', { value: -1 }, users.alice);
+  assert.equal(r.data.place.likes, 0);
+  assert.equal(r.data.place.dislikes, 1);
+  r = await call('POST', '/api/places/playground/vote', { value: 0 }, users.alice);
+  assert.equal(r.data.place.dislikes, 0);
+  r = await call('GET', '/api/places/playground', null, users.alice);
+  assert.ok(Array.isArray(r.data.servers));
+});
+
+test('quick play joins the server where a friend is', async () => {
+  // Blocking earlier dropped their friendship; make them friends again.
+  await call('POST', '/api/friends/request', { username: 'bob' }, users.alice);
+  await call('POST', '/api/friends/request', { username: 'alice' }, users.bob);
+  const decoy = await connect(users.p0x || (await call('POST', '/api/login', { username: 'p0x', password: 'secret123' })).data.token);
+  decoy.send2({ t: 'join', server: 'new' });
+  await decoy.next((m) => m.t === 'welcome');
+  const b = await connect(users.bob);
+  b.send2({ t: 'join', server: 'new' });
+  const wb = await b.next((m) => m.t === 'welcome');
+  const a = await connect(users.alice);
+  a.send2({ t: 'join', server: 'auto' });
+  const wa = await a.next((m) => m.t === 'welcome');
+  assert.equal(wa.server.id, wb.server.id);
+  a.close();
+  b.close();
+  decoy.close();
+});
+
+test('admin endpoints are staff-only and bans lock the account', async () => {
+  assert.equal((await call('GET', '/api/admin/stats', null, users.alice)).status, 403);
+  const stats = await call('GET', '/api/admin/stats', null, users.nrz);
+  assert.equal(stats.status, 200);
+  assert.ok(stats.data.users >= 3);
+  const list = await call('GET', '/api/admin/users?q=bob', null, users.nrz);
+  const bob = list.data.users.find((u) => u.username === 'bob');
+  let r = await call('POST', `/api/admin/users/${bob.id}`, { role: 'admin' }, users.nrz);
+  assert.equal(r.data.user.role, 'admin');
+  // an admin can't touch the owner
+  const owner = (await call('GET', '/api/admin/users?q=nrz', null, users.nrz)).data.users[0];
+  assert.equal((await call('POST', `/api/admin/users/${owner.id}`, { banned: true }, users.bob)).status, 403);
+  r = await call('POST', `/api/admin/users/${bob.id}`, { role: 'user' }, users.nrz);
+  r = await call('POST', `/api/admin/users/${bob.id}`, { banned: true, reason: 'spam' }, users.nrz);
+  assert.equal(r.data.user.banned, true);
+  assert.equal((await call('GET', '/api/me', null, users.bob)).status, 401);
+  const login = await call('POST', '/api/login', { username: 'bob', password: 'secret123' });
+  assert.equal(login.status, 403);
+  assert.match(login.data.message, /spam/);
+  await call('POST', `/api/admin/users/${bob.id}`, { banned: false }, users.nrz);
+  assert.equal((await call('POST', '/api/login', { username: 'bob', password: 'secret123' })).status, 200);
+  assert.equal((await call('POST', '/api/admin/announce', { text: 'hello' }, users.nrz)).status, 200);
+});

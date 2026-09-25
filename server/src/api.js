@@ -63,7 +63,7 @@ export function clientIp(req) {
   return fwd || req.socket.remoteAddress || '?';
 }
 
-export function createApi({ db, hub, renderDir }) {
+export function createApi({ db, hub, renderDir, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
   fs.mkdirSync(renderDir, { recursive: true });
   const launches = new Map(); // userId -> { server, game, at }
   const authLimiter = new RateLimiter(20, 60_000);
@@ -109,6 +109,77 @@ export function createApi({ db, hub, renderDir }) {
     setRender: db.prepare('UPDATE users SET render_hash = ? WHERE id = ?'),
   };
 
+  // The platform owner gets the owner role as soon as the account exists.
+  const promoteOwner = () => db.prepare("UPDATE users SET role = 'owner' WHERE username = ? AND role != 'owner'").run(owner);
+  promoteOwner();
+
+  const pq = {
+    all: db.prepare('SELECT * FROM places ORDER BY created_at'),
+    one: db.prepare('SELECT * FROM places WHERE id = ?'),
+    votes: db.prepare('SELECT SUM(value = 1) AS likes, SUM(value = -1) AS dislikes FROM place_votes WHERE place_id = ?'),
+    myVote: db.prepare('SELECT value FROM place_votes WHERE place_id = ? AND user_id = ?'),
+    setVote: db.prepare('INSERT INTO place_votes (place_id, user_id, value) VALUES (?, ?, ?) ON CONFLICT(place_id, user_id) DO UPDATE SET value = excluded.value'),
+    clearVote: db.prepare('DELETE FROM place_votes WHERE place_id = ? AND user_id = ?'),
+    visit: db.prepare('UPDATE places SET visits = visits + 1 WHERE id = ?'),
+    update: db.prepare('UPDATE places SET name = ?, name_ru = ?, description = ?, description_ru = ? WHERE id = ?'),
+  };
+
+  function friendSet(userId) {
+    return new Set(
+      q.friendsOf
+        .all(userId, userId, userId)
+        .filter((r) => r.status === 'accepted')
+        .map((r) => r.id),
+    );
+  }
+
+  function placeView(p, viewerId) {
+    const v = pq.votes.get(p.id);
+    const author = q.userByName.get(p.author_username);
+    return {
+      id: p.id,
+      name: p.name,
+      name_ru: p.name_ru,
+      description: p.description,
+      description_ru: p.description_ru,
+      cover: p.cover,
+      visits: p.visits,
+      created_at: p.created_at,
+      likes: v.likes || 0,
+      dislikes: v.dislikes || 0,
+      my_vote: viewerId ? pq.myVote.get(p.id, viewerId)?.value || 0 : 0,
+      playing: hub.playerCount(p.id),
+      max_players: MAX_PLAYERS,
+      author: author
+        ? { id: author.id, username: author.username, display_name: author.display_name, role: author.role, render: author.render_hash }
+        : { id: 0, username: p.author_username, display_name: p.author_username, role: 'owner', render: '' },
+    };
+  }
+
+  function serversFor(game, userId) {
+    const friendIds = friendSet(userId);
+    return hub.listServers(game).map((s) => {
+      const friends = s.player_ids.filter((id) => friendIds.has(id)).map((id) => q.userById.get(id)?.display_name).filter(Boolean);
+      const { player_ids, ...rest } = s;
+      return { ...rest, friends };
+    });
+  }
+
+  function requireStaff(req) {
+    const auth = requireAuth(req);
+    if (auth.user.role !== 'admin' && auth.user.role !== 'owner') throw new HttpError(403, 'forbidden');
+    return auth;
+  }
+
+  function adminUser(u) {
+    return {
+      ...publicProfile(u),
+      banned: !!u.banned,
+      ban_reason: u.ban_reason,
+      last_seen: u.last_seen,
+    };
+  }
+
   function blockSet(userId) {
     return new Set(q.blockedBy.all(userId).map((r) => r.blocked_id));
   }
@@ -128,6 +199,7 @@ export function createApi({ db, hub, renderDir }) {
       colors: parseColors(u.colors),
       hat: u.hat,
       render: u.render_hash || '',
+      role: u.role || 'user',
       created_at: u.created_at,
       friends: q.countFriends.get(u.id, u.id).n,
       ...presence(u),
@@ -171,7 +243,8 @@ export function createApi({ db, hub, renderDir }) {
     q.touchSession.run(now, token);
     q.touchUser.run(now, s.user_id);
     const user = q.userById.get(s.user_id);
-    return user ? { user, token } : null;
+    if (!user || user.banned) return null;
+    return { user, token };
   }
 
   function requireAuth(req) {
@@ -202,6 +275,7 @@ export function createApi({ db, hub, renderDir }) {
       if (q.userByName.get(username)) throw new HttpError(409, 'taken');
       const now = Date.now();
       const info = q.insertUser.run(username, hashPassword(password), displayName, now, now);
+      promoteOwner();
       const user = q.userById.get(Number(info.lastInsertRowid));
       return { token: issueSession(user.id), user: publicProfile(user) };
     },
@@ -212,6 +286,7 @@ export function createApi({ db, hub, renderDir }) {
       if (!user || !verifyPassword(String(body.password ?? ''), user.pass_hash)) {
         throw new HttpError(401, 'bad_credentials');
       }
+      if (user.banned) throw new HttpError(403, user.ban_reason ? 'banned_reason' : 'banned', { r: user.ban_reason });
       q.touchUser.run(Date.now(), user.id);
       return { token: issueSession(user.id), user: publicProfile(user) };
     },
@@ -407,6 +482,130 @@ export function createApi({ db, hub, renderDir }) {
       return { __redirect: '/img/default-bust.png' };
     },
 
+    'GET /api/places': (req) => {
+      const { user } = requireAuth(req);
+      return { places: pq.all.all().map((p) => placeView(p, user.id)) };
+    },
+
+    'GET /api/places/:id': (req, _body, _url, params) => {
+      const { user } = requireAuth(req);
+      const p = pq.one.get(params.id);
+      if (!p) throw new HttpError(404, 'no_place');
+      return { place: placeView(p, user.id), servers: serversFor(p.id, user.id) };
+    },
+
+    'POST /api/places/:id/vote': (req, body, _url, params) => {
+      const { user } = requireAuth(req);
+      if (!writeLimiter.allow('vote:' + user.id)) throw new HttpError(429, 'slow_down');
+      const p = pq.one.get(params.id);
+      if (!p) throw new HttpError(404, 'no_place');
+      const value = Number(body.value);
+      if (value === 1 || value === -1) pq.setVote.run(p.id, user.id, value);
+      else pq.clearVote.run(p.id, user.id);
+      return { place: placeView(p, user.id) };
+    },
+
+    // --- admin panel (admins and the owner) ---------------------------------
+    'GET /api/admin/stats': (req) => {
+      requireStaff(req);
+      const count = (sql, ...a) => db.prepare(sql).get(...a).n;
+      const day = Date.now() - 86_400_000;
+      return {
+        users: count('SELECT COUNT(*) AS n FROM users'),
+        new_today: count('SELECT COUNT(*) AS n FROM users WHERE created_at > ?', day),
+        active_today: count('SELECT COUNT(*) AS n FROM users WHERE last_seen > ?', day),
+        online: count('SELECT COUNT(*) AS n FROM users WHERE last_seen > ?', Date.now() - ONLINE_WINDOW_MS),
+        banned: count('SELECT COUNT(*) AS n FROM users WHERE banned = 1'),
+        friendships: count("SELECT COUNT(*) AS n FROM friendships WHERE status = 'accepted'"),
+        servers: hub.servers.size,
+        playing: [...hub.servers.values()].reduce((n, s) => n + s.players.size, 0),
+        uptime: Math.round(process.uptime()),
+        memory_mb: Math.round(process.memoryUsage().rss / 1048576),
+      };
+    },
+
+    'GET /api/admin/users': (req, _body, url) => {
+      requireStaff(req);
+      const term = cleanText(url.searchParams.get('q'), 24);
+      const like = '%' + term.replace(/[\\%_]/g, (m) => '\\' + m) + '%';
+      const rows = db
+        .prepare(
+          "SELECT * FROM users WHERE username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\' ORDER BY last_seen DESC LIMIT 60",
+        )
+        .all(like, like);
+      return { users: rows.map(adminUser) };
+    },
+
+    'POST /api/admin/users/:id': (req, body, _url, params) => {
+      const { user: me } = requireStaff(req);
+      const target = q.userById.get(Number(params.id));
+      if (!target) throw new HttpError(404, 'no_user');
+      const isOwner = me.role === 'owner';
+      // Admins can moderate regular users; only the owner manages admins.
+      if (!isOwner && target.role !== 'user') throw new HttpError(403, 'forbidden');
+      if (target.role === 'owner') throw new HttpError(403, 'forbidden');
+      if (body.banned !== undefined) {
+        const banned = body.banned ? 1 : 0;
+        db.prepare('UPDATE users SET banned = ?, ban_reason = ? WHERE id = ?').run(banned, banned ? cleanText(body.reason, 120) : '', target.id);
+        if (banned) {
+          db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
+          hub.kick(target.id, 'banned', msg('banned', 'en'));
+        }
+      }
+      if (body.role !== undefined) {
+        if (!isOwner || !['user', 'admin'].includes(body.role)) throw new HttpError(403, 'forbidden');
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run(body.role, target.id);
+      }
+      if (body.reset_profile) {
+        db.prepare("UPDATE users SET bio = '', display_name = username WHERE id = ?").run(target.id);
+        hub.updateUser(q.userById.get(target.id));
+      }
+      return { user: adminUser(q.userById.get(target.id)) };
+    },
+
+    'POST /api/admin/kick': (req, body) => {
+      requireStaff(req);
+      const target = lookupTarget(body);
+      return { kicked: hub.kick(target.id, 'kicked', msg('kicked', 'en')) };
+    },
+
+    'GET /api/admin/servers': (req) => {
+      requireStaff(req);
+      return {
+        servers: [...hub.servers.values()].map((s) => ({
+          ...hub.describe(s),
+          players_list: [...s.players.values()].map((p) => ({ id: p.user.id, username: p.user.username, display_name: p.user.display_name })),
+        })),
+      };
+    },
+
+    'POST /api/admin/servers/:id/close': (req, _body, _url, params) => {
+      requireStaff(req);
+      return { closed: hub.closeServer(params.id) };
+    },
+
+    'POST /api/admin/announce': (req, body) => {
+      requireStaff(req);
+      const text = cleanText(body.text, 200);
+      if (!text) throw bad('bad_name');
+      hub.announce(text);
+      return { ok: true };
+    },
+
+    'PATCH /api/admin/places/:id': (req, body, _url, params) => {
+      requireStaff(req);
+      const p = pq.one.get(params.id);
+      if (!p) throw new HttpError(404, 'no_place');
+      pq.update.run(
+        cleanText(body.name ?? p.name, 40),
+        cleanText(body.name_ru ?? p.name_ru, 40),
+        cleanText(body.description ?? p.description, 300),
+        cleanText(body.description_ru ?? p.description_ru, 300),
+        p.id,
+      );
+      return { place: placeView(pq.one.get(p.id), null) };
+    },
+
     'GET /api/games': (req) => {
       requireAuth(req);
       return {
@@ -417,18 +616,7 @@ export function createApi({ db, hub, renderDir }) {
     'GET /api/servers': (req, _body, url) => {
       const { user } = requireAuth(req);
       const game = url.searchParams.get('game') || 'playground';
-      const friendIds = new Set(
-        q.friendsOf
-          .all(user.id, user.id, user.id)
-          .filter((r) => r.status === 'accepted')
-          .map((r) => r.id),
-      );
-      const servers = hub.listServers(game).map((s) => {
-        const friends = s.player_ids.filter((id) => friendIds.has(id)).map((id) => q.userById.get(id)?.display_name).filter(Boolean);
-        const { player_ids, ...rest } = s;
-        return { ...rest, friends };
-      });
-      return { servers, max_players: MAX_PLAYERS };
+      return { servers: serversFor(game, user.id), max_players: MAX_PLAYERS };
     },
   };
 
@@ -491,5 +679,5 @@ export function createApi({ db, hub, renderDir }) {
     return send(matchedPath ? 405 : 404, { error: 'not_found', message: msg('not_found', lang) });
   }
 
-  return { handle, userForToken, blockSet };
+  return { handle, userForToken, blockSet, friendSet, countVisit: (id) => pq.visit.run(id) };
 }

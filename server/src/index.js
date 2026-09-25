@@ -58,12 +58,17 @@ function serveStatic(req, res) {
   });
 }
 
-export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, renderDir } = {}) {
+export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, renderDir, owner } = {}) {
   const db = openDb(dbFile);
   const renders = renderDir || (dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-renders-${process.pid}`) : path.join(path.dirname(dbFile), 'renders'));
   let api;
-  const hub = new GameHub({ log, loadBlocks: (id) => api.blockSet(id) });
-  api = createApi({ db, hub, renderDir: renders });
+  const hub = new GameHub({
+    log,
+    loadBlocks: (id) => api.blockSet(id),
+    loadFriends: (id) => api.friendSet(id),
+    onJoin: (game) => api.countVisit(game),
+  });
+  api = createApi({ db, hub, renderDir: renders, owner });
 
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {

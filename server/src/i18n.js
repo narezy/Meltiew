@@ -19,6 +19,11 @@ export const MESSAGES = {
   blocked: ["You can't interact with this player", 'С этим игроком нельзя взаимодействовать'],
   bad_image: ['Invalid image', 'Некорректная картинка'],
   bad_server: ['Unknown server', 'Нет такого сервера'],
+  banned: ['This account is banned', 'Этот аккаунт заблокирован'],
+  banned_reason: ['This account is banned: {r}', 'Этот аккаунт заблокирован: {r}'],
+  forbidden: ["You don't have access to this", 'Нет доступа'],
+  kicked: ['You were removed from the server by an admin', 'Админ выгнал тебя с сервера'],
+  no_place: ['Place not found', 'Плейс не найден'],
   internal: ['Something broke on the server', 'Что-то сломалось на сервере'],
   not_found: ['No such endpoint', 'Нет такого метода'],
   // Game socket

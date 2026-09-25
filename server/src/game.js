@@ -38,6 +38,7 @@ function publicUser(u) {
     display_name: u.display_name,
     colors: parseColors(u.colors),
     hat: u.hat,
+    role: u.role || 'user',
   };
 }
 
@@ -52,11 +53,13 @@ export class GameHub {
    * @param {object} opts
    * @param {(userId:number)=>Set<number>} [opts.loadBlocks] ids this user has blocked
    */
-  constructor({ log = () => {}, loadBlocks = () => new Set() } = {}) {
+  constructor({ log = () => {}, loadBlocks = () => new Set(), loadFriends = () => new Set(), onJoin = () => {} } = {}) {
     this.servers = new Map(); // id -> server
     this.byUser = new Map(); // userId -> { server, player, conn }
     this.log = log;
     this.loadBlocks = loadBlocks;
+    this.loadFriends = loadFriends;
+    this.onJoin = onJoin;
     this.timer = setInterval(() => this.tick(), 1000 / TICK_HZ);
     this.timer.unref?.();
     this.nameCounter = 0;
@@ -126,12 +129,22 @@ export class GameHub {
     return { server_id: s.id, game: s.game, server_name: s.name, server_name_ru: s.name_ru };
   }
 
-  /** Picks the fullest server with a free slot, or makes a new one. */
-  pickServer(game) {
+  /**
+   * Quick play: the server with the most of your friends (and a free slot),
+   * otherwise the fullest server with room, otherwise a new one.
+   */
+  pickServer(game, friendIds = new Set()) {
     let best = null;
+    let bestScore = -1;
     for (const s of this.servers.values()) {
       if (s.game !== game || s.players.size >= MAX_PLAYERS) continue;
-      if (!best || s.players.size > best.players.size) best = s;
+      let friends = 0;
+      for (const id of s.players.keys()) if (friendIds.has(id)) friends += 1;
+      const score = friends * 100 + s.players.size;
+      if (score > bestScore) {
+        best = s;
+        bestScore = score;
+      }
     }
     return best || this.createServer(game);
   }
@@ -203,7 +216,7 @@ export class GameHub {
       server = this.servers.get(String(m.server));
       if (!server) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
     } else {
-      server = this.pickServer(game);
+      server = this.pickServer(game, this.loadFriends(conn.user.id));
     }
     if (server.players.size >= MAX_PLAYERS) {
       return conn.send({ t: 'error', code: 'full', m: msg('server_full', conn.lang, { n: MAX_PLAYERS }) });
@@ -237,6 +250,7 @@ export class GameHub {
     });
     this.broadcast(server, { t: 'join', player: { ...player.user, p: player.p, r: player.r, a: player.a } }, conn.user.id);
     this.broadcast(server, { t: 'sys', k: 'joined', n: player.user.display_name }, conn.user.id);
+    this.onJoin(game);
     this.log(`${conn.user.username} joined ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
   }
 
@@ -299,6 +313,33 @@ export class GameHub {
   setBlocks(userId, blocks) {
     const entry = this.byUser.get(userId);
     if (entry) entry.conn.blocks = blocks;
+  }
+
+  /** Disconnects a user from the game (admin kick or ban). */
+  kick(userId, code, message) {
+    const entry = this.byUser.get(userId);
+    if (!entry) return false;
+    entry.conn.send({ t: 'kicked', code, m: message });
+    entry.conn.ws.close(4001, code);
+    this.leave(entry.conn);
+    return true;
+  }
+
+  closeServer(id) {
+    const server = this.servers.get(String(id));
+    if (!server) return false;
+    for (const p of [...server.players.values()]) {
+      p.conn.send({ t: 'kicked', code: 'closed', m: '' });
+      p.conn.ws.close(4002, 'closed');
+      this.leave(p.conn);
+    }
+    this.servers.delete(server.id);
+    return true;
+  }
+
+  /** Announcement from the admin panel, shown in every server's chat. */
+  announce(text) {
+    for (const server of this.servers.values()) this.broadcast(server, { t: 'sys', k: 'admin', m: text });
   }
 
   broadcast(server, m, exceptId = null) {
