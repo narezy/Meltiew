@@ -316,7 +316,7 @@ export class GameHub {
   }
 
   /** Called for every authenticated websocket. */
-  attach(ws, user, lang = 'en') {
+  attach(ws, user, lang = 'en', caps = {}) {
     const conn = {
       ws,
       user,
@@ -327,6 +327,7 @@ export class GameHub {
       chatBurst: 0,
       blocks: this.loadBlocks(user.id),
       rules: chatRules(user.birthdate),
+      luau: caps.luau === true, // the app can run place scripts (64-bit builds)
     };
     conn.send = (m) => {
       if (ws.readyState === 1) ws.send(JSON.stringify(m));
@@ -414,6 +415,8 @@ export class GameHub {
       if (!this.places.canJoin(conn.user, game)) return conn.send({ t: 'error', code: 'not_found', m: msg('no_place', conn.lang) });
     }
     const studio = !GAMES[game];
+    // Studio places run scripts on the device too; apps without the Luau library can't.
+    if (studio && !conn.luau) return conn.send({ t: 'error', code: 'device', m: msg('device_unsupported', conn.lang) });
     let server;
     if (m.server && m.server !== 'auto' && m.server !== 'new') {
       server = this.servers.get(String(m.server));
@@ -466,8 +469,9 @@ export class GameHub {
     if (studio) {
       this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang }]));
       this.flushPlace(server);
-      this.places.visit(game, conn.user.id);
     }
+    // Every place (the playground too) keeps visit history: stats and "recently played".
+    this.places?.visit(game, conn.user.id);
     this.onJoin(game);
     this.log(`${conn.user.username} joined ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
   }
@@ -545,8 +549,8 @@ export class GameHub {
         } catch (err) {
           this.log(`player_remove failed: ${err.message}`);
         }
-        this.places?.playtime(server.game, conn.user.id, Date.now() - player.joinedAt);
       }
+      this.places?.playtime(server.game, conn.user.id, Date.now() - player.joinedAt);
       if (server.players.size === 0) server.emptySince = Date.now();
       this.log(`${conn.user.username} left ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
     }

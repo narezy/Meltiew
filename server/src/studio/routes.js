@@ -200,6 +200,21 @@ export function createStudioRoutes(ctx) {
     },
 
     // Public places of a player (friends-only ones too if you're friends; all of them for yourself).
+    // Places you played lately (the app's "recently played" row), newest first.
+    'GET /api/me/recent': (req) => {
+      const { user } = requireAuth(req);
+      const lang = pickLang(req);
+      const rows = db
+        .prepare(`SELECT p.*, pp.last_at AS played_at FROM place_players pp JOIN places p ON p.id = pp.place_id
+          WHERE pp.user_id = ? AND p.deleted = 0 ORDER BY pp.last_at DESC LIMIT 20`)
+        .all(user.id);
+      const places = rows
+        .filter((r) => r.kind !== 'studio' || store.canSee(r, user, isFriend))
+        .slice(0, 12)
+        .map((r) => ({ ...placeView(r, user.id, lang), played_at: r.played_at }));
+      return { places };
+    },
+
     'GET /api/users/:name/places': (req, _b, _u, params) => {
       const { user } = requireAuth(req);
       const owner = q.userByName.get(params.name);

@@ -418,4 +418,6 @@ const TABLE := {
 	"report_comment_title": ["Report this comment", "Пожаловаться на комментарий"],
 	"report_place": ["Inappropriate place", "Неприемлемый плейс"],
 	"report_comment": ["Rude or spam", "Грубость или спам"],
+	"recently_played": ["Recently played", "Недавно играли"],
+	"joining_from_site": ["Joining from the website...", "Заходим с сайта..."],
 }

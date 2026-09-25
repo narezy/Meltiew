@@ -254,9 +254,11 @@ async function launch(server = 'auto', game = 'playground') {
   }
   const isAndroid = /android/i.test(navigator.userAgent);
   const fallback = encodeURIComponent(location.origin + '/download');
+  // The link carries where to go, so the app can show "Joining..." the moment it opens.
+  const q = `server=${encodeURIComponent(server)}&game=${encodeURIComponent(game)}`;
   const url = isAndroid
-    ? `intent://play#Intent;scheme=meltiew;package=${PACKAGE};S.browser_fallback_url=${fallback};end`
-    : 'meltiew://play';
+    ? `intent://play?${q}#Intent;scheme=meltiew;package=${PACKAGE};S.browser_fallback_url=${fallback};end`
+    : `meltiew://play?${q}`;
   modal(`<h3>${t('opening')}</h3><p class="muted">${t('opening_text')}</p>
     <div class="row"><a class="btn ghost grow" href="/download" data-link>${t('download')}</a><button class="btn grow" data-close>${t('close')}</button></div>`);
   location.href = url;

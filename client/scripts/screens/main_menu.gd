@@ -74,7 +74,37 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	# Coming back from the browser after pressing "Play" on the website.
 	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		var launch := Launcher.take()
+		if not launch.is_empty():
+			_joining_overlay()
+			Api.request("GET", "/api/launch")
+			play(launch.server, launch.game)
+			return
 		_check_launch()
+
+
+## Full-screen "Joining..." while the game scene loads after "Play" on the website.
+func _joining_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 90
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.theme = UI.theme
+	dim.color = Color(UI.BG, 0.94)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(center)
+	var v := UI.vbox(16)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(v)
+	var spin := Loading.spinner(44)
+	spin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(spin)
+	var l := UI.label(L.t("joining_from_site"), 24, UI.TEXT, "black")
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(l)
 
 
 var _checking_launch := false
@@ -87,6 +117,7 @@ func _check_launch() -> void:
 	var r := await Api.request("GET", "/api/launch")
 	_checking_launch = false
 	if r.ok and r.data.get("launch") is Dictionary and is_inside_tree():
+		_joining_overlay()
 		play(str(r.data.launch.server), str(r.data.launch.get("game", "playground")))
 
 

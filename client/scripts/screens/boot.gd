@@ -51,6 +51,14 @@ func _route() -> void:
 	if r.ok:
 		Session.set_user(r.data.user)
 		Busts.sync_my_render()
+		# Opened from "Play" on the website: straight into the game, no menu detour.
+		var launch := Launcher.take()
+		if not launch.is_empty() and str(Session.user.get("birthdate", "")) != "":
+			Session.pending_server = launch.server
+			Session.pending_game = launch.game
+			Api.request("GET", "/api/launch")  # consume the website's queue entry
+			UI.goto("res://scenes/game.tscn")
+			return
 		UI.goto("res://scenes/main_menu.tscn")
 	elif r.status == 401:
 		Session.clear()

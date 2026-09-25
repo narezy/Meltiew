@@ -8,6 +8,8 @@ var _people_box: HBoxContainer
 var _friends_box: HBoxContainer
 var _friends_section: Control
 var _friends_count: Label
+var _recent_section: Control
+var _recent_box: HBoxContainer
 var _search: LineEdit
 var _search_timer: Timer
 var _timer: Timer
@@ -48,6 +50,18 @@ func _ready() -> void:
 		sk.add_child(Loading.skeleton(Vector2(74, 74), 37))
 		sk.add_child(Loading.skeleton(Vector2(74, 14), 7))
 		_friends_box.add_child(sk)
+
+	# Recently played: small square icons, lighter than the big place cards.
+	_recent_section = UI.vbox(10)
+	_recent_section.add_child(UI.label(L.t("recently_played"), 24, UI.TEXT, "black"))
+	var rscroll := ScrollContainer.new()
+	rscroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	rscroll.custom_minimum_size.y = 150
+	_recent_box = UI.hbox(14)
+	rscroll.add_child(_recent_box)
+	_recent_section.add_child(rscroll)
+	_recent_section.visible = false
+	root.add_child(_recent_section)
 
 	var ph := UI.hbox(12)
 	var pt := UI.label(L.t("places"), 24, UI.TEXT, "black")
@@ -110,6 +124,7 @@ func refresh_data() -> void:
 	_search_spinner.visible = _loaded_once
 	var pr := await Api.request("GET", "/api/places" + ("?q=" + q.uri_encode() if q != "" else ""))
 	var fr := await Api.request("GET", "/api/friends")
+	var rr := await Api.request("GET", "/api/me/recent") if q == "" else {}
 	var ur: Dictionary = {}
 	if q.length() >= 2:
 		ur = await Api.request("GET", "/api/users/search?q=" + q.uri_encode())
@@ -127,6 +142,8 @@ func refresh_data() -> void:
 			c.queue_free()
 		_places_box.add_child(Loading.error_block(pr.message, refresh_data))
 		_friends_section.visible = false
+	if rr.get("ok", false):
+		_render_recent(rr.data.places)
 	if fr.ok:
 		_render_friends(fr.data.friends)
 		_menu().set_request_badge(fr.data.incoming.size())
@@ -253,3 +270,53 @@ func _friend_chip(f: Dictionary, can_join := true) -> Control:
 	else:
 		UI.on_tap(v, func(): _menu().show_profile(str(f.username)))
 	return v
+
+
+func _render_recent(places: Array) -> void:
+	_recent_section.visible = not places.is_empty()
+	var ids := places.map(func(p): return str(p.id))
+	# Same list as before: keep the tiles (and their images) as they are.
+	if ids == _recent_box.get_meta("ids", []):
+		return
+	_recent_box.set_meta("ids", ids)
+	for c in _recent_box.get_children():
+		c.queue_free()
+	for p in places:
+		_recent_box.add_child(_recent_tile(p))
+
+
+func _recent_tile(p: Dictionary) -> Control:
+	var tile := UI.vbox(6)
+	tile.custom_minimum_size.x = 112
+	var img := RoundedImage.new(null, 20)
+	img.custom_minimum_size = Vector2(112, 112)
+	tile.add_child(img)
+	var id := str(p.id)
+	var local: String = PlacePage.LOCAL_SQUARES.get(id, "")
+	if local != "":
+		img.texture = load(local)
+	elif str(p.get("cover_square", "")) != "":
+		AssetCache.fetch(str(p.cover_square), func(t):
+			if is_instance_valid(img):
+				img.texture = t)
+	else:
+		# No 1:1 icon: the middle of the wide cover.
+		AssetCache.fetch(str(p.get("cover", "")), func(t: Texture2D):
+			if t and is_instance_valid(img):
+				img.texture = _square_crop(t))
+	var name := UI.label(L.field(p, "name"), 15, UI.TEXT, "bold")
+	name.custom_minimum_size.x = 112
+	name.clip_text = true
+	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	tile.add_child(name)
+	UI.on_tap(tile, func(): _menu().open_place(id))
+	return tile
+
+
+static func _square_crop(t: Texture2D) -> Texture2D:
+	var im := t.get_image()
+	if im == null:
+		return t
+	var side := mini(im.get_width(), im.get_height())
+	var rect := Rect2i((im.get_width() - side) / 2, (im.get_height() - side) / 2, side, side)
+	return ImageTexture.create_from_image(im.get_region(rect))

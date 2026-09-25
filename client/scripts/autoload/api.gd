@@ -79,4 +79,4 @@ func avatar_url(user_id: int) -> String:
 
 
 func ws_url() -> String:
-	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode() + "&lang=" + L.lang + "&v=" + version()
+	return BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/ws?token=" + Session.token.uri_encode() + "&lang=" + L.lang + "&v=" + version() + ("&luau=1" if ClassDB.class_exists("LuauVM") else "")

@@ -149,6 +149,16 @@ func _notification(what: int) -> void:
 			menu.close()
 		else:
 			_open_menu()
+	# "Play" on the website while already in a game: go there instead.
+	if what == NOTIFICATION_APPLICATION_RESUMED:
+		var launch := Launcher.take()
+		if not launch.is_empty() and Session.test_marp.is_empty():
+			_leaving = true
+			net.close()
+			Api.request("GET", "/api/launch")
+			Session.pending_server = launch.server
+			Session.pending_game = launch.game
+			get_tree().reload_current_scene()
 
 
 func _open_menu() -> void:
@@ -251,6 +261,12 @@ func _on_message(m: Dictionary) -> void:
 			player.reset_physics_interpolation()
 			player.velocity = Vector3.ZERO
 		"error":
+			if str(m.get("code", "")) == "device":
+				# This build can't run place scripts (32-bit phones): nothing to retry.
+				_leaving = true
+				net.close()
+				hud.show_overlay(str(m.get("m", "")), [[L.t("to_menu"), _leave]])
+				return
 			if str(m.get("code", "")) == "birthdate":
 				_leaving = true
 				net.close()

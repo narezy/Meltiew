@@ -24,9 +24,9 @@ async function call(method, path, body, token) {
   return { status: res.status, data, raw: text };
 }
 
-function connect(token) {
+function connect(token, luau = true) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}&v=${LATEST_CLIENT}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${token}&v=${LATEST_CLIENT}${luau ? '&luau=1' : ''}`);
     const inbox = [];
     const waiters = [];
     const ops = [];
@@ -154,6 +154,13 @@ test('create, save, publish, play, comment and stats', async () => {
   assert.ok(r.data.places.some((p) => p.id === id));
   r = await call('GET', '/api/users/maker/places', null, users.guest);
   assert.equal(r.data.places.length, 1);
+
+  // An app without the Luau library (32-bit phones) can't join a scripted place.
+  const old = await connect(users.guest, false);
+  await old.next((m) => m.t === 'hello');
+  old.send2({ t: 'join', game: id, server: 'auto' });
+  assert.equal((await old.next((m) => m.t === 'error')).code, 'device');
+  old.close();
 
   // Play: the guest joins, gets the world without server scripts.
   const guest = await connect(users.guest);

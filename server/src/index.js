@@ -127,7 +127,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
       log(`ws open ${auth.user.username} from ${clientIp(req)}`);
-      hub.attach(ws, auth.user, lang);
+      hub.attach(ws, auth.user, lang, { luau: url.searchParams.get('luau') === '1' });
     });
   });
 

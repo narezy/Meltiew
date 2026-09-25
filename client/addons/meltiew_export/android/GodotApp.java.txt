@@ -33,6 +33,8 @@ package com.godot.game;
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.GodotActivity;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -41,6 +43,10 @@ import android.view.WindowManager;
 
 import androidx.activity.EdgeToEdge;
 import androidx.core.splashscreen.SplashScreen;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Template activity for Godot Android builds.
@@ -77,6 +83,32 @@ public class GodotApp extends GodotActivity {
 		Godot godot = getGodot();
 		if (godot != null && godot.getDisableGodotSplash()) {
 			splashScreen.setKeepOnScreenCondition(() -> godot.getRunStatus() != Godot.RunStatus.STARTED);
+		}
+		rememberLaunch(getIntent());
+	}
+
+	@Override
+	public void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		setIntent(intent);
+		rememberLaunch(intent);
+	}
+
+	// Meltiew: "Play" on the website opens meltiew://play?server=..&game=..; the game
+	// reads this file (user://launch_intent.txt) the moment it starts or resumes, so it
+	// can show "Joining..." right away instead of waiting for the network.
+	private void rememberLaunch(Intent intent) {
+		if (intent == null) {
+			return;
+		}
+		Uri data = intent.getData();
+		if (data == null || !"meltiew".equals(data.getScheme())) {
+			return;
+		}
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "launch_intent.txt"))) {
+			out.write(data.toString().getBytes(StandardCharsets.UTF_8));
+		} catch (Exception e) {
+			Log.w("Meltiew", "Could not store the launch link", e);
 		}
 	}
 
