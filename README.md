@@ -5,7 +5,11 @@
 на сервер) с эмоциями, здоровьем и внутриигровым меню, и сайт, с которого можно зайти в игру.
 Интерфейс на английском и русском.
 
-Скачать APK: ветка [`download`](https://github.com/narezy/Meltiew/tree/download).
+Скачать (Android, Windows, Linux): ветка [`download`](https://github.com/narezy/Meltiew/tree/download).
+
+Админка на сайте: `/admin` (для ролей owner/admin; `nrz` получает owner автоматически,
+можно сменить через `MELTIEW_OWNER`). При выпуске новой версии поднимите `LATEST_CLIENT` в
+`server/src/version.js` (или «Минимальную версию» в админке): старые клиенты получат экран «обновись».
 
 ```
 client/   Godot-проект (Android, пакет cat.narezany.meltiew)
@@ -41,6 +45,9 @@ curl -fsSL https://raw.githubusercontent.com/narezy/Meltiew/main/deploy/install.
 ```bash
 GODOT=godot KEYSTORE=/path/meltiew-release.keystore KEYSTORE_PASS=... client/build_android.sh
 ```
+
+Windows и Linux: `godot --headless --export-release "Windows" export/windows/Meltiew.exe`
+и `godot --headless --export-release "Linux" export/linux/Meltiew.x86_64` из папки `client/`.
 
 Управление: на телефоне джойстик слева, камера пальцем справа, щипок для зума.
 На ПК WASD, пробел, ПКМ для камеры, колесо для зума, Enter для чата.
