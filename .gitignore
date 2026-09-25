@@ -8,3 +8,8 @@ client/export/
 .DS_Store
 zz_*
 client/android/
+native/third_party/
+native/**/*.o
+native/**/*.os
+native/**/*.obj
+native/.sconsign*.dblite

@@ -1,0 +1,19 @@
+# Builds the meltiew_luau GDExtension (Luau VM for GDScript).
+#   scons platform=linux|windows|android arch=x86_64|arm64 target=template_release
+# See build.sh for the full set used by releases.
+import os
+
+env = SConscript("third_party/godot-cpp/SConstruct")
+
+luau = "third_party/luau/"
+env.Append(CPPPATH=[luau + d + "/include" for d in ["VM", "Compiler", "Ast", "Common", "Bytecode"]])
+env.Append(CPPPATH=[luau + "VM/src"])
+
+sources = Glob("core/*.cpp") + Glob("godot/*.cpp")
+for d in ["VM/src", "Compiler/src", "Ast/src", "Bytecode/src", "Common/src"]:
+    sources += Glob(luau + d + "/*.cpp")
+
+out = "../client/addons/meltiew_luau/bin/"
+suffix = env["suffix"].replace(".template_release", "").replace(".template_debug", "")
+library = env.SharedLibrary(out + "libmeltiew_luau" + suffix + env["SHLIBSUFFIX"], source=sources)
+Default(library)

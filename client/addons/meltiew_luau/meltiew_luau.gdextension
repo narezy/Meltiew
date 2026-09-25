@@ -1,0 +1,9 @@
+[configuration]
+
+entry_symbol = "meltiew_luau_init"
+compatibility_minimum = "4.5"
+reloadable = false
+
+[libraries]
+
+linux.x86_64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.linux.x86_64.so"
