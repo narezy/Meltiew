@@ -120,6 +120,26 @@ input:focus { border-color: var(--accent); }
 .stats div { background: var(--bg2); border-radius: 16px; padding: 12px 16px; }
 .stats b { display: block; font-size: 22px; font-weight: 900; }
 
+/* Places */
+.places { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+.place-card { padding: 12px; transition: transform .15s; }
+.place-card:hover { transform: translateY(-3px); }
+.place-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; margin-bottom: 10px; }
+.bust.small { width: 30px; height: 30px; }
+
+/* Badges */
+.badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 8px; font-size: 11px; font-weight: 900;
+  letter-spacing: .5px; color: var(--ink); vertical-align: middle; }
+.badge.owner { background: #ffd166; }
+.badge.admin { background: var(--mint); }
+.badge.banned { background: var(--danger); margin-left: 0; }
+
+/* Admin */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.tile b { display: block; font-size: 30px; font-weight: 900; margin-top: 4px; }
+label.muted { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.admin-user { flex-wrap: wrap; }
+
 /* Modal */
 .modal-bg { position: fixed; inset: 0; background: #000a; display: grid; place-items: center; z-index: 50; padding: 20px; }
 .modal { width: min(460px, 100%); }
