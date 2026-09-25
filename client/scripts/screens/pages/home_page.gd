@@ -181,10 +181,18 @@ static func place_card(p: Dictionary, on_open: Callable) -> Control:
 	v.add_child(pad)
 	var info := UI.vbox(4)
 	pad.add_child(info)
-	info.add_child(UI.label(L.field(p, "name"), 22, UI.TEXT, "black"))
+	# Long names wrap to two lines and end with "…" instead of widening the card.
+	var title := UI.label(L.field(p, "name"), 22, UI.TEXT, "black")
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.max_lines_visible = 2
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.custom_minimum_size.x = 294
+	info.add_child(title)
 	var author: Dictionary = p.get("author", {})
 	var by := UI.hbox(6)
 	by.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	by.clip_contents = true
+	by.custom_minimum_size.x = 294
 	by.add_child(UI.label(L.t("by"), 15, UI.MUTED))
 	by.add_child(UI.name_row(author, 15, UI.MUTED, "bold"))
 	info.add_child(by)

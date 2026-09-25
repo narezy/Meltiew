@@ -350,3 +350,4 @@ input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transp
 .dm > * { min-height: 0; min-width: 0; }
 .conv .grow { min-width: 0; }
 .dm-pane .msgs { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
+.place-card h3 { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

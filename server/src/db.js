@@ -120,6 +120,11 @@ function migrate(db) {
   if (!cols.has('birthdate_changed_at')) db.exec('ALTER TABLE users ADD COLUMN birthdate_changed_at INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('face')) db.exec("ALTER TABLE users ADD COLUMN face TEXT NOT NULL DEFAULT ':D'");
   if (!cols.has('hide_friends')) db.exec('ALTER TABLE users ADD COLUMN hide_friends INTEGER NOT NULL DEFAULT 0');
+  if (!cols.has('accessories')) {
+    // Several accessories at once; the old single hat becomes the first of them.
+    db.exec("ALTER TABLE users ADD COLUMN accessories TEXT NOT NULL DEFAULT '[]'");
+    db.exec(`UPDATE users SET accessories = json_array(hat) WHERE hat != 'none' AND hat != ''`);
+  }
   const pcols = new Set(db.prepare('PRAGMA table_info(places)').all().map((c) => c.name));
   if (!pcols.has('cover_square')) db.exec("ALTER TABLE places ADD COLUMN cover_square TEXT NOT NULL DEFAULT ''");
   db.prepare(

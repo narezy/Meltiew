@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { parseColors } from './colors.js';
+import { wornOf, legacyHat } from './accessories.js';
 import { msg } from './i18n.js';
 import { MoveGuard, PLAYGROUND_LIMITS } from './anticheat.js';
 import { chatRules } from './age.js';
@@ -48,7 +49,8 @@ function publicUser(u) {
     username: u.username,
     display_name: u.display_name,
     colors: parseColors(u.colors),
-    hat: u.hat,
+    hat: legacyHat(wornOf(u)),
+    accessories: wornOf(u),
     role: u.role || 'user',
     face: u.face || ':D',
   };

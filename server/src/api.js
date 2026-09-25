@@ -10,7 +10,8 @@ import { createStudioRoutes } from './studio/routes.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
-export const HATS = ['none', 'cap', 'crown', 'catears', 'halo', 'tophat', 'flower', 'headphones'];
+export { LEGACY_HATS as HATS } from './accessories.js';
+import { CATALOG, cleanWorn, wornOf, legacyHat, accessoryExists } from './accessories.js';
 const ONLINE_WINDOW_MS = 60_000;
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60;
 const MAX_BODY = 16 * 1024;
@@ -221,7 +222,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
   // What an avatar looks like: enough for the app to draw a portrait or a character.
   function lookOf(u) {
-    return { colors: parseColors(u.colors), hat: u.hat, face: u.face || ':D', render: u.render_hash || '' };
+    const worn = wornOf(u);
+    return { colors: parseColors(u.colors), hat: legacyHat(worn), accessories: worn, face: u.face || ':D', render: u.render_hash || '' };
   }
 
   /** A small author card (places, comments) that still draws the right avatar. */
@@ -330,6 +332,9 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   }
 
   const routes = {
+    // The accessory catalog (public, same for everyone).
+    'GET /api/accessories': () => CATALOG,
+
     'GET /api/health': () => ({
       ok: true,
       users: q.countUsers.get().n,
@@ -425,17 +430,24 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
         next.face = body.face;
       }
       if (body.hide_friends !== undefined) next.hide_friends = body.hide_friends ? 1 : 0;
-      if (body.hat !== undefined) {
-        if (!HATS.includes(body.hat)) throw bad('bad_hat');
-        next.hat = body.hat;
+      let worn = wornOf(user);
+      if (body.accessories !== undefined) {
+        worn = cleanWorn(body.accessories);
+        if (!worn) throw bad('bad_hat');
+      } else if (body.hat !== undefined) {
+        // Older apps only know one hat: swap it, keep everything else that's worn.
+        if (body.hat !== 'none' && !accessoryExists(body.hat)) throw bad('bad_hat');
+        worn = cleanWorn([...worn.filter((id) => legacyHat([id]) === 'none'), ...(body.hat === 'none' ? [] : [body.hat])]);
       }
+      next.hat = legacyHat(worn);
       db.prepare(
-        'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ?, birthdate = ?, face = ?, hide_friends = ? WHERE id = ?',
+        'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ?, accessories = ?, birthdate = ?, face = ?, hide_friends = ? WHERE id = ?',
       ).run(
         next.display_name,
         next.bio,
         next.colors,
         next.hat,
+        JSON.stringify(worn),
         next.birthdate || '',
         next.face || ':D',
         next.hide_friends ? 1 : 0,

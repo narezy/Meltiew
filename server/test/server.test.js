@@ -405,3 +405,22 @@ test('anti-cheat snaps teleports back; hearts have a cooldown', async () => {
   c.close();
   w.close();
 });
+
+test('accessories: catalog, several at once, one per slot, old apps keep working', async () => {
+  const cat = await call('GET', '/api/accessories');
+  assert.ok(cat.data.items.some((it) => it.id === 'cattail' && it.bone === 'Torso'));
+  const reg = await call('POST', '/api/register', { username: 'dressup1', password: 'secret123', birthdate: '2000-01-01' });
+  const t = reg.data.token;
+  let r = await call('PATCH', '/api/me', { accessories: ['catears', 'crown', 'cattail'] }, t);
+  assert.deepEqual(r.data.user.accessories, ['catears', 'crown', 'cattail']);
+  assert.equal(r.data.user.hat, 'catears', 'older apps see the first head item');
+  // Two hats: the later one wins its slot.
+  r = await call('PATCH', '/api/me', { accessories: ['crown', 'cap'] }, t);
+  assert.deepEqual(r.data.user.accessories, ['cap']);
+  assert.equal((await call('PATCH', '/api/me', { accessories: ['jetpack'] }, t)).status, 400);
+  // An old app swapping its single hat keeps the tail on.
+  await call('PATCH', '/api/me', { accessories: ['cattail', 'cap'] }, t);
+  r = await call('PATCH', '/api/me', { hat: 'tophat' }, t);
+  assert.deepEqual(r.data.user.accessories.sort(), ['cattail', 'tophat']);
+  assert.equal(r.data.user.hat, 'tophat');
+});
