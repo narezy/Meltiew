@@ -15,6 +15,8 @@ var _body: Control
 var _tabs := {}
 var _tab := "players"
 var _margin: MarginContainer
+var _brand: Control
+var _actions: Array = []
 
 
 func _ready() -> void:
@@ -40,17 +42,14 @@ func _ready() -> void:
 	var row := UI.hbox(22)
 	_card.add_child(row)
 
-	# Left column: brand, tabs, actions. Scrolls on short screens instead of spilling out.
-	var side_scroll := ScrollContainer.new()
-	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	side_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	side_scroll.custom_minimum_size.x = 230
-	row.add_child(side_scroll)
+	# Left column: brand, tabs (they scroll if the screen is short) and the actions,
+	# which are pinned to the bottom so Resume is always on screen.
 	var side := UI.vbox(10)
-	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side.custom_minimum_size.x = 230
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	side_scroll.add_child(side)
+	row.add_child(side)
 	var brand := UI.hbox(10)
+	_brand = brand
 	var mark := TextureRect.new()
 	mark.texture = load("res://assets/logo_mark.png")
 	mark.custom_minimum_size = Vector2(40, 40)
@@ -59,17 +58,19 @@ func _ready() -> void:
 	brand.add_child(mark)
 	brand.add_child(UI.label("meltiew", 26, UI.TEXT, "black"))
 	side.add_child(brand)
-	var gap := Control.new()
-	gap.custom_minimum_size.y = 8
-	side.add_child(gap)
+	var tabs_scroll := ScrollContainer.new()
+	tabs_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side.add_child(tabs_scroll)
+	var tab_list := UI.vbox(6)
+	tab_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs_scroll.add_child(tab_list)
 	var tabs := [["players", "users", L.t("players")], ["settings", "settings", L.t("nav_settings")], ["help", "menu", L.t("controls")]]
 	# Studio places: script output (prints and errors), like a developer console.
 	if Session.pending_game != "playground":
 		tabs.append(["console", "code", L.t("console")])
 	for t in tabs:
-		var b := _tab_button(t[0], t[1], t[2])
-		side.add_child(b)
-	side.add_child(UI.spacer(false))
+		tab_list.add_child(_tab_button(t[0], t[1], t[2]))
 	var reset := UI.button(L.t("reset_character"), "ghost", 52)
 	reset.pressed.connect(func():
 		close()
@@ -81,6 +82,7 @@ func _ready() -> void:
 	var resume := UI.button(L.t("resume"), "primary", 56)
 	resume.pressed.connect(close)
 	side.add_child(resume)
+	_actions = [reset, leave, resume]
 
 	var content := UI.card(20, UI.CARD, 22)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -119,10 +121,21 @@ func _tab_button(id: String, icon: String, text: String) -> Button:
 ## Fits the card into the screen: full size on tablets and PCs, edge to edge on short phones.
 func _fit() -> void:
 	var vp := _card.get_viewport_rect().size
-	var m := 12 if vp.y < 700.0 else 40
-	for side in ["left", "right", "top", "bottom"]:
-		_margin.add_theme_constant_override("margin_" + side, m)
-	_card.custom_minimum_size = Vector2(minf(980.0, vp.x - 2 * m), minf(560.0, vp.y - 2 * m))
+	var m := 12.0 if vp.y < 700.0 else 40.0
+	# Keep clear of notches, rounded corners and the system bars.
+	var inset := UI.safe_insets(get_viewport())
+	var sides := {"left": inset.x, "top": inset.y, "right": inset.z, "bottom": inset.w}
+	for side in sides:
+		_margin.add_theme_constant_override("margin_" + side, int(m + sides[side]))
+	var avail := Vector2(vp.x - 2 * m - inset.x - inset.z, vp.y - 2 * m - inset.y - inset.w)
+	_card.custom_minimum_size = Vector2(minf(980.0, avail.x), minf(560.0, avail.y))
+	# Very short screens: drop the logo and make the buttons slimmer.
+	var short := avail.y < 470.0
+	_brand.visible = not short
+	for i in _actions.size():
+		_actions[i].custom_minimum_size.y = (44 if short else (56 if i == 2 else 52))
+	for k in _tabs:
+		_tabs[k].custom_minimum_size.y = 44 if short else 52
 
 
 func open() -> void:

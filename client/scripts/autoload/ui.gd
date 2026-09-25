@@ -603,6 +603,23 @@ func report(parent: Node, u: Dictionary, about := {}) -> void:
 	row.add_child(send)
 
 
+## Space taken by notches, rounded corners and system bars, in UI units:
+## (left, top, right, bottom). Zero on desktops.
+func safe_insets(vp: Viewport) -> Vector4:
+	if not OS.has_feature("mobile"):
+		return Vector4.ZERO
+	var win := Vector2(DisplayServer.window_get_size())
+	var safe := DisplayServer.get_display_safe_area()
+	if win.x <= 0.0 or win.y <= 0.0 or safe.size.x <= 0:
+		return Vector4.ZERO
+	var k := vp.get_visible_rect().size / win
+	return Vector4(
+		maxf(0.0, safe.position.x) * k.x,
+		maxf(0.0, safe.position.y) * k.y,
+		maxf(0.0, win.x - safe.end.x) * k.x,
+		maxf(0.0, win.y - safe.end.y) * k.y)
+
+
 ## Interface size. Phones get bigger UI by default; the Settings slider overrides it.
 func apply_ui_scale() -> void:
 	var s := float(Session.settings.get("ui_scale", 0.0))

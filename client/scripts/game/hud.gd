@@ -14,7 +14,7 @@ var wheel: EmoteWheel
 
 var _root: Control
 const HP_W := 200.0
-const CHAT_W := 430.0
+const CHAT_W := 360.0
 ## Messages shown while the chat is closed, and how many are kept to scroll back through.
 const CHAT_PEEK := 3
 const CHAT_HISTORY := 100
@@ -117,7 +117,7 @@ func _ready() -> void:
 	var cv := UI.vbox(8)
 	_chat_panel.add_child(cv)
 	_chat_scroll = ScrollContainer.new()
-	_chat_scroll.custom_minimum_size = Vector2(CHAT_W, 230)
+	_chat_scroll.custom_minimum_size = Vector2(CHAT_W, 170)
 	_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	cv.add_child(_chat_scroll)
 	_chat_full = UI.vbox(3)
@@ -128,11 +128,12 @@ func _ready() -> void:
 	_chat_input_row = UI.hbox(8)
 	cv.add_child(_chat_input_row)
 	_chat_input = UI.input(L.t("chat_placeholder"))
-	_chat_input.custom_minimum_size = Vector2(CHAT_W - 64, 50)
+	_chat_input.custom_minimum_size = Vector2(CHAT_W - 60, 44)
 	_chat_input.max_length = 200
 	_chat_input.text_submitted.connect(func(_t): _send_chat())
 	_chat_input_row.add_child(_chat_input)
 	var send := _icon_button("send")
+	send.custom_minimum_size = Vector2(44, 44)
 	send.pressed.connect(_send_chat)
 	_chat_input_row.add_child(send)
 	_blockers.append(_chat_input_row)
@@ -357,13 +358,16 @@ func _scroll_chat_down() -> void:
 	_chat_scroll.scroll_vertical = int(_chat_scroll.get_v_scroll_bar().max_value)
 
 
-func _set_chat_expanded(on: bool) -> void:
+## Opening shows the history; the input only takes focus when asked (a chat key
+## on a keyboard), so tapping the chat button doesn't pop up the phone keyboard.
+func _set_chat_expanded(on: bool, focus := false) -> void:
 	_chat_expanded = on
 	_chat_panel.visible = on
 	_chat_log.visible = chat_enabled and not on
 	if on:
 		_scroll_chat_down()
-		_chat_input.grab_focus()
+		if focus:
+			_chat_input.grab_focus()
 	else:
 		_chat_input.release_focus()
 		# Reopening the closed view shouldn't bring back long-faded messages.
@@ -371,10 +375,10 @@ func _set_chat_expanded(on: bool) -> void:
 			c.modulate.a = 0.0
 
 
-func toggle_chat() -> void:
+func toggle_chat(focus := false) -> void:
 	if not chat_enabled:
 		return
-	_set_chat_expanded(not _chat_expanded)
+	_set_chat_expanded(not _chat_expanded, focus)
 
 
 func chat_open() -> bool:
@@ -511,7 +515,7 @@ func _desktop(event: InputEvent) -> void:
 				if _chat_expanded:
 					_chat_input.grab_focus()
 				else:
-					toggle_chat()
+					toggle_chat(true)
 				get_viewport().set_input_as_handled()
 			KEY_B, KEY_G:
 				release_touches()
