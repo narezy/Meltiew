@@ -289,7 +289,12 @@ func _on_message(m: Dictionary) -> void:
 			net.close()
 			match str(m.get("code", "")):
 				"update":
-					UI.show_update_required(str(m.get("m", "")), Api.BASE_URL + "/download")
+					# Only games need the new version: offer it, but let them go back (Studio keeps working).
+					var msg := str(m.get("m", ""))
+					hud.show_overlay(msg if msg != "" else L.t("update_body"), [
+						[L.t("update_button"), func(): OS.shell_open(Api.BASE_URL + "/download")],
+						[L.t("to_menu"), _leave, "ghost"],
+					])
 				"banned":
 					hud.show_overlay(L.t("kicked_banned"), [[L.t("to_menu"), _leave]])
 				"kicked":

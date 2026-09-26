@@ -31,6 +31,8 @@ export const MESSAGES = {
   not_owned: ["You don't have this item yet: get it in the shop", 'У тебя пока нет этой вещи: она есть в магазине'],
   not_enough_pieces: ['Not enough pieces', 'Не хватает кусочков'],
   not_enough_orbs: ['Not enough orbs', 'Не хватает опыта'],
+  not_for_orbs: ['This one is sold for pieces only', 'Это продаётся только за кусочки'],
+  not_for_pieces: ['This one is not sold for pieces', 'Это не продаётся за кусочки'],
   no_item: ['No such item', 'Такой вещи нет'],
   bad_pack: ['No such pack', 'Такого набора нет'],
   payments_off: ['Buying pieces opens very soon', 'Покупка кусочков откроется совсем скоро'],

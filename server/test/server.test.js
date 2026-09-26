@@ -262,10 +262,10 @@ test('admin endpoints are staff-only and bans lock the account', async () => {
   assert.equal((await call('POST', '/api/admin/announce', { text: 'hello' }, users.nrz)).status, 200);
 });
 
-test('outdated apps are turned away, the website is not', async () => {
+test('outdated apps are asked to update when they join a game, the website never', async () => {
+  // Old apps keep the HTTP API (Studio can still save), games turn them away.
   const old = await fetch(base + '/api/places', { headers: { 'x-client': 'app', 'x-client-version': '1.1.0' } });
-  assert.equal(old.status, 426);
-  assert.equal((await old.json()).error, 'update_required');
+  assert.notEqual(old.status, 426);
   // Builds before 1.2 sent no version at all, only Godot's user agent.
   const legacy = await fetch(base + '/api/me', { headers: { 'user-agent': 'GodotEngine/4.7.2.stable (Android)' } });
   assert.equal(legacy.status, 426);
@@ -276,7 +276,10 @@ test('outdated apps are turned away, the website is not', async () => {
   assert.equal(web.status, 401);
   assert.equal((await call('POST', '/api/admin/min-version', { version: NEXT }, users.alice)).status, 403);
   assert.equal((await call('POST', '/api/admin/min-version', { version: NEXT }, users.nrz)).status, 200);
-  assert.equal((await call('GET', '/api/me', null, users.alice)).status, 426);
+  assert.equal((await call('GET', '/api/me', null, users.alice)).status, 200);
+  const kicked = await connect(users.alice);
+  const k = await kicked.next((m) => m.t === 'kicked');
+  assert.equal(k.code, 'update');
   const reset = await fetch(base + '/api/admin/min-version', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-client': 'web', authorization: `Bearer ${users.nrz}` },

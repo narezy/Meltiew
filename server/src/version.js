@@ -1,7 +1,7 @@
 // App version gate: clients older than the minimum are turned away with 426.
 // The minimum defaults to the release this server ships with and can be raised
 // at runtime from the admin panel (stored in the config table).
-export const LATEST_CLIENT = '1.4.2';
+export const LATEST_CLIENT = '1.4.3';
 export const DOWNLOAD_PAGE = 'https://meltiew.narez.xyz/download';
 
 export function compareVersions(a, b) {
@@ -32,6 +32,16 @@ export function createVersionGate(db) {
       const isApp = client === 'app' || /^GodotEngine\//.test(String(userAgent));
       if (!isApp) return true;
       return compareVersions(version, this.min()) >= 0;
+    },
+    /**
+     * The HTTP API stays open to every app that reports its version, so an old
+     * app never loses unsaved work in Studio; it's asked to update when it joins
+     * a game instead. Only builds too old to say their version are turned away.
+     */
+    allowsHttp(client, version, userAgent = '') {
+      if (client === 'web') return true;
+      const isApp = client === 'app' || /^GodotEngine\//.test(String(userAgent));
+      return !isApp || !!version;
     },
   };
 }

@@ -341,6 +341,9 @@ function renderNav(path) {
   const bar = $('#tabbar');
   bar.innerHTML = links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
   paintBadges();
+  $('#footer').innerHTML = ['meltiew', `<a href="/terms" data-link>${t('terms')}</a>`, `<a href="/privacy" data-link>${t('privacy_policy')}</a>`,
+    `<a href="/support" data-link>${t('support')}</a>`, '<a href="https://t.me/meltiew" target="_blank" rel="noopener">Telegram</a>',
+    '<a href="https://github.com/narezy/Meltiew" target="_blank" rel="noopener">GitHub</a>'].join(' · ');
 }
 
 // Asks once per visit for a date of birth when the account has none. Resolves true once it's set.

@@ -421,3 +421,34 @@ footer a { color: var(--muted); }
   .balance small { display: none; }
   .balance b { font-size: 24px; }
 }
+
+/* Narrow phones: the wallet chip needs the room the wordmark took. */
+html { overflow-x: clip; }
+.nav-right { min-width: 0; }
+@media (max-width: 520px) {
+  .brand span { display: none; }
+  .nav-right { gap: 6px; }
+  .lang { max-width: 104px; }
+  .wallet-chip { margin-right: 0; gap: 4px; padding: 6px 9px; }
+}
+.shop-item .buy-row { display: flex; gap: 6px; }
+.shop-item .buy-row .btn { flex: 1; justify-content: center; gap: 4px; padding-left: 8px; padding-right: 8px; }
+.shop-item .buy-row .btn svg { flex: none; }
+.shop-item > .pill { align-self: flex-start; }
+/* Laptops: eight links, the language, the wallet and you have to share one row. */
+@media (min-width: 761px) and (max-width: 1440px) {
+  .nav { gap: 10px; }
+  .nav-links { margin-left: 0; gap: 0; }
+  .nav-links a { padding: 9px 9px; font-size: 15px; }
+  .me-chip { padding: 3px; }
+  .me-chip span { display: none; }
+  .wallet-chip { margin-right: 0; }
+}
+@media (min-width: 761px) and (max-width: 1180px) {
+  .brand span { display: none; }
+  .lang { max-width: 110px; }
+}
+@media (min-width: 761px) and (max-width: 1040px) {
+  .nav { flex-wrap: wrap; row-gap: 6px; }
+  .nav-links { order: 3; width: 100%; justify-content: space-between; }
+}

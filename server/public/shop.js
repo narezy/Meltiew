@@ -3,7 +3,10 @@
 
 const PIECE_SVG = (s = 20) => `<svg class="cur piece" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffb86b" stroke="#c9772a" stroke-width="1.2" d="M4 7.5h4.2c-.6-2.9 1-4.5 2.8-4.5s3.4 1.6 2.8 4.5H18v4.2c2.9-.6 4.5 1 4.5 2.8s-1.6 3.4-4.5 2.8V21H13.8c.6-2.9-1-4.5-2.8-4.5S7.6 18.1 8.2 21H4v-4.2c2.9.6 4.5-1 4.5-2.8S6.9 10.6 4 11.2z"/></svg>`;
 const ORB_SVG = (s = 20) => `<svg class="cur orb" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="og" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#e6dcff"/><stop offset=".6" stop-color="#9d7bff"/><stop offset="1" stop-color="#6c4bd8"/></radialGradient></defs><circle cx="12" cy="12" r="10" fill="url(#og)"/><circle cx="12" cy="12" r="3.6" fill="#fff" opacity=".9"/></svg>`;
-const priceHtml = (p) => (!p ? '' : p.pieces ? `${PIECE_SVG(18)}<b>${p.pieces}</b>` : `${ORB_SVG(18)}<b>${p.orbs}</b>`);
+const priceHtml = (p, cur) => (!p ? '' : (cur || (p.pieces ? 'pieces' : 'orbs')) === 'pieces' ? `${PIECE_SVG(18)}<b>${p.pieces}</b>` : `${ORB_SVG(18)}<b>${p.orbs}</b>`);
+// One buy button per currency the item is sold for: pieces always, orbs for some.
+const buyButtons = (it) => ['pieces', 'orbs'].filter((c) => it.price?.[c])
+  .map((c, i) => `<button class="btn small ${i ? 'ghost' : ''} buy-${c}" data-buy="${esc(it.id)}" data-cur="${c}">${i ? '' : t('buy') + ' '}${priceHtml(it.price, c)}</button>`).join('');
 const piecesText = (w) => (w?.infinite ? '∞' : String(w?.pieces ?? 0));
 
 const SHOP_T = {
@@ -247,10 +250,10 @@ const SHOP_ROUTES = {
         const pic = tab === 'faces_tab' ? `<img src="/img/faces/${FACE_SLUGS[it.id] || 'grin'}.png" alt="">` : `<img data-thumb="${esc(it.id)}" alt="">`;
         const action = it.owned || !it.price
           ? `<span class="pill">${it.price ? t('owned') : t('free')}</span>`
-          : `<button class="btn small" data-buy="${esc(it.id)}">${t('buy')} ${priceHtml(it.price)}</button>`;
+          : `<div class="buy-row">${buyButtons(it)}</div>`;
         return `<div class="card shop-item ${worn ? 'on' : ''}" data-item="${esc(it.id)}">
           <div class="pic">${pic}</div><b>${esc(tab === 'faces_tab' ? it.id : name(it))}</b>
-          <div class="row">${action}<button class="btn small ghost" data-try="${esc(it.id)}">${worn ? t('take_off') : it.owned || !it.price ? t('wear') : t('try_on')}</button></div></div>`;
+          ${action}<button class="btn small ghost" data-try="${esc(it.id)}">${worn ? t('take_off') : it.owned || !it.price ? t('wear') : t('try_on')}</button></div>`;
       }).join('');
       $('#grid').querySelectorAll('img[data-thumb]').forEach((img) => accessoryThumb(img.dataset.thumb).then((url) => { if (url) img.src = url; }));
       $('#grid').querySelectorAll('[data-try]').forEach((b) => b.addEventListener('click', () => {
@@ -264,7 +267,7 @@ const SHOP_ROUTES = {
       $('#grid').querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', async () => {
         b.disabled = true;
         try {
-          const r = await api('POST', '/api/shop/buy', { kind: tab === 'faces_tab' ? 'face' : 'accessory', id: b.dataset.buy });
+          const r = await api('POST', '/api/shop/buy', { kind: tab === 'faces_tab' ? 'face' : 'accessory', id: b.dataset.buy, currency: b.dataset.cur });
           state.me.wallet = r.wallet;
           state.me.owned = r.owned;
           shop = await api('GET', '/api/shop');

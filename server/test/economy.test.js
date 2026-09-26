@@ -59,13 +59,18 @@ test('daily orbs once a day, shop prices, ownership', async () => {
   assert.equal(r.status, 402);
 
   app.db.prepare('UPDATE users SET orbs = 1000, pieces = 100 WHERE id = ?').run(ids.shopper);
-  r = await call('POST', '/api/shop/buy', { kind: 'accessory', id: 'cap' }, users.shopper);
+  // Everything has a pieces price; the cap can also be taken for orbs, the crown can't.
+  assert.ok(cap.price.pieces > 0 && cap.price.orbs > 0);
+  assert.equal((await call('POST', '/api/shop/buy', { kind: 'accessory', id: 'crown', currency: 'orbs' }, users.shopper)).status, 400);
+  r = await call('POST', '/api/shop/buy', { kind: 'accessory', id: 'cap', currency: 'orbs' }, users.shopper);
   assert.equal(r.status, 200, r.raw);
   assert.equal(r.data.wallet.orbs, 1000 - cap.price.orbs);
+  assert.equal(r.data.wallet.pieces, 100);
   assert.ok(r.data.owned.accessories.includes('cap'));
   // Buying twice costs nothing more.
-  r = await call('POST', '/api/shop/buy', { kind: 'accessory', id: 'cap' }, users.shopper);
+  r = await call('POST', '/api/shop/buy', { kind: 'accessory', id: 'cap', currency: 'pieces' }, users.shopper);
   assert.equal(r.data.wallet.orbs, 1000 - cap.price.orbs);
+  assert.equal(r.data.wallet.pieces, 100);
   r = await call('PATCH', '/api/me', { accessories: ['cap'] }, users.shopper);
   assert.equal(r.status, 200, r.raw);
   assert.deepEqual(r.data.user.accessories, ['cap']);

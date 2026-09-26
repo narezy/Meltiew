@@ -234,6 +234,7 @@ const TABLE := {
 	"update_title": ["Time to update", "Пора обновиться"],
 	"update_body": ["A new version of Meltiew is out. Download it to keep playing.", "Вышла новая версия Meltiew. Скачай её, чтобы играть дальше."],
 	"update_button": ["Download update", "Скачать обновление"],
+	"update_later": ["Later", "Позже"],
 	"your_version": ["Your version: {0}", "Твоя версия: {0}"],
 	"kicked_banned": ["Your account was banned", "Твой аккаунт заблокирован"],
 	"kicked_admin": ["An admin removed you from the server", "Админ выгнал тебя с сервера"],

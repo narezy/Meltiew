@@ -109,39 +109,38 @@ func _open() -> void:
 	close.pressed.connect(layer.queue_free)
 	head.add_child(close)
 	v.add_child(head)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var row_h := 48.0
-	scroll.custom_minimum_size.y = minf(_items.size() * (row_h + 4.0), vp.y * 0.72 - 90.0)
-	v.add_child(scroll)
-	var list := UI.vbox(4)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
-	var current: Button = null
-	for it in _items:
-		var b := UI.button(str(it[1]), "flat", int(row_h))
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.add_theme_font_size_override("font_size", 18)
-		# Buttons pass drags through so a finger can scroll the list.
-		b.mouse_filter = Control.MOUSE_FILTER_PASS
-		if it[0] == _selected:
-			b.theme_type_variation = "ChipButton"
-			b.toggle_mode = true
-			b.button_pressed = true
-			current = b
-		var id: Variant = it[0]
-		b.pressed.connect(func():
-			layer.queue_free()
-			if id != _selected:
-				_selected = id
-				_refresh()
-				picked.emit(id))
-		list.add_child(b)
+	var list := TouchList.new()
+	list.custom_minimum_size.y = minf(_items.size() * (row_h + 4.0), vp.y * 0.72 - 90.0)
+	v.add_child(list)
+	var current := -1
+	for i in _items.size():
+		var it: Array = _items[i]
+		var row := PanelContainer.new()
+		row.custom_minimum_size.y = row_h
+		var sb := StyleBoxFlat.new()
+		sb.set_corner_radius_all(12)
+		sb.content_margin_left = 16
+		sb.content_margin_right = 16
+		var on: bool = it[0] == _selected
+		sb.bg_color = Color(UI.ACCENT, 0.28) if on else Color(1, 1, 1, 0.03)
+		row.add_theme_stylebox_override("panel", sb)
+		var l := UI.label(str(it[1]), 18, UI.TEXT if on else Color(UI.TEXT, 0.85), "bold")
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(l)
+		list.add_row(row)
+		if on:
+			current = i
+	list.tapped.connect(func(i: int):
+		Sfx.click()
+		var id: Variant = _items[i][0]
+		layer.queue_free()
+		if id != _selected:
+			_selected = id
+			_refresh()
+			picked.emit(id))
 	# Long lists (years) open a little way in when nothing is chosen yet.
-	if current == null and _items.size() > 40 and list.get_child_count() > 12:
-		current = list.get_child(12)
-	if current:
-		# Open with the current choice in view.
-		await get_tree().process_frame
-		if is_instance_valid(scroll):
-			scroll.ensure_control_visible(current)
+	if current < 0 and _items.size() > 40:
+		current = 12
+	if current >= 0:
+		list.show_row(current)

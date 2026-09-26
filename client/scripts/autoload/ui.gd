@@ -77,11 +77,10 @@ func _on_unauthorized() -> void:
 var _update_layer: CanvasLayer
 
 
-## Full-screen, non-dismissable "please update" screen for outdated app versions.
+## Full-screen "please update" screen for outdated app versions ("Later" closes it).
 func show_update_required(message: String, url: String) -> void:
 	if _update_layer:
 		return
-	Net.close()
 	_update_layer = CanvasLayer.new()
 	_update_layer.layer = 120
 	add_child(_update_layer)
@@ -116,6 +115,13 @@ func show_update_required(message: String, url: String) -> void:
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	b.pressed.connect(func(): OS.shell_open(url))
 	v.add_child(b)
+	var later := button(L.t("update_later"), "ghost", 48)
+	later.custom_minimum_size.x = 300
+	later.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	later.pressed.connect(func():
+		_update_layer.queue_free()
+		_update_layer = null)
+	v.add_child(later)
 	var ver := label(L.t("your_version", [Api.version()]), 15, MUTED)
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(ver)

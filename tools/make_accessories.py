@@ -146,11 +146,14 @@ items.append({"id": "backpack", "name": {"en": "Backpack", "ru": "Рюкзак"}
     part("box", [0, 0.95, -0.87], "#e8952f", size=[0.6, 0.4, 0.1], rough=0.85),
 ]})
 
-# Prices: pieces (bought with money) or orbs (earned by playing).
+# Prices: every item costs pieces (bought with money, 1 piece is about 1 rouble);
+# the everyday ones can be taken for orbs (earned by playing) instead. Buyer picks.
 PRICES = {
-    "cap": {"orbs": 250}, "flower": {"orbs": 200}, "headphones": {"orbs": 450}, "catears": {"orbs": 500},
-    "partyhat": {"orbs": 300}, "beanie": {"orbs": 400}, "scarf": {"orbs": 350}, "bowtie": {"orbs": 250},
-    "heartglasses": {"orbs": 450}, "backpack": {"orbs": 600},
+    "cap": {"pieces": 15, "orbs": 250}, "flower": {"pieces": 12, "orbs": 200},
+    "headphones": {"pieces": 25, "orbs": 450}, "catears": {"pieces": 29, "orbs": 500},
+    "partyhat": {"pieces": 15, "orbs": 300}, "beanie": {"pieces": 19, "orbs": 400},
+    "scarf": {"pieces": 19, "orbs": 350}, "bowtie": {"pieces": 12, "orbs": 250},
+    "heartglasses": {"pieces": 25, "orbs": 450}, "backpack": {"pieces": 35, "orbs": 600},
     "tophat": {"pieces": 35}, "crown": {"pieces": 99}, "halo": {"pieces": 79}, "cattail": {"pieces": 49},
     "sunglasses": {"pieces": 29}, "wings": {"pieces": 129}, "bunnyears": {"pieces": 45}, "horns": {"pieces": 59},
 }

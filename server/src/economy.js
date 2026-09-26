@@ -20,19 +20,19 @@ export const PACKS = [
 // Everyone has these faces; the rest are bought.
 export const FREE_FACES = [':D', ':)'];
 export const FACE_PRICES = {
-  ':3': { orbs: 120 },
-  ':P': { orbs: 100 },
-  ';)': { orbs: 100 },
-  ':O': { orbs: 100 },
-  xD: { orbs: 150 },
+  ':3': { pieces: 10, orbs: 120 },
+  ':P': { pieces: 8, orbs: 100 },
+  ';)': { pieces: 8, orbs: 100 },
+  ':O': { pieces: 8, orbs: 100 },
+  xD: { pieces: 12, orbs: 150 },
   'B)': { pieces: 25 },
-  '^_^': { orbs: 150 },
+  '^_^': { pieces: 12, orbs: 150 },
   owo: { pieces: 19 },
   uwu: { pieces: 19 },
-  '>_<': { orbs: 180 },
-  'T_T': { orbs: 120 },
-  '-_-': { orbs: 100 },
-  ':|': { orbs: 80 },
+  '>_<': { pieces: 15, orbs: 180 },
+  'T_T': { pieces: 10, orbs: 120 },
+  '-_-': { pieces: 8, orbs: 100 },
+  ':|': { pieces: 6, orbs: 80 },
   '<3': { pieces: 15 },
 };
 
@@ -63,7 +63,7 @@ function hashNum(s) {
 
 /** Price of an item: { pieces } or { orbs }, null when it's free. */
 export function priceOf(kind, id) {
-  if (kind === 'face') return FREE_FACES.includes(id) ? null : FACE_PRICES[id] || { orbs: 100 };
+  if (kind === 'face') return FREE_FACES.includes(id) ? null : FACE_PRICES[id] || { pieces: 8, orbs: 100 };
   const it = CATALOG.items.find((i) => i.id === id);
   return it?.price || null;
 }
@@ -408,9 +408,11 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
       if (kind === 'face' ? !FACES.includes(id) : !CATALOG.items.some((i) => i.id === id)) throw new HttpError(404, 'no_item');
       const price = priceOf(kind, id);
       if (!price || owns(user.id, kind, id)) return { wallet: wallet(user.id), owned: ownedOf(user.id) };
+      // Everything has a price in pieces; some items can be taken for orbs instead.
+      const currency = body.currency === 'orbs' ? 'orbs' : body.currency === 'pieces' ? 'pieces' : price.pieces ? 'pieces' : 'orbs';
+      if (!price[currency]) throw bad('not_for_' + currency);
       tx(() => {
-        if (price.pieces) change(user.id, 'pieces', -price.pieces, 'buy_' + kind, id);
-        else change(user.id, 'orbs', -price.orbs, 'buy_' + kind, id);
+        change(user.id, currency, -price[currency], 'buy_' + kind, id);
         q.give.run(user.id, kind, id, 'shop', Date.now());
       });
       return { wallet: wallet(user.id), owned: ownedOf(user.id) };

@@ -17,7 +17,24 @@ static func make(icon_kind: String, px := 26, tint := UI.TEXT) -> Icon:
 	i.custom_minimum_size = Vector2(px, px)
 	i.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	i.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if icon_kind in ["piece", "orb"]:
+		i.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return i
+
+
+const PIECE_SVG := '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#ffb86b" stroke="#c9772a" stroke-width="1.2" stroke-linejoin="round" d="M4 7.5h4.2c-.6-2.9 1-4.5 2.8-4.5s3.4 1.6 2.8 4.5H18v4.2c2.9-.6 4.5 1 4.5 2.8s-1.6 3.4-4.5 2.8V21H13.8c.6-2.9-1-4.5-2.8-4.5S7.6 18.1 8.2 21H4v-4.2c2.9.6 4.5-1 4.5-2.8S6.9 10.6 4 11.2z"/></svg>'
+const ORB_SVG := '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><defs><radialGradient id="og" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#e6dcff"/><stop offset=".6" stop-color="#9d7bff"/><stop offset="1" stop-color="#6c4bd8"/></radialGradient></defs><circle cx="12" cy="12" r="10" fill="url(#og)"/><circle cx="12" cy="12" r="3.6" fill="#fff" fill-opacity=".9"/></svg>'
+static var _currency_tex := {}
+
+
+## The piece or orb picture, rendered once at a large size (mipmaps keep it smooth when small).
+static func currency_texture(which: String) -> Texture2D:
+	if not _currency_tex.has(which):
+		var img := Image.new()
+		img.load_svg_from_string(PIECE_SVG if which == "piece" else ORB_SVG, 8.0)
+		img.generate_mipmaps()
+		_currency_tex[which] = ImageTexture.create_from_image(img)
+	return _currency_tex[which]
 
 
 func _line(pts: Array, w := -1.0) -> void:
@@ -178,18 +195,9 @@ func _draw() -> void:
 			_line([Vector2(15, 4), Vector2(7, 12), Vector2(15, 20)])
 		"down":
 			_line([Vector2(5, 9), Vector2(12, 16), Vector2(19, 9)])
-		"piece":
-			# A puzzle piece: square body, a knob on top and one on the right.
-			_poly([Vector2(4, 8), Vector2(18, 8), Vector2(18, 21), Vector2(4, 21)])
-			_circle(Vector2(11, 6.5), 3.4, true)
-			_circle(Vector2(19.5, 14.5), 3.4, true)
-			var s := size.x / 24.0
-			draw_circle(Vector2(4, 14.5) * s, 2.6 * s, Color(0, 0, 0, 0.25))
-		"orb":
-			_circle(Vector2(12, 12), 9.5, true)
-			var s2 := size.x / 24.0
-			draw_circle(Vector2(9, 9) * s2, 4.0 * s2, Color(1, 1, 1, 0.25))
-			draw_circle(Vector2(12, 12) * s2, 3.4 * s2, Color(1, 1, 1, 0.95))
+		"piece", "orb":
+			# The currencies are drawn from the same SVGs as the website, smooth at any size.
+			draw_texture_rect(currency_texture(kind), Rect2(Vector2.ZERO, size), false)
 		"backpack":
 			_line([Vector2(9, 6), Vector2(9, 4), Vector2(15, 4), Vector2(15, 6)])
 			_line([Vector2(6, 21), Vector2(4.5, 19.5), Vector2(4.5, 9.5), Vector2(7, 6.5), Vector2(17, 6.5),

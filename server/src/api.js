@@ -1003,13 +1003,13 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       res.end(body);
     };
     if (req.method === 'OPTIONS') return send(204, {});
-    // Outdated apps get a clear "please update" instead of half-working.
+    // Apps too old to report their version get a clear "please update" instead of half-working.
     const ungated =
       url.pathname === '/api/health' ||
       url.pathname.startsWith('/api/avatar/') ||
       url.pathname.startsWith('/api/assets/') ||
       url.pathname.startsWith('/api/media/');
-    if (!ungated && !gate.allows(req.headers['x-client'], req.headers['x-client-version'], req.headers['user-agent'])) {
+    if (!ungated && !gate.allowsHttp(req.headers['x-client'], req.headers['x-client-version'], req.headers['user-agent'])) {
       return send(426, {
         error: 'update_required',
         message: msg('update_required', lang, { v: gate.min() }),
