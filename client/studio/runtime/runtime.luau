@@ -855,7 +855,7 @@ local function coerce(info, key, p, v)
 			n = p.max
 		end
 		return n
-	elseif t == "string" or t == "source" or t == "asset" or t == "sound" then
+	elseif t == "string" or t == "source" or t == "asset" or t == "sound" or t == "accessories" or t == "animation" then
 		if v == nil then
 			return ""
 		end
@@ -2742,7 +2742,7 @@ local function loadCharacter(player)
 	table.insert(D[model].children, root)
 	local hum = create("Humanoid")
 	local hp = D[hum].props
-	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen" } do
+	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen", "Traction" } do
 		local v = starterValue(k)
 		if v ~= nil then
 			hp[k] = v
@@ -2785,6 +2785,23 @@ local function expectTool(tool)
 	end
 end
 
+-- An animation for PlayAnimation / Rig.Animation: "anim://<id>" (or the bare id) from
+-- the animator, or one of Melly's own moves.
+local BUILTIN_ANIMS = { idle = true, walk = true, run = true, wave = true, dance = true, cheer = true, sit = true, clap = true, laugh = true }
+local function animRef(anim, level)
+	if type(anim) == "number" and anim >= 1 and anim % 1 == 0 then
+		return "anim://" .. string.format("%d", anim)
+	end
+	local s = tostring(anim or "")
+	if string.match(s, "^anim://%d+$") or BUILTIN_ANIMS[s] or s == "" then
+		return s
+	end
+	if string.match(s, "^%d+$") then
+		return "anim://" .. s
+	end
+	error('unknown animation "' .. s .. '" (use an animator id like "anim://12" or idle, walk, run, wave, dance, cheer, sit, clap, laugh)', level)
+end
+
 Methods.Humanoid = {
 	TakeDamage = function(self, amount)
 		local p = D[self].props
@@ -2806,6 +2823,47 @@ Methods.Humanoid = {
 			return
 		end
 		equipTool(self, nil)
+	end,
+	-- Plays an animation on this player's character: one made in the animator
+	-- ("anim://12" or just 12) or a built-in emote ("dance", "wave"...). Everyone sees it.
+	PlayAnimation = function(self, anim)
+		local ref = animRef(anim, 3)
+		local model = D[self].parent
+		local player = model and Methods.Players.GetPlayerFromCharacter(nil, model)
+		if not player then
+			error("PlayAnimation works on players' characters (use a Rig for other characters)", 2)
+		end
+		if role == "server" then
+			emit({ o = "anim", to = D[player].props.UserId, anim = ref })
+		elseif D[player].props.UserId == localUserId then
+			emit({ o = "anim", anim = ref })
+		else
+			error("a LocalScript can only animate the LocalPlayer's character", 2)
+		end
+	end,
+	StopAnimation = function(self)
+		local model = D[self].parent
+		local player = model and Methods.Players.GetPlayerFromCharacter(nil, model)
+		if player and role == "server" then
+			emit({ o = "anim", to = D[player].props.UserId, anim = "" })
+		elseif player and D[player].props.UserId == localUserId then
+			emit({ o = "anim", anim = "" })
+		end
+	end,
+}
+
+Methods.Rig = {
+	-- Plays an animation on this Rig: "anim://12" (or 12) from the animator, or a built-in move.
+	PlayAnimation = function(self, anim)
+		local ref = animRef(anim, 3)
+		setProp(self, "Animation", ref)
+		if inScope(self) then
+			-- Starts it over even if it was already this one.
+			emit({ o = "rig_anim", id = D[self].id, anim = ref })
+		end
+	end,
+	StopAnimation = function(self)
+		setProp(self, "Animation", "idle")
 	end,
 }
 

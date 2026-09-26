@@ -53,6 +53,9 @@ var jump_velocity := JUMP_VELOCITY
 var gravity := GRAVITY
 var can_jump := true
 var can_sprint := true
+## How hard the feet grip: 1 = Melly's usual (fast characters slide a bit when they
+## turn or stop), higher = sharper starts, stops and turns (10+ is no drift at all).
+var traction := 1.0
 ## Stamina: sprinting spends it, resting brings it back. max_stamina 0 = endless.
 var max_stamina := 100.0
 var stamina_drain := 20.0
@@ -106,6 +109,9 @@ func _ready() -> void:
 	avatar = MellyAvatar.new()
 	add_child(avatar)
 	avatar.rotation.y = _facing
+	avatar.custom_finished.connect(func():
+		if _emote.begins_with("anim://"):
+			_emote = "")
 
 	# The camera rig is moved every rendered frame, so it opts out of physics interpolation
 	# and follows the player's interpolated transform instead.
@@ -277,6 +283,22 @@ func play_emote(e: String) -> void:
 	avatar.play(e)
 
 
+## A script (Humanoid:PlayAnimation) or a place's emote wheel plays an animation:
+## a built-in emote by name, or one from the animator (anim://<id>). "" stops it.
+func play_custom(anim: String) -> void:
+	if dead:
+		return
+	if anim == "":
+		_emote = ""
+		return
+	if anim.begins_with("anim://"):
+		_emote = anim
+		avatar.play(anim)
+	elif anim in MellyAvatar.EMOTES:
+		_emote = anim
+		avatar.play(anim)
+
+
 func current_anim() -> String:
 	if dead:
 		return "dead"
@@ -385,7 +407,7 @@ func _physics_process(delta: float) -> void:
 	var top := sprint_speed if sprinting else walk_speed
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
-	var rate := (ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL
+	var rate := ((ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL) * traction
 	hv = hv.move_toward(target, rate * delta)
 	velocity.x = hv.x + external_push.x
 	velocity.z = hv.z + external_push.z

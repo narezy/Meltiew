@@ -15,6 +15,8 @@ signal mouse_settings_changed
 signal pass_prompt(pass_id: int)
 ## Camera:SetZoom / SetRotation / Shake from a LocalScript.
 signal camera_control(op: Dictionary)
+## Humanoid:PlayAnimation on this player's character ("" stops it).
+signal animation_requested(anim: String)
 ## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
 signal core_gui_changed(kind: String, on: bool)
 
@@ -111,6 +113,8 @@ func server_ops(ops: Array) -> void:
 				scene.play_sound(str(op.id))
 			"sound_stop":
 				scene.stop_sound(str(op.id))
+			"rig_anim":
+				scene.rig_play(str(op.id), str(op.get("anim", "")))
 			"fire":
 				events.append({"e": "fire", "id": op.id, "args": op.get("args", [])})
 			"ret":
@@ -123,6 +127,8 @@ func server_ops(ops: Array) -> void:
 				pass_prompt.emit(int(op.get("id", 0)))
 			"camctl":
 				camera_control.emit(op)
+			"anim":
+				animation_requested.emit(str(op.get("anim", "")))
 	if not events.is_empty() and _vm:
 		_call("__dispatch", events)
 
@@ -237,6 +243,8 @@ func _apply(ops: Array) -> void:
 				scene.play_sound(str(op.id))
 			"sound_stop":
 				scene.stop_sound(str(op.id))
+			"rig_anim":
+				scene.rig_play(str(op.id), str(op.get("anim", "")))
 			"fire":
 				send.emit({"t": "remote", "id": op.id, "args": op.get("args", [])})
 			"invoke":
@@ -252,6 +260,8 @@ func _apply(ops: Array) -> void:
 				pass_prompt.emit(int(op.get("id", 0)))
 			"camctl":
 				camera_control.emit(op)
+			"anim":
+				animation_requested.emit(str(op.get("anim", "")))
 			"coregui":
 				core_gui[str(op.k)] = op.get("on", true) == true
 				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])

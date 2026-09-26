@@ -149,6 +149,7 @@ export class GameHub {
         case 'parent':
         case 'sound':
         case 'sound_stop':
+        case 'rig_anim':
         case 'mesh':
         case 'meshv':
           server.shared.push(op);
@@ -183,6 +184,10 @@ export class GameHub {
           }
           break;
         }
+        case 'anim':
+          // A script animates a player's character: their app plays it (everyone sees it through their state).
+          this.target(server, op.to, { o: 'anim', anim: String(op.anim || '') });
+          break;
         case 'prompt_pass':
           // A script offers a gamepass: that player's app shows the purchase dialog.
           this.target(server, op.to, { o: 'prompt_pass', id: op.id });

@@ -136,7 +136,7 @@ func _call(fn: String, arg: Variant) -> Array:
 func _route(ops: Array) -> void:
 	for op in ops:
 		match str(op.get("o", "")):
-			"new", "set", "del", "parent", "sound", "sound_stop", "mesh", "meshv":
+			"new", "set", "del", "parent", "sound", "sound_stop", "rig_anim", "mesh", "meshv":
 				_shared.append(op)
 			"fire":
 				_mine.append({"o": "fire", "id": op.id, "args": op.get("args", [])})
@@ -152,6 +152,8 @@ func _route(ops: Array) -> void:
 				message.emit({"t": "kicked", "code": "place", "m": str(op.get("msg", ""))})
 			"prompt_pass":
 				_mine.append({"o": "prompt_pass", "id": op.id})
+			"anim":
+				_mine.append({"o": "anim", "anim": op.get("anim", "")})
 			"badge":
 				# Shown like the real thing, but a test doesn't hand out badges for keeps.
 				for b in _badge_info:

@@ -363,6 +363,7 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.camera_control.connect(_camera_control)
+	place_host.animation_requested.connect(func(anim: String): player.play_custom(anim))
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
 	place_host.passes = p.get("passes", [])
 	place_host.pass_info = p.get("pass_info", [])
@@ -421,6 +422,7 @@ func _sync_place(delta: float) -> void:
 		player.max_stamina = float(t.prop(hum, "MaxStamina"))
 		player.stamina_drain = float(t.prop(hum, "StaminaDrain"))
 		player.stamina_regen = float(t.prop(hum, "StaminaRegen"))
+		player.traction = float(t.prop(hum, "Traction"))
 		var hp := float(t.prop(hum, "Health"))
 		var mx := float(t.prop(hum, "MaxHealth"))
 		if not is_equal_approx(hp, player.hp) or not is_equal_approx(mx, player.max_hp):

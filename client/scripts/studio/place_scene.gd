@@ -19,6 +19,7 @@ const SKY_PRESETS := {
 signal clicked(id: String)
 
 var _sounds := {}  # Sound id -> the player node while it plays
+var _rigs := {}  # Rig id -> {body, avatar, tag}
 var tree: PlaceTree
 ## Studio: everything is still (no physics), transforms apply instantly.
 var editing := false
@@ -159,6 +160,8 @@ func _on_changed(id: String, key: String) -> void:
 			_pmesh_dirty[id] = true
 	elif _texts.has(id):
 		_style_text(id)
+	elif _rigs.has(id):
+		_style_rig(id, key)
 	elif _lights.has(id):
 		_style_light(id)
 	elif _sounds.has(id):
@@ -192,6 +195,8 @@ func _build(id: String) -> void:
 		_build_part(id)
 	elif c == "Text3D":
 		_build_text(id)
+	elif c == "Rig":
+		_build_rig(id)
 	elif c == "PointLight":
 		_build_light(id)
 	elif c == "ClickDetector":
@@ -219,6 +224,9 @@ func _destroy(id: String) -> void:
 	if _texts.has(id):
 		_texts[id].queue_free()
 		_texts.erase(id)
+	if _rigs.has(id):
+		_rigs[id].body.queue_free()
+		_rigs.erase(id)
 	if _lights.has(id):
 		if is_instance_valid(_lights[id]):
 			_lights[id].queue_free()
@@ -709,6 +717,75 @@ func _noise_texture(kind: String) -> Texture2D:
 	var tex := ImageTexture.create_from_image(img)
 	_noise[kind] = tex
 	return tex
+
+
+## A Rig: a Melly standing in the place (painted, dressed and animated from its
+## properties), with a body so players bump into it and Studio can pick it.
+func _build_rig(id: String) -> void:
+	var body := StaticBody3D.new()
+	body.set_meta("place_id", id)
+	var shape := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.55
+	cap.height = 1.9
+	shape.shape = cap
+	shape.position.y = 0.95
+	body.add_child(shape)
+	var av := MellyAvatar.new()
+	body.add_child(av)
+	var tag := Label3D.new()
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.font = UI.font_black
+	tag.font_size = 30
+	tag.pixel_size = 0.008
+	tag.outline_size = 8
+	tag.position.y = 2.35
+	tag.no_depth_test = false
+	body.add_child(tag)
+	add_child(body)
+	_rigs[id] = {"body": body, "avatar": av, "tag": tag}
+	_style_rig(id, "")
+
+
+func _style_rig(id: String, key: String) -> void:
+	var r: Dictionary = _rigs[id]
+	var body: StaticBody3D = r.body
+	var av: MellyAvatar = r.avatar
+	var t := _transform_of(id)
+	body.global_transform = Transform3D(Basis(Vector3.UP, t.basis.get_euler().y), t.origin)
+	if key == "Position" or key == "Rotation":
+		return
+	var colors := {}
+	for pair in [["head", "HeadColor"], ["torso", "TorsoColor"], ["arm_l", "LeftArmColor"], ["arm_r", "RightArmColor"], ["leg_l", "LeftLegColor"], ["leg_r", "RightLegColor"]]:
+		var c: Variant = tree.prop(id, pair[1])
+		colors[pair[0]] = "#" + (c as Color).to_html(false) if c is Color else "#ffffff"
+	av.set_colors(colors)
+	av.set_face(str(tree.prop(id, "Face")))
+	var acc: Array = []
+	for a in str(tree.prop(id, "Accessories")).split(",", false):
+		if Accessories.has(a.strip_edges()):
+			acc.append(a.strip_edges())
+	av.set_accessories(acc)
+	var visible_now: bool = tree.prop(id, "Visible") != false
+	av.visible = visible_now
+	var name := str(tree.prop(id, "DisplayName"))
+	r.tag.text = localize(name)
+	r.tag.visible = visible_now and name != ""
+	body.collision_layer = LAYER_WORLD if tree.prop(id, "CanCollide") != false or editing else LAYER_GHOST
+	if key == "" or key == "Animation" or key == "AnimationSpeed":
+		rig_play(id, str(tree.prop(id, "Animation")))
+
+
+## Rig:PlayAnimation (and the Animation property): starts it from the beginning.
+func rig_play(id: String, anim: String) -> void:
+	if not _rigs.has(id):
+		return
+	var av: MellyAvatar = _rigs[id].avatar
+	if not av.is_node_ready():
+		await av.ready
+	if av.anim_player:
+		av.anim_player.speed_scale = float(tree.prop(id, "AnimationSpeed"))
+	av.restart(anim if anim != "" else "idle")
 
 
 func _build_text(id: String) -> void:

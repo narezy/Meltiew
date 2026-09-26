@@ -51,6 +51,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | MaxHealth | number | 100 | min 1 |
 | WalkSpeed | number | 5 | min 0 |
 | SprintSpeed | number | 7 | min 0 |
+| Traction | number | 1 | min 0.1, max 50 |
 | CanSprint | bool | true |  |
 | MaxStamina | number | 100 | min 0 |
 | StaminaDrain | number | 20 | min 0 |
@@ -61,7 +62,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | HealthRegen | number | 1 | min 0 |
 | EmotesEnabled | bool | true |  |
 
-**Methods:** `TakeDamage(amount)`, `EquipTool(tool)`, `UnequipTools()`
+**Methods:** `TakeDamage(amount)`, `EquipTool(tool)`, `UnequipTools()`, `PlayAnimation(anim)`, `StopAnimation()`
 
 **Events:** `Died`, `HealthChanged`
 
@@ -185,6 +186,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 |---|---|---|---|
 | WalkSpeed | number | 5 | min 0, max 60 |
 | SprintSpeed | number | 7 | min 0, max 80 |
+| Traction | number | 1 | min 0.1, max 50 |
 | CanSprint | bool | true |  |
 | MaxStamina | number | 100 | min 0 |
 | StaminaDrain | number | 20 | min 0 |
@@ -361,6 +363,32 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 | StarsVisible | bool | false |  |
 | SunVisible | bool | true |  |
 | CloudsVisible | bool | true |  |
+
+### Rig
+
+*can be created with `Instance.new`*
+
+A Melly that stands in your place: shopkeepers, guards, dancers. Paint it like in the avatar editor, put on any accessories (**Accessories**, the "…" button), pick a **Face**, and give it an **Animation**: one of Melly's own moves (idle, walk, run, wave, dance, cheer, sit, clap, laugh) or one you made in the Animator (`anim://12`). Position is where its feet stand. From scripts: `rig:PlayAnimation("anim://12")`, `rig:StopAnimation()`, move it by setting Position (TweenService makes it walk smoothly).
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Position | Vector3 | Vector3.new(0, 0, 0) |  |
+| Rotation | Vector3 | Vector3.new(0, 0, 0) |  |
+| DisplayName | string | "" |  |
+| HeadColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| TorsoColor | Color3 | Color3.fromHex("#baa4e2") |  |
+| LeftArmColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| RightArmColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| LeftLegColor | Color3 | Color3.fromHex("#302d38") |  |
+| RightLegColor | Color3 | Color3.fromHex("#302d38") |  |
+| Face | [Face](#face) | ":D" |  |
+| Accessories | accessories | "" |  |
+| Animation | animation | "idle" |  |
+| AnimationSpeed | number | 1 | min 0, max 5 |
+| CanCollide | bool | true |  |
+| Visible | bool | true |  |
+
+**Methods:** `PlayAnimation(anim)`, `StopAnimation()`
 
 ## User interface
 
@@ -590,6 +618,18 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 |---|---|---|---|
 | Value | bool | false |  |
 
+### EmoteOverride
+
+*can be created with `Instance.new`*
+
+Put it in StarterPlayer to swap one of the emote wheel's moves for your own animation in this place. **Slot** is the move it replaces (wave, dance, cheer, sit, clap, laugh), **Animation** the one to play instead (made in the Animator, `anim://12`), **Title** the name shown on the wheel.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Slot | [EmoteSlot](#emoteslot) | "dance" |  |
+| Animation | animation | "" |  |
+| Title | string | "" |  |
+
 ## Enums
 
 ### PartShape
@@ -675,3 +715,11 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 ### RaycastFilterType
 
 `Exclude`, `Include`
+
+### Face
+
+`:D`, `:)`, `:3`, `:P`, `;)`, `:O`, `xD`, `B)`, `^_^`, `owo`, `uwu`, `>_<`, `T_T`, `-_-`, `:|`, `<3`
+
+### EmoteSlot
+
+`wave`, `dance`, `cheer`, `sit`, `clap`, `laugh`

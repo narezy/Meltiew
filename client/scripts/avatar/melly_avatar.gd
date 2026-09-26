@@ -189,8 +189,15 @@ func set_hat(id: String) -> void:
 
 
 ## Accepts network animation states: idle, walk, run, jump, fall, wave and the emotes.
+## A custom animation (anim://<id>) that stopped by itself (not looped).
+signal custom_finished
+
+
 func play(state: String) -> void:
 	if anim_player == null or state == _current:
+		return
+	if state.begins_with("anim://"):
+		_play_custom(state)
 		return
 	# A one-shot wave keeps playing over "idle" until it finishes.
 	if _current == "wave" and state == "idle" and anim_player.is_playing():
@@ -208,15 +215,55 @@ func play(state: String) -> void:
 	anim_player.play(clip[0], clip[2], clip[1])
 
 
+## Plays `state` from its start even if it's already playing (Rigs told to again).
+func restart(state: String) -> void:
+	_current = ""
+	play(state)
+
+
+## Animations made in the animator: loaded on first use, then kept in the shared library.
+func _play_custom(ref: String) -> void:
+	var was := _current
+	_current = ref
+	if was == "laugh":
+		_apply_face()
+	var clip := "C%d" % CustomAnims.id_of(ref)
+	var lib: AnimationLibrary = anim_player.get_animation_library(&"")
+	if lib.has_animation(clip):
+		anim_player.play(clip, 0.2)
+		return
+	CustomAnims.fetch(ref, func(a: Animation):
+		if a == null or not is_instance_valid(self) or _current != ref:
+			return
+		if not lib.has_animation(clip):
+			lib.add_animation(clip, a)
+		anim_player.play(clip, 0.2))
+
+
+## The animator's preview: shows `a` posed at `time` (or playing, if `playing`).
+func preview(a: Animation, time: float, playing := false) -> void:
+	var lib: AnimationLibrary = anim_player.get_animation_library(&"")
+	if lib.has_animation(&"Preview"):
+		lib.remove_animation(&"Preview")
+	lib.add_animation(&"Preview", a)
+	_current = "preview"
+	anim_player.play(&"Preview", 0.0)
+	anim_player.seek(time, true)
+	if not playing:
+		anim_player.pause()
+
+
 func current_state() -> String:
 	return _current
 
 
 func is_emoting() -> bool:
-	return _current in EMOTES
+	return _current in EMOTES or _current.begins_with("anim://")
 
 
 func _on_anim_finished(anim_name: StringName) -> void:
+	if str(anim_name).begins_with("C") and _current.begins_with("anim://"):
+		custom_finished.emit()
 	if anim_name == &"Wave":
 		_current = ""
 		play("idle")

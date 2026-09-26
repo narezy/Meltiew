@@ -111,6 +111,13 @@ Sprinting (Shift on a computer, the run button on a phone) uses up stamina, show
 ```lua
 humanoid.MaxStamina = 200   -- a potion that lets you run twice as long
 humanoid.CanSprint = false  -- a stealth level: walking only
+```
+
+`Traction` is how hard the feet grip. At 1 (the default) fast characters slide a little when they turn or stop, like on the Playground; raise it for sharp, exact movement (10 or more: no drift at all), lower it for ice.
+
+```lua
+humanoid.WalkSpeed = 40
+humanoid.Traction = 12      -- fast, but turns on the spot
 ``` `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
 
 Defaults for every new character come from **StarterPlayer**: the same humanoid settings plus `RespawnTime`, `ChatEnabled`, `CameraMode` (`Classic` or `LockFirstPerson`) and `CameraMaxZoom`.
