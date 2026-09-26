@@ -18,6 +18,18 @@ const SKY_PRESETS := {
 
 signal clicked(id: String)
 
+
+## Physics parts (unanchored): whose app simulates each one (user id). Parts
+## simulated elsewhere are frozen here and follow that app's reports; the rest
+## this app simulates and reports (see `phys_report`).
+signal phys_report(entries: Array)
+signal phys_claim(part_id: String)
+var my_user := 0
+var phys_owner := {}
+var _phys_targets := {}  # part id -> Transform3D reported by its owner
+var _phys_sent := {}  # part id -> Transform3D this app last reported
+var _phys_clock := 0.0
+
 var _sounds := {}  # Sound id -> the player node while it plays
 var _rigs := {}  # Rig id -> {body, avatar, tag}
 var tree: PlaceTree
@@ -271,16 +283,25 @@ func _build_part(id: String) -> void:
 		ab.sync_to_physics = not editing
 		body = ab
 	else:
-		body = RigidBody3D.new()
+		var rb := RigidBody3D.new()
+		rb.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		rb.continuous_cd = false
+		var sz: Vector3 = tree.prop(id, "Size")
+		rb.mass = clampf(sz.x * sz.y * sz.z * 0.7, 0.3, 400.0)
+		body = rb
 	body.set_meta("place_id", id)
 	var mesh := MeshInstance3D.new()
 	body.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	body.add_child(shape)
+	# Placed before it enters the world: a moving (animatable) body set afterwards would
+	# sweep over from the origin, shoving every loose part on the way.
+	body.transform = global_transform.affine_inverse() * _transform_of(id)
 	add_child(body)
-	body.global_transform = _transform_of(id)
 	_parts[id] = {"body": body, "mesh": mesh, "shape": shape}
 	_style_part(id)
+	if body is RigidBody3D:
+		_apply_phys_mode(id)
 	if tool != "":
 		body.collision_layer = 0
 		body.collision_mask = 0
@@ -306,17 +327,29 @@ func _move_part(id: String) -> void:
 			_parts[id].mesh.visible = true
 		else:
 			var e: Dictionary = _parts[id]
-			e.body.global_transform = _transform_of(id)
+			_teleport(e.body, _transform_of(id))
 			_batcher.put(id, e.mesh.mesh, _transform_of(id), tree.prop(id, "Color"), str(tree.prop(id, "Material")), e.mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 			return
 	var body: Node3D = _parts[id].body
 	var t := _transform_of(id)
 	if editing or body is RigidBody3D or body.global_position.distance_to(t.origin) > 12.0:
-		body.global_transform = t
+		_teleport(body, t)
 		_targets.erase(id)
+		_phys_targets.erase(id)
 	else:
 		# Replicated movement arrives ~20 times a second; glide between updates.
 		_targets[id] = t
+
+
+## Jumps a body somewhere without it sweeping (and shoving things) on the way.
+func _teleport(body: Node3D, t: Transform3D) -> void:
+	var ab := body as AnimatableBody3D
+	if ab and ab.sync_to_physics:
+		ab.sync_to_physics = false
+		ab.global_transform = t
+		ab.set_deferred("sync_to_physics", true)
+	else:
+		body.global_transform = t
 
 
 func _process(_delta: float) -> void:
@@ -358,8 +391,8 @@ func _build_pmesh(id: String) -> void:
 	body.add_child(mi)
 	var shape := CollisionShape3D.new()
 	body.add_child(shape)
+	body.transform = global_transform.affine_inverse() * _transform_of(id)
 	add_child(body)
-	body.global_transform = _transform_of(id)
 	_pmeshes[id] = {"body": body, "mi": mi, "shape": shape}
 	_style_pmesh(id)
 
@@ -465,6 +498,8 @@ func _follow_hands() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not editing:
+		_step_phys(delta)
 	for id in _targets.keys():
 		var entry: Dictionary = _parts.get(id, {})
 		if entry.is_empty():
@@ -975,3 +1010,88 @@ func _style_sound(id: String, p: Node) -> void:
 	else:
 		(p as AudioStreamPlayer).volume_db = db
 	p.set("pitch_scale", clampf(float(tree.prop(id, "Pitch")), 0.1, 4.0))
+
+
+# --- physics parts ---------------------------------------------------------------
+
+## Who simulates which part now (0: nobody yet).
+func set_phys_owners(owners: Dictionary) -> void:
+	for id in owners:
+		var uid := int(owners[id])
+		if uid == 0:
+			phys_owner.erase(str(id))
+		else:
+			phys_owner[str(id)] = uid
+		_apply_phys_mode(str(id))
+
+
+func _apply_phys_mode(id: String) -> void:
+	var e: Dictionary = _parts.get(id, {})
+	if e.is_empty() or not (e.body is RigidBody3D):
+		return
+	var rb: RigidBody3D = e.body
+	var elsewhere: bool = phys_owner.has(id) and int(phys_owner[id]) != my_user
+	if rb.freeze != elsewhere:
+		rb.freeze = elsewhere
+		if not elsewhere:
+			_phys_targets.erase(id)
+			rb.sleeping = false
+
+
+## Reports from the apps simulating parts: frozen copies here glide after them.
+func phys_update(entries: Array) -> void:
+	for u in entries:
+		if not (u is Array) or u.size() < 7:
+			continue
+		var id := str(u[0])
+		var e: Dictionary = _parts.get(id, {})
+		if e.is_empty() or not (e.body is RigidBody3D) or not (e.body as RigidBody3D).freeze:
+			continue
+		var r := Vector3(deg_to_rad(float(u[4])), deg_to_rad(float(u[5])), deg_to_rad(float(u[6])))
+		_phys_targets[id] = Transform3D(Basis.from_euler(r), Vector3(float(u[1]), float(u[2]), float(u[3])))
+
+
+## Someone touched a part simulated elsewhere: ask to take it over (the pusher should own it).
+func claim_part(body: Node) -> void:
+	if body is RigidBody3D and (body as RigidBody3D).freeze and body.has_meta("place_id"):
+		phys_claim.emit(str(body.get_meta("place_id")))
+
+
+func _step_phys(delta: float) -> void:
+	for id in _phys_targets.keys():
+		var e: Dictionary = _parts.get(id, {})
+		if e.is_empty():
+			_phys_targets.erase(id)
+			continue
+		var body: Node3D = e.body
+		var t: Transform3D = _phys_targets[id]
+		body.global_transform = body.global_transform.interpolate_with(t, minf(1.0, delta * 14.0))
+	_phys_clock += delta
+	if _phys_clock < 1.0 / 12.0:
+		return
+	_phys_clock = 0.0
+	var out: Array = []
+	for id in _parts:
+		var body: Node = _parts[id].body
+		if not (body is RigidBody3D):
+			continue
+		var rb := body as RigidBody3D
+		if rb.freeze:
+			continue
+		var mine: bool = int(phys_owner.get(id, 0)) == my_user
+		if not mine and rb.sleeping:
+			continue
+		var t := rb.global_transform
+		var last: Variant = _phys_sent.get(id)
+		if last is Transform3D and (last as Transform3D).origin.distance_to(t.origin) < 0.01 and (last as Transform3D).basis.is_equal_approx(t.basis):
+			continue
+		_phys_sent[id] = t
+		var r := t.basis.orthonormalized().get_euler()
+		var v := rb.linear_velocity
+		out.append([id, snappedf(t.origin.x, 0.001), snappedf(t.origin.y, 0.001), snappedf(t.origin.z, 0.001),
+			snappedf(rad_to_deg(r.x), 0.01), snappedf(rad_to_deg(r.y), 0.01), snappedf(rad_to_deg(r.z), 0.01),
+			snappedf(v.x, 0.01), snappedf(v.y, 0.01), snappedf(v.z, 0.01)])
+		if out.size() >= 64:
+			break
+	if not out.is_empty():
+		phys_report.emit(out)

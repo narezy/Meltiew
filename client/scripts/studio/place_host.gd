@@ -58,6 +58,7 @@ func start(p_user_id: int, p_lang: String, p_strings: Dictionary, snapshot: Arra
 	lang = p_lang
 	strings = p_strings
 	scene = PlaceScene.new()
+	scene.my_user = user_id
 	scene.strings = strings
 	scene.lang = lang
 	world_parent.add_child(scene)

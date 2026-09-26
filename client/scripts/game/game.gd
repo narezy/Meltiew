@@ -20,6 +20,8 @@ var remotes := {}  # user id -> RemotePlayer
 var users := {}  # user id -> public user dict (everyone incl. me)
 var my_id := -1
 var admin: AdminPanel
+var _phys_claims := {}  # part id -> when we last asked to take it over
+var _pending_phys_owners := {}
 var server_info := {}
 var _send_accum := 0.0
 var _last_sent := {}
@@ -61,6 +63,9 @@ func _ready() -> void:
 			Sfx.play("land", clampf(1.3 - impact / 60.0, 0.7, 1.2)))
 	player.hurt.connect(func(_amount): Sfx.play("hurt"))
 	player.died.connect(_on_died)
+	player.bumped.connect(func(body: Node):
+		if place_host and place_host.scene:
+			place_host.scene.claim_part(body))
 	player.respawned.connect(func(): hud.big_message(""))
 	if world is Playground:
 		world.bounced.connect(func(s): Sfx.play("boing", clampf(1.4 - s / 40.0, 0.8, 1.3)))
@@ -72,6 +77,8 @@ func _ready() -> void:
 		# Studio places: health and respawns come from the server; wait for the world.
 		player.server_health = true
 		player.set_physics_process(false)
+		# Not in the world until the place spawns us (standing at the origin would shove parts there).
+		player._collision.disabled = true
 
 	_my_bubble = GameBubble.new()
 	_my_bubble.avatar = player.avatar
@@ -334,6 +341,14 @@ func _on_message(m: Dictionary) -> void:
 			net.close()
 			Session.pending_server = str(m.get("server", "auto"))
 			get_tree().reload_current_scene()
+		"phys":
+			if place_host and place_host.scene:
+				place_host.scene.phys_update(m.get("u", []))
+		"phys_own":
+			if place_host and place_host.scene:
+				place_host.scene.set_phys_owners(m.get("o", {}))
+			else:
+				_pending_phys_owners.merge(m.get("o", {}), true)
 		"admin":
 			if admin:
 				admin.on_result(m)
@@ -412,6 +427,16 @@ func _start_place(p: Dictionary) -> void:
 	if not place_host.start(my_id, L.lang, p.get("strings", {}), p.get("snapshot", []), world):
 		hud.add_chat("", L.t("place_unsupported"))
 	place_host.scene.avatar_of = _avatar_of_character
+	# Physics parts: report the ones this app simulates, ask for the ones we bump into.
+	place_host.scene.phys_report.connect(func(u: Array): net.send({"t": "phys", "u": u}))
+	place_host.scene.phys_claim.connect(func(id: String):
+		var now := Time.get_ticks_msec()
+		if now - int(_phys_claims.get(id, 0)) > 400:
+			_phys_claims[id] = now
+			net.send({"t": "phys_claim", "id": id}))
+	if not _pending_phys_owners.is_empty():
+		place_host.scene.set_phys_owners(_pending_phys_owners)
+		_pending_phys_owners = {}
 	place_host.scene.apply_quality(str(Session.settings.quality))
 	world.set_scene(place_host.scene)
 

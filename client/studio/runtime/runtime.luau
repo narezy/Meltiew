@@ -3397,6 +3397,18 @@ function handlers.pos(e)
 		setProp(root, "Position", decodeValue(e.p), true)
 	end
 end
+-- Physics parts: the app simulating each unanchored part reports where it went.
+-- Scripts see it there (and new players get it there) without echoing it back.
+function handlers.phys(e)
+	for _, u in e.u or {} do
+		local inst = byId[tostring(u[1])]
+		local d = inst and D[inst]
+		if d and d.props.Anchored == false and d.props.Position ~= nil then
+			setProp(inst, "Position", v3(tonumber(u[2]) or 0, tonumber(u[3]) or 0, tonumber(u[4]) or 0), true)
+			setProp(inst, "Rotation", v3(tonumber(u[5]) or 0, tonumber(u[6]) or 0, tonumber(u[7]) or 0), true)
+		end
+	end
+end
 function handlers.died(e)
 	local hum = humanoidOf(playersByUser[tonumber(e.userId)])
 	if hum and D[hum].props.Health > 0 then

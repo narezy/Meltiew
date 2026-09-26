@@ -32,6 +32,11 @@ const EMPTY_SERVER_TTL_MS = 30_000;
 // restart the wait) and then move everyone to a fresh server running it.
 const MIGRATE_DELAY_MS = 4000;
 const WORLD_LIMIT = 400;
+// Physics parts (unanchored): one app simulates each, the rest follow its reports.
+const PHYS_MAX_BATCH = 64;
+const PHYS_CLAIM_RANGE = 12; // how close you must be to take a part over
+const PHYS_HANDOFF_MARGIN = 3; // someone must be this much closer to take it from its owner
+const PHYS_LIMIT = 5000;
 export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead', 'climb']);
 export const HEART_COOLDOWN_MS = 2500;
 export const EMOTE_COOLDOWN_MS = 800;
@@ -65,6 +70,10 @@ function publicUser(u) {
 /** The platform's owner (nrz): the only one with the in-game admin panel. */
 export function isOwner(user) {
   return user?.role === 'owner';
+}
+
+function dist(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
 function meltHash(melt) {
@@ -147,6 +156,11 @@ export class GameHub {
       hash, // which version of the place this server runs
       retired: false, // replaced by a server with the newer version
       migrateAt: 0,
+      phys: new Map(), // part id -> { owner, p, at }
+      physOut: [], // updates to relay this tick
+      physOwn: {}, // ownership changes to announce this tick
+      physVm: new Map(), // latest update per part, for the scripts
+      physAt: 0,
     };
     this.servers.set(id, server);
     this.routeOps(server, vm.init({ role: 'server', place: melt, seed: crypto.randomInt(1 << 30) }));
@@ -282,6 +296,83 @@ export class GameHub {
       if (p) this.kick(p.user.id, 'place', k.msg);
     }
     this.flushPlace(server);
+  }
+
+  /** Where an app's physics parts went. Only the part's owner (or a first claimant) counts. */
+  physIn(conn, m) {
+    const server = conn.server;
+    if (!server?.vm || !conn.player || !Array.isArray(m.u)) return;
+    const uid = conn.user.id;
+    const now = Date.now();
+    for (const raw of m.u.slice(0, PHYS_MAX_BATCH)) {
+      if (!Array.isArray(raw) || raw.length < 7) continue;
+      const id = String(raw[0]).slice(0, 20);
+      const nums = raw.slice(1, 10).map((v) => finite(v, PHYS_LIMIT));
+      let e = server.phys.get(id);
+      if (!e) {
+        e = { owner: uid, p: nums.slice(0, 3), at: now };
+        server.phys.set(id, e);
+        server.physOwn[id] = uid;
+      } else if (e.owner !== uid) continue;
+      e.p = nums.slice(0, 3);
+      e.at = now;
+      const u = [id, ...nums.map((v) => Math.round(v * 1000) / 1000)];
+      server.physOut.push(u);
+      server.physVm.set(id, u);
+    }
+  }
+
+  /** An app bumped into a part someone else simulates: hand it over if it's really closer. */
+  physClaim(conn, m) {
+    const server = conn.server;
+    if (!server?.vm || !conn.player) return;
+    const id = String(m.id ?? '').slice(0, 20);
+    const e = server.phys.get(id);
+    if (!e || e.owner === conn.user.id) return;
+    const mine = dist(conn.player.p, e.p);
+    if (mine > PHYS_CLAIM_RANGE) return;
+    const owner = server.players.get(e.owner);
+    if (owner && Date.now() - e.at < 1000 && dist(owner.p, e.p) < mine) return;
+    e.owner = conn.user.id;
+    server.physOwn[id] = e.owner;
+  }
+
+  /** Once a second: each part goes to whoever is clearly nearest; relays and announces the rest. */
+  stepPhys(server, now) {
+    if (now - server.physAt > 1000) {
+      server.physAt = now;
+      for (const [id, e] of server.phys) {
+        const cur = server.players.get(e.owner);
+        let best = null;
+        let bestD = Infinity;
+        for (const p of server.players.values()) {
+          const d = dist(p.p, e.p);
+          if (d < bestD) {
+            bestD = d;
+            best = p;
+          }
+        }
+        if (!best) continue;
+        if (!cur || (best !== cur && bestD + PHYS_HANDOFF_MARGIN < dist(cur.p, e.p))) {
+          e.owner = best.user.id;
+          server.physOwn[id] = e.owner;
+        }
+      }
+    }
+    if (server.physOut.length) {
+      this.broadcast(server, { t: 'phys', u: server.physOut });
+      server.physOut = [];
+    }
+    if (Object.keys(server.physOwn).length) {
+      this.broadcast(server, { t: 'phys_own', o: server.physOwn });
+      server.physOwn = {};
+    }
+    // Scripts get the latest positions a few times a second.
+    if (server.physVm.size && (!server.physVmAt || now - server.physVmAt > 250)) {
+      server.physVmAt = now;
+      server.inbox.push({ e: 'phys', u: [...server.physVm.values()] });
+      server.physVm.clear();
+    }
   }
 
   /** The creator saved the place: servers running an older version move everyone soon. */
@@ -477,6 +568,10 @@ export class GameHub {
         return conn.send({ t: 'pong', c: m.c ?? 0, s: Date.now() });
       case 'admin':
         return this.adminCommand(conn, m);
+      case 'phys':
+        return this.physIn(conn, m);
+      case 'phys_claim':
+        return this.physClaim(conn, m);
       default:
     }
   }
@@ -569,6 +664,9 @@ export class GameHub {
     });
     this.broadcast(server, { t: 'join', player: { ...player.user, p: player.p, r: player.r, a: player.a } }, conn.user.id);
     this.broadcast(server, { t: 'sys', k: 'joined', n: player.user.display_name }, conn.user.id);
+    if (studio && server.phys.size) {
+      conn.send({ t: 'phys_own', o: Object.fromEntries([...server.phys].map(([id, e]) => [id, e.owner])) });
+    }
     if (studio) {
       this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
       this.flushPlace(server);
@@ -711,6 +809,15 @@ export class GameHub {
           this.log(`player_remove failed: ${err.message}`);
         }
       }
+      // Parts this app simulated: nobody's for now (the next report or the nearest player takes them).
+      if (server.phys) {
+        for (const [id, e] of server.phys) {
+          if (e.owner === conn.user.id) {
+            e.owner = 0;
+            server.physOwn[id] = 0;
+          }
+        }
+      }
       this.places?.playtime(server.game, conn.user.id, Date.now() - player.joinedAt);
       if (server.players.size === 0) server.emptySince = Date.now();
       this.log(`${conn.user.username} left ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
@@ -802,7 +909,10 @@ export class GameHub {
         continue;
       }
       if (server.migrateAt && now >= server.migrateAt) this.migrate(server);
-      if (server.vm) this.stepPlace(server, now);
+      if (server.vm) {
+        this.stepPhys(server, now);
+        this.stepPlace(server, now);
+      }
       const states = [];
       for (const [id, p] of server.players) {
         if (!p.dirty) continue;

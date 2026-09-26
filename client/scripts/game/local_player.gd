@@ -9,6 +9,8 @@ signal health_changed(hp: float)
 signal hurt(amount: float)
 signal died
 signal respawned
+## Walked into a physics part another app simulates (the game asks to take it over).
+signal bumped(body: Node)
 signal camera_mode_changed(first_person: bool)
 
 const MAX_SPEED := 5.0
@@ -445,6 +447,9 @@ func respawn_at(pos: Vector3) -> void:
 func respawn() -> void:
 	global_position = spawn_point + (Vector3.ZERO if server_health else Vector3(randf_range(-2, 2), 0.2, randf_range(-2, 2)))
 	reset_physics_interpolation()
+	# Collide again only once we're really there (not for a step where we were).
+	if _collision.disabled:
+		_collide_again()
 	velocity = Vector3.ZERO
 	_fall_speed = 0.0
 	hp = max_hp
@@ -538,7 +543,10 @@ func _physics_process(delta: float) -> void:
 	velocity.z = hv.z + external_push.z
 	if (on_floor or _was_on_floor) and not climbing:
 		_step_up(Vector3(velocity.x, 0, velocity.z) * delta, dir)
+	# Where we mean to go (a wall or a crate zeroes the actual velocity every step).
+	var wanted := target if target.length() > Vector2(velocity.x, velocity.z).length() else Vector3(velocity.x, 0, velocity.z)
 	move_and_slide()
+	_push_bodies(wanted)
 	_update_climb(dir)
 	velocity.x -= external_push.x
 	velocity.z -= external_push.z
@@ -647,3 +655,38 @@ func _fly(delta: float) -> void:
 		avatar.play(_emote)
 	else:
 		avatar.play(_anim_state)
+
+
+## Walking into a loose part shoves it (a character is a kinematic body: without
+## this, physics parts would stop you like walls).
+func _push_bodies(wanted: Vector3) -> void:
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		var rb := c.get_collider() as RigidBody3D
+		if rb == null:
+			continue
+		if rb.freeze:
+			bumped.emit(rb)
+			continue
+		var n := c.get_normal()
+		if n.y > 0.6:
+			continue  # standing on it
+		var push := Vector3(-n.x, 0, -n.z).normalized()
+		# Nudge it toward walking speed, never past it; heavy parts barely budge.
+		var speed := minf(maxf(wanted.dot(push), 0.0), walk_speed * 1.2)
+		if speed < 0.3:
+			continue
+		var gap := speed - rb.linear_velocity.dot(push)
+		if gap <= 0.0:
+			continue
+		var heavy := clampf(20.0 / rb.mass, 0.05, 1.0)
+		rb.apply_impulse(push * gap * rb.mass * 0.4 * heavy, c.get_position() - rb.global_position)
+
+
+## Turns our collision back on a couple of physics steps after a jump across the map,
+## so the move never counts as a sweep that bowls over loose parts.
+func _collide_again() -> void:
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not seated:
+		_collision.disabled = false

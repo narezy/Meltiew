@@ -253,6 +253,22 @@ Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV
 
 Players walk up ledges up to about 0.65 studs high without jumping (stairs, kerbs). Turn on **Climbable** on any part to make it a wall they can climb: walking into it climbs up, walking away climbs down, sideways moves along it, jump lets go, and at the top they step onto it. From scripts: `part.Climbable = true`.
 
+## Physics parts
+
+Turn **Anchored** off and a part becomes a physics part: it falls, tumbles, stacks, and
+players shove it by walking into it (heavy parts barely budge; mass comes from Size).
+Every player sees the same thing: the player nearest to a part simulates it and the
+others follow, and whoever bumps into a part takes it over. The server's scripts see
+where it went (`part.Position`), and setting `Position` from a script teleports it.
+
+```lua
+local crate = workspace.Crate
+crate.Anchored = false            -- let it fall
+task.wait(3)
+print(crate.Position)             -- where it landed
+crate.Position = Vector3.new(0, 20, 0)  -- drop it again
+```
+
 ## Seats
 
 Insert a **Seat**: touching it sits the player down, jumping gets them up. It's a part, so paint it, resize it, or set `Transparency = 1` and hide it inside a chair or a car you built; players sit facing its front (−Z). Scripts see who's sitting:
