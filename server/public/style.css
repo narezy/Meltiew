@@ -467,3 +467,17 @@ body { overflow-wrap: break-word; }
 .badge-tile .badge-ph { display: flex; align-items: center; justify-content: center; font-size: 56px; color: var(--accent); background: var(--bg2); }
 .badge-tile.dim { opacity: .45; }
 .badge-tile a { font-size: 13px; }
+
+/* Communities */
+.emblem { display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 30%; color: #1d1a26; font-weight: 900; }
+.cm-row { padding: 14px 16px; margin-bottom: 10px; }
+.cm-head { gap: 16px; }
+button.pill { border: 0; color: var(--text); cursor: pointer; font: inherit; font-weight: 700; }
+button.pill.on { background: var(--accent); color: #1d1a26; }
+.cm-msgs { height: min(52vh, 480px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.cm-msg { display: flex; gap: 10px; align-items: flex-start; }
+.cm-msg .bust { width: 38px; height: 38px; }
+.cm-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cm-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--card); color: var(--text); text-decoration: none; margin: 0 8px 8px 0; }
+.accent { color: var(--accent); }
+b.danger { color: var(--danger); }

@@ -30,6 +30,13 @@ const PACKAGE = 'cat.narezany.meltiew';
 
 const T = {
   en: {
+    communities: 'Communities', cm_sub: 'Teams, clubs and studios: chat, roles and places made together', cm_search: 'Search communities',
+    cm_mine: 'Yours', cm_popular: 'Popular', cm_found: 'Found', cm_none: 'Nothing here yet. Make the first one!', cm_members: '{0} members',
+    cm_create: 'Create', cm_create_for: 'Create for {0}', cm_name: 'Name', cm_desc: 'What is it about?', cm_price: 'A community costs 10 pieces or 100 orbs. You will be its owner.',
+    cm_join: 'Join', cm_leave: 'Leave', cm_leave_q: 'Leave the community?', cm_banned: 'You are banned here', cm_channels: 'Channels', cm_people: 'Members', cm_places: 'Places',
+    cm_write: 'Message #{0}', cm_join_to_write: 'Join to write here', cm_cant_write: "Your role can't write in this channel", cm_no_messages: 'No messages yet. Say hi!',
+    cm_no_places: 'No places yet', cm_by: 'by {0}', cm_manage_app: 'Roles, channels and settings are in the app: Communities tab.', cm_created: 'Community created!',
+    role_Owner: 'Owner', role_Admin: 'Admin', role_Builder: 'Builder', role_Member: 'Member', communities_of: 'Communities',
     home: 'Home', friends: 'Friends', download: 'Download', settings: 'Settings',
     sign_in: 'Sign in', sign_up: 'Sign up', sign_out: 'Sign out',
     hero_title: 'Play, dress up and hang out with friends',
@@ -106,6 +113,13 @@ const T = {
     covers: 'Covers', cover_wide: 'Wide 16:9', cover_square: 'Icon 1:1', stats: 'Stats', bad_image: 'That image did not work',
   },
   ru: {
+    communities: 'Сообщества', cm_sub: 'Команды, клубы и студии: чаты, роли и совместные плейсы', cm_search: 'Поиск сообществ',
+    cm_mine: 'Твои', cm_popular: 'Популярные', cm_found: 'Найдено', cm_none: 'Пока пусто. Создай первое!', cm_members: 'Участников: {0}',
+    cm_create: 'Создать', cm_create_for: 'Создать за {0}', cm_name: 'Название', cm_desc: 'О чём оно?', cm_price: 'Сообщество стоит 10 кусочков или 100 опыта. Ты станешь его владельцем.',
+    cm_join: 'Вступить', cm_leave: 'Выйти', cm_leave_q: 'Выйти из сообщества?', cm_banned: 'Ты тут забанен', cm_channels: 'Каналы', cm_people: 'Участники', cm_places: 'Плейсы',
+    cm_write: 'Написать в #{0}', cm_join_to_write: 'Вступи, чтобы писать', cm_cant_write: 'Твоей роли нельзя писать в этот канал', cm_no_messages: 'Сообщений пока нет. Поздоровайся!',
+    cm_no_places: 'Плейсов пока нет', cm_by: 'создатель {0}', cm_manage_app: 'Роли, каналы и настройки: в приложении, вкладка «Сообщества».', cm_created: 'Сообщество создано!',
+    role_Owner: 'Владелец', role_Admin: 'Админ', role_Builder: 'Строитель', role_Member: 'Участник', communities_of: 'Сообщества',
     home: 'Главная', friends: 'Друзья', download: 'Скачать', settings: 'Настройки',
     sign_in: 'Войти', sign_up: 'Регистрация', sign_out: 'Выйти',
     hero_title: 'Играй, наряжайся и тусуйся с друзьями',
@@ -292,6 +306,7 @@ const ICONS = {
   telegram: '<path d="M20.5 4.5 3.5 11l5.5 2 2 6 3-4 5 3.5z"/>',
   studio: '<path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/>',
   shop: '<path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8zM9 8V6.5a3 3 0 0 1 6 0V8"/>',
+  communities: '<circle cx="12" cy="7.5" r="3"/><path d="M7 19c.4-3 2.4-4.8 5-4.8s4.6 1.8 5 4.8"/><circle cx="5" cy="10" r="2.2"/><path d="M2 18c.3-2 1.4-3.3 3-3.5"/><circle cx="19" cy="10" r="2.2"/><path d="M22 18c-.3-2-1.4-3.3-3-3.5"/>',
 };
 const icon = (name, size = 22) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 const TELEGRAM = 'https://t.me/meltiew';
@@ -319,10 +334,11 @@ setInterval(pollCounts, 15000);
 
 function renderNav(path) {
   // Friends and chats share one tab; its badge counts requests and unread messages together.
-  const links = [['/', 'home'], ['/shop', 'shop'], ...(state.me ? [['/friends', 'friends'], ['/studio', 'studio']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const links = [['/', 'home'], ['/shop', 'shop'], ...(state.me ? [['/friends', 'friends'], ['/communities', 'communities'], ['/studio', 'studio']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
   const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/')
     : href === '/friends' ? path.startsWith('/friends') || path.startsWith('/messages')
     : href === '/studio' ? path.startsWith('/studio') || path.startsWith('/docs')
+    : href === '/communities' ? path.startsWith('/communities') || path.startsWith('/c/')
     : href === '/shop' ? path.startsWith('/shop') || path.startsWith('/wallet') || path.startsWith('/quests') : path.startsWith(href));
   const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>' : '');
   $('#nav').innerHTML = `
@@ -339,10 +355,10 @@ function renderNav(path) {
   $('#langsel').addEventListener('change', (e) => setLang(e.target.value));
   // Phones get an app-style tab bar at the bottom instead of a row of links.
   const bar = $('#tabbar');
-  bar.innerHTML = links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
+  bar.innerHTML = links.filter(([href]) => !(state.me && href === '/download')).map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${icon(key)}<span>${t(key)}</span>${count(key)}</a>`).join('');
   paintBadges();
   $('#footer').innerHTML = ['meltiew', `<a href="/terms" data-link>${t('terms')}</a>`, `<a href="/privacy" data-link>${t('privacy_policy')}</a>`,
-    `<a href="/support" data-link>${t('support')}</a>`, '<a href="https://t.me/meltiew" target="_blank" rel="noopener">Telegram</a>',
+    `<a href="/support" data-link>${t('support')}</a>`, `<a href="/download" data-link>${t('download')}</a>`, '<a href="https://t.me/meltiew" target="_blank" rel="noopener">Telegram</a>',
     '<a href="https://github.com/narezy/Meltiew" target="_blank" rel="noopener">GitHub</a>'].join(' · ');
 }
 
@@ -602,7 +618,7 @@ async function profilePage(root, username) {
       ${me ? `<p class="muted">${t('edit_in_app')}</p>` : ''}
     </div></div>
     <div class="tabs" id="ptabs" style="margin-top:24px"><button class="on" data-ptab="main">${t('profile_tab')}</button><button data-ptab="badges">${t('badges')} <span id="pbcount"></span></button></div>
-    <div id="ptab-main"><div id="pplaces"></div>
+    <div id="ptab-main">${(u.communities || []).length ? `<h2>${t('communities_of')}</h2><div class="row" style="flex-wrap:wrap;margin-bottom:10px">${u.communities.map((c) => `<a class="cm-chip" href="/c/${c.id}" data-link>${emblem(c, 30)}<b>${esc(c.name)}</b></a>`).join('')}</div>` : ''}<div id="pplaces"></div>
     <h2>${t('friends_of')}</h2><div id="pf"><div class="loader"><i></i></div></div></div>
     <div id="ptab-badges" hidden><div class="loader"><i></i></div></div>`;
   mellyViewer($('#stage'), u);
@@ -1033,13 +1049,127 @@ function friendChip(f) {
     : `<a class="chip" href="/u/${encodeURIComponent(f.username)}" data-link>${inner}</a>`;
 }
 
+// --- communities ---------------------------------------------------------------------
+
+const roleName = (n) => (['Owner', 'Admin', 'Builder', 'Member'].includes(n) ? t('role_' + n) : n);
+const emblem = (c, px = 48) => `<span class="emblem" style="width:${px}px;height:${px}px;font-size:${Math.round(px * 0.5)}px;background:${esc(c.color || '#b79cff')}">${esc(String(c.name || '?').slice(0, 1).toUpperCase())}</span>`;
+const communityRow = (c) => `<a class="card row cm-row" href="/c/${c.id}" data-link>${emblem(c)}<div class="grow"><h3 style="margin:0">${esc(c.name)}</h3>
+  <span class="muted">${esc(t('cm_members', c.members))}${c.role_name ? ' · ' + esc(roleName(c.role_name)) : ''}</span></div></a>`;
+
+async function communitiesPage(root) {
+  if (!state.me) { sessionStorage.setItem('after_login', location.pathname); return go('/login'); }
+  root.innerHTML = `<div class="row" style="justify-content:space-between;flex-wrap:wrap"><div><h1 style="margin-bottom:4px">${t('communities')}</h1>
+      <p class="muted" style="margin-top:0">${t('cm_sub')}</p></div><button class="btn" id="cmnew">${t('cm_create')}</button></div>
+    <input id="cmq" placeholder="${esc(t('cm_search'))}" style="margin:8px 0 16px">
+    <div class="stack" id="cml"><div class="loader"><i></i></div></div>`;
+  const load = async () => {
+    const q = $('#cmq').value.trim();
+    const [mine, found] = await Promise.all([q ? { communities: [] } : api('GET', '/api/communities/mine'), api('GET', '/api/communities?q=' + encodeURIComponent(q))]);
+    const mineIds = new Set(mine.communities.map((c) => c.id));
+    const rest = found.communities.filter((c) => !mineIds.has(c.id));
+    $('#cml').innerHTML = (mine.communities.length ? `<h2>${t('cm_mine')}</h2>${mine.communities.map(communityRow).join('')}` : '')
+      + `<h2>${t(q ? 'cm_found' : 'cm_popular')}</h2>` + (rest.length ? rest.map(communityRow).join('') : `<div class="empty">${t('cm_none')}</div>`);
+  };
+  let timer = 0;
+  $('#cmq').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 300); });
+  $('#cmnew').addEventListener('click', () => {
+    const bg = modal(`<h3>${t('cm_create')}</h3><form class="stack" id="cmf"><input name="name" maxlength="40" required placeholder="${esc(t('cm_name'))}">
+      <textarea name="description" maxlength="1000" rows="3" placeholder="${esc(t('cm_desc'))}"></textarea>
+      <p class="muted" style="margin:0">${t('cm_price')}</p><div class="error"></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn" value="pieces">${t('cm_create_for', '10 ' + PIECE_SVG(18))}</button><button class="btn ghost" value="orbs">${t('cm_create_for', '100 ' + ORB_SVG(18))}</button></div></form>`);
+    $('#cmf', bg).addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try {
+        const r = await api('POST', '/api/communities', { name: f.get('name'), description: f.get('description'), currency: e.submitter?.value || 'pieces' });
+        bg.remove();
+        toast(t('cm_created'));
+        go('/c/' + r.community.id);
+      } catch (err) { $('.error', bg).textContent = err.message; }
+    });
+  });
+  await load();
+}
+
+async function communityPage(root, id) {
+  if (!state.me) { sessionStorage.setItem('after_login', location.pathname); return go('/login'); }
+  const { community: c } = await api('GET', `/api/communities/${id}`);
+  const me = c.me;
+  const perms = new Set(me?.perms || []);
+  let tab = 'channels';
+  let channel = c.channels[0]?.id;
+  let last = 0;
+  root.innerHTML = `<div class="card row cm-head" style="flex-wrap:wrap">${emblem(c, 72)}<div class="grow"><h1 style="margin:0">${esc(c.name)}</h1>
+      <span class="muted">${esc(t('cm_members', c.members))}${c.owner ? ' · ' + esc(t('cm_by', c.owner.display_name)) : ''}</span></div>
+      ${me ? (me.rank < 255 ? `<button class="btn ghost" id="cmleave">${t('cm_leave')}</button>` : '') : c.banned ? `<b class="danger">${t('cm_banned')}</b>` : `<button class="btn mint" id="cmjoin">${t('cm_join')}</button>`}</div>
+    ${c.description ? `<p class="muted">${esc(c.description)}</p>` : ''}
+    <div class="tabs" id="cmtabs"><button class="on" data-t="channels">${t('cm_channels')}</button><button data-t="members">${t('cm_people')}</button><button data-t="places">${t('cm_places')}</button></div>
+    <div id="cmbody"></div>${perms.has('manage') ? `<p class="muted">${t('cm_manage_app')}</p>` : ''}`;
+  $('#cmjoin')?.addEventListener('click', async () => { try { await api('POST', `/api/communities/${id}/join`); render(); } catch (e) { toast(e.message, 'error'); } });
+  $('#cmleave')?.addEventListener('click', async () => { if (confirm(t('cm_leave_q'))) { await api('POST', `/api/communities/${id}/leave`); render(); } });
+  const msgHtml = (m) => `<div class="cm-msg" data-mid="${m.id}"><a href="/u/${encodeURIComponent(m.author.username)}" data-link>${bust(m.author, 'small')}</a>
+    <div class="grow"><div><b>${nameHtml(m.author)}</b> <span class="muted" style="font-size:13px">${esc(ago(m.created_at))}</span></div><div class="cm-body">${esc(m.body)}</div></div></div>`;
+  const poll = async () => {
+    if (tab !== 'channels' || !$('#cmmsgs')) return;
+    const box = $('#cmmsgs');
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+    const { messages } = await api('GET', `/api/communities/${id}/channels/${channel}/messages?after=${last}`);
+    if (!messages.length) return;
+    $('#cmempty')?.remove();
+    box.insertAdjacentHTML('beforeend', messages.map(msgHtml).join(''));
+    last = messages[messages.length - 1].id;
+    if (atBottom) box.scrollTop = box.scrollHeight;
+  };
+  const timer = setInterval(poll, 3000);
+  cleanups.push(() => clearInterval(timer));
+  const draw = async () => {
+    root.querySelectorAll('#cmtabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
+    const body = $('#cmbody');
+    if (tab === 'channels') {
+      const ch = c.channels.find((x) => x.id === channel) || c.channels[0];
+      const canWrite = me && perms.has('post') && me.rank >= ch.post_rank;
+      body.innerHTML = `<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0 10px">${c.channels.map((x) => `<button class="pill ${x.id === ch.id ? 'on' : ''}" data-ch="${x.id}"># ${esc(x.name)}</button>`).join('')}</div>
+        <div class="card cm-msgs" id="cmmsgs"><div class="loader"><i></i></div></div>
+        ${canWrite ? `<form class="row" id="cmsend" style="margin-top:10px"><input name="text" maxlength="1000" autocomplete="off" placeholder="${esc(t('cm_write', ch.name))}" class="grow"><button class="btn">${t('send')}</button></form>`
+          : `<p class="muted">${t(me ? 'cm_cant_write' : 'cm_join_to_write')}</p>`}`;
+      body.querySelectorAll('[data-ch]').forEach((b) => b.addEventListener('click', () => { channel = Number(b.dataset.ch); draw(); }));
+      const { messages } = await api('GET', `/api/communities/${id}/channels/${ch.id}/messages`);
+      const box = $('#cmmsgs');
+      box.innerHTML = messages.length ? messages.map(msgHtml).join('') : `<div class="empty" id="cmempty">${t('cm_no_messages')}</div>`;
+      last = messages.length ? messages[messages.length - 1].id : 0;
+      box.scrollTop = box.scrollHeight;
+      $('#cmsend')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = e.target.text;
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        try { await api('POST', `/api/communities/${id}/channels/${ch.id}/messages`, { text }); box.scrollTop = box.scrollHeight; await poll(); }
+        catch (err) { toast(err.message, 'error'); input.value = text; }
+      });
+    } else if (tab === 'members') {
+      body.innerHTML = '<div class="loader"><i></i></div>';
+      const { members } = await api('GET', `/api/communities/${id}/members`);
+      const roles = Object.fromEntries(c.roles.map((r) => [r.id, r]));
+      body.innerHTML = `<div class="stack">${members.map((m) => `<a class="card row" href="/u/${encodeURIComponent(m.username)}" data-link>${bust(m, 'small')}
+        <div class="grow"><b>${nameHtml(m)}</b><div class="muted">@${esc(m.username)}</div></div><b class="${(roles[m.role_id]?.rank || 0) >= 200 ? 'accent' : 'muted'}">${esc(roleName(roles[m.role_id]?.name || ''))}</b></a>`).join('')}</div>`;
+    } else {
+      body.innerHTML = '<div class="loader"><i></i></div>';
+      const { places } = await api('GET', `/api/communities/${id}/places`);
+      body.innerHTML = places.length ? `<div class="places">${places.map(placeCard).join('')}</div>` : `<div class="empty">${t('cm_no_places')}</div>`;
+    }
+  };
+  root.querySelectorAll('#cmtabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.t; draw(); }));
+  await draw();
+}
+
 function placeCard(p) {
   const total = p.likes + p.dislikes;
   const rating = total ? Math.round((100 * p.likes) / total) + '%' : '—';
   return `<a class="card place-card" href="/place/${encodeURIComponent(p.id)}" data-link>
     <img src="${esc(p.cover)}" alt="">
     <h3>${esc(field(p, 'name'))}</h3>
-    <div class="muted">${t('by')} ${nameHtml(p.author)}</div>
+    <div class="muted">${t('by')} ${p.community ? esc(p.community.name) : nameHtml(p.author)}</div>
     <div class="row muted" style="gap:14px;margin-top:6px"><span>♥ ${rating}</span><span><i class="dot on"></i> ${esc(t('playing_n', p.playing))}</span></div></a>`;
 }
 
@@ -1058,7 +1188,9 @@ async function placePage(root, id) {
         <img src="${esc(p.cover)}" alt="">
         <div class="stack">
           <div class="row">${p.cover_square ? `<img class="square" src="${esc(p.cover_square)}" alt="">` : ''}<h1 style="margin:0">${esc(field(p, 'name'))}</h1></div>
-          <a class="row" style="gap:10px" href="/u/${encodeURIComponent(p.author.username)}" data-link>${t('by')} ${p.author.id ? bust(p.author, 'small') : ''}<b>${nameHtml(p.author)}</b></a>
+          ${p.community
+            ? `<a class="row" style="gap:10px" href="/c/${p.community.id}" data-link>${t('by')} ${emblem(p.community, 32)}<b>${esc(p.community.name)}</b></a>`
+            : `<a class="row" style="gap:10px" href="/u/${encodeURIComponent(p.author.username)}" data-link>${t('by')} ${p.author.id ? bust(p.author, 'small') : ''}<b>${nameHtml(p.author)}</b></a>`}
           <div class="row" style="flex-wrap:wrap;gap:8px">
             ${p.visibility !== 'public' ? `<span class="pill">${esc(t('vis_' + p.visibility))}</span>` : ''}
             <span class="pill"><i class="dot on"></i>${esc(t('playing_n', p.playing))}</span>
@@ -1626,6 +1758,8 @@ async function render() {
   try {
     if (path.startsWith('/messages') || path.startsWith('/friends/chats')) await messagesPage(root);
     else if (path.startsWith('/u/')) await profilePage(root, decodeURIComponent(path.slice(3)));
+    else if (path === '/communities') await communitiesPage(root);
+    else if (path.startsWith('/c/')) await communityPage(root, Number(path.slice(3)));
     else if (path.startsWith('/place/')) await placePage(root, decodeURIComponent(path.slice(7)));
     else if (path === '/admin') await adminPage(root);
     else if (path === '/studio') await studioPage(root);
