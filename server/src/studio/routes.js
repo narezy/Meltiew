@@ -143,10 +143,15 @@ export function createStudioRoutes(ctx) {
       } catch (e) {
         throw new HttpError(400, 'bad_place', { r: e.reason || '' });
       }
+      // Publishing another project into this place: new content, same name and page.
+      if (body.keep_meta) {
+        const old = store.load(row.id);
+        if (old?.meta) melt.meta = old.meta;
+      }
       store.write(row.id, melt);
       const m = melt.meta;
       q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
-      return { place: studioView(q.one.get(row.id), user, pickLang(req)) };
+      return { place: studioView(q.one.get(row.id), user, pickLang(req)), meta: m };
     },
 
     'PATCH /api/studio/places/:id': (req, body, _u, params) => {

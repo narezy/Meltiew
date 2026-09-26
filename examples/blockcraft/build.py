@@ -74,7 +74,7 @@ hint = {
             'Font': 'Bold',
             'TextWrapped': True,
         },
-        'k': [{'c': 'UICorner', 'n': 'UICorner', 'p': {'CornerRadius': {'$u': [0, 12]}}}],
+        'k': [{'c': 'UICorner', 'n': 'UICorner', 'p': {'CornerRadius': 12}}],
     }],
 }
 

@@ -428,7 +428,38 @@ func _import() -> void:
 
 func _open_settings() -> void:
 	scripts._commit()
-	settings.open()
+	var pick: Dictionary = await PublishTarget.choose(self, place_id)
+	match str(pick.get("kind", "")):
+		"current":
+			await save()
+			settings.open()
+		"new":
+			var r := await Api.request("POST", "/api/studio/places", {"name": str(doc.meta.get("name", "")), "melt": doc.to_melt()})
+			if not r.ok:
+				UI.toast(r.message, "error")
+				return
+			_switch_place(str(r.data.place.id), {})
+			settings.open()
+		"place":
+			if not await UI.confirm(self, L.t("st_pub_replace_q", [pick.name]), L.t("st_pub_replace_text"), L.t("st_pub_replace")):
+				return
+			var r := await Api.request("PUT", "/api/studio/places/" + str(pick.id), {"melt": doc.to_melt(), "keep_meta": true})
+			if not r.ok:
+				UI.toast(r.message, "error")
+				return
+			_switch_place(str(pick.id), r.data.get("meta", {}))
+			settings.open()
+
+
+## From now on this editor works on another place (just published into).
+func _switch_place(id: String, meta: Dictionary) -> void:
+	place_id = id
+	settings.place_id = id
+	Session.studio_place_id = id
+	if not meta.is_empty():
+		doc.meta = meta
+	doc.mark_saved()
+	_update_title()
 
 
 ## Runs the place right here: server scripts in a local VM, you as the only player.

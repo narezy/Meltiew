@@ -152,12 +152,7 @@
           "c": "UICorner",
           "n": "UICorner",
           "p": {
-           "CornerRadius": {
-            "$u": [
-             0,
-             12
-            ]
-           }
+           "CornerRadius": 12
           }
          }
         ]

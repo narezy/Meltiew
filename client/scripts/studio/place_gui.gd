@@ -236,7 +236,9 @@ func _style(id: String) -> void:
 	sb.bg_color = bg
 	var corner := tree.child_of_class(id, "UICorner")
 	if corner != "":
-		sb.set_corner_radius_all(int(tree.prop(corner, "CornerRadius")))
+		var cr: Variant = tree.prop(corner, "CornerRadius")
+		# A UDim here (older files) means its offset.
+		sb.set_corner_radius_all(int(cr[1]) if cr is PackedFloat32Array and cr.size() > 1 else int(cr) if cr is float or cr is int else 12)
 		sb.anti_aliasing = true
 	var stroke := tree.child_of_class(id, "UIStroke")
 	if stroke != "":
