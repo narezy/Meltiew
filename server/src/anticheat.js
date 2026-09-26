@@ -76,12 +76,12 @@ export class MoveGuard {
       const secs = Math.max((now - old.t) / 1000, 0.2);
       if (distH(pos, old.p) > maxH * secs * 1.25 + SLACK_H) return this._violate('speed', now, old.p);
     }
-    // Going up: more than a jump (or trampoline) gives, plus steady climbing (stairs,
-    // ladders, climbable walls) at up to walking speed, within a few seconds.
+    // Going up: more than a jump (or trampoline) gives, plus steady climbing (Climbable
+    // walls, stairs) at up to `limits.rise` studs a second, within a few seconds.
     if (!inGrace) {
       let low = null;
       for (const s of this.samples) if (now - s.t <= RISE_WINDOW_MS && (!low || s.p[1] < low.p[1])) low = s;
-      const climb = (limits.rise ?? maxH) * Math.max((now - (low?.t ?? now)) / 1000, 0);
+      const climb = (limits.rise || 0) * Math.max((now - (low?.t ?? now)) / 1000, 0);
       if (low && pos[1] - low.p[1] > maxRise * 1.2 + SLACK_RISE + climb) return this._violate('rise', now, low.p);
     }
     return this._accept(pos, now);

@@ -3799,6 +3799,8 @@ G.__limits = function()
 			sprint = hp and math.max(hp.CanSprint ~= false and math.max(hp.SprintSpeed, hp.WalkSpeed) or hp.WalkSpeed, hp.Bhop and hp.BhopMaxSpeed or 0) or 7,
 			jump = hp and (hp.CanJump and hp.JumpPower or 0) or 8.2,
 			gravity = ws.Gravity or 22,
+			-- climbing Climbable parts goes up at 6 studs a second
+			rise = 7,
 			check = starterValue("AntiCheat") ~= false,
 		}
 	end
