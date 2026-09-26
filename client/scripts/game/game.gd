@@ -358,9 +358,12 @@ func _start_place(p: Dictionary) -> void:
 		player.reset_physics_interpolation()
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
+	place_host.camera_control.connect(_camera_control)
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
 	place_host.passes = p.get("passes", [])
 	place_host.pass_info = p.get("pass_info", [])
+	place_host.badges = p.get("badges", [])
+	place_host.badge_info = p.get("badge_info", [])
 	var place_id := str(p.get("id", ""))
 	place_host.pass_prompt.connect(func(pass_id: int):
 		hud.release_touches()
@@ -600,13 +603,13 @@ func _tick_place(delta: float) -> void:
 	var cam := player.camera
 	if cam_id != "":
 		cam.fov = float(h.tree.prop(cam_id, "FieldOfView"))
-		if str(h.tree.prop(cam_id, "CameraType")) == "Scriptable":
-			var pos: Vector3 = h.tree.prop(cam_id, "Position")
-			var focus: Vector3 = h.tree.prop(cam_id, "Focus")
-			var t := Transform3D(Basis(), pos)
-			if not pos.is_equal_approx(focus):
-				t = t.looking_at(focus, Vector3.UP if absf((focus - pos).normalized().y) < 0.99 else Vector3.FORWARD)
-			player.scripted_camera = t
+		var want: Variant = _script_camera(cam_id)
+		if want is Transform3D:
+			# Smoothing (seconds): glide towards where the script wants the camera.
+			var smooth := float(h.tree.prop(cam_id, "Smoothing"))
+			if smooth > 0.0 and player.scripted_camera is Transform3D:
+				want = (player.scripted_camera as Transform3D).interpolate_with(want, 1.0 - exp(-delta / smooth))
+			player.scripted_camera = want
 		else:
 			player.scripted_camera = null
 		_cam_timer -= delta
@@ -615,6 +618,80 @@ func _tick_place(delta: float) -> void:
 			var look := -cam.global_basis.z
 			h.camera_state(cam.global_position, player.global_position + Vector3(0, 1.5, 0) if player.scripted_camera == null else h.tree.prop(cam_id, "Focus"), look)
 	_apply_mouse_mode()
+
+
+## Where a script's camera goes this frame, or null for the game's own camera.
+## Scriptable: Position → Focus. Watch: Position → the subject. Track: the subject
+## plus CameraOffset. Follow: like Track, with the offset turning with the subject.
+func _script_camera(cam_id: String) -> Variant:
+	var h := place_host
+	var kind := str(h.tree.prop(cam_id, "CameraType"))
+	var pos: Vector3
+	var focus: Vector3
+	match kind:
+		"Scriptable":
+			pos = h.tree.prop(cam_id, "Position")
+			focus = h.tree.prop(cam_id, "Focus")
+		"Watch", "Track", "Follow":
+			var subj := _camera_subject(cam_id)
+			focus = subj[0]
+			var offset: Vector3 = h.tree.prop(cam_id, "CameraOffset")
+			match kind:
+				"Watch":
+					pos = h.tree.prop(cam_id, "Position")
+				"Track":
+					pos = focus + offset
+				_:
+					pos = focus + Basis(Vector3.UP, float(subj[1])) * offset
+		_:
+			return null
+	var t := Transform3D(Basis(), pos)
+	if not pos.is_equal_approx(focus):
+		t = t.looking_at(focus, Vector3.UP if absf((focus - pos).normalized().y) < 0.99 else Vector3.FORWARD)
+	var roll := float(h.tree.prop(cam_id, "Roll"))
+	if roll != 0.0:
+		t.basis = t.basis.rotated(t.basis.z, deg_to_rad(roll))
+	return t
+
+
+## Camera.CameraSubject: [where it is, which way it faces (radians)]. Empty or your
+## own character: you. A Humanoid means its character; a Model, its root part.
+func _camera_subject(cam_id: String) -> Array:
+	var h := place_host
+	var ref: Variant = h.tree.prop(cam_id, "CameraSubject")
+	var id := str(ref["$i"]) if ref is Dictionary and ref.has("$i") else ""
+	if id != "" and h.tree.has(id) and h.tree.cls(id) == "Humanoid":
+		id = h.tree.parent_of(id)
+	if id == "" or not h.tree.has(id) or id == h.character():
+		return [player.get_global_transform_interpolated().origin + Vector3(0, 1.5, 0), player.avatar.rotation.y]
+	var part := id
+	if not h.tree.is_a(id, "BasePart"):
+		part = ""
+		var root := h.tree.child_named(id, "HumanoidRootPart")
+		if root != "":
+			part = root
+		else:
+			for d in h.tree.descendants(id):
+				if h.tree.is_a(d, "BasePart"):
+					part = d
+					break
+	if part == "":
+		return [player.global_position, 0.0]
+	var p: Variant = h.tree.prop(part, "Position")
+	var r: Variant = h.tree.prop(part, "Rotation")
+	return [p if p is Vector3 else Vector3.ZERO, deg_to_rad((r as Vector3).y) if r is Vector3 else 0.0]
+
+
+## Camera:SetZoom / SetRotation / Shake from a LocalScript.
+func _camera_control(op: Dictionary) -> void:
+	match str(op.get("k", "")):
+		"zoom":
+			player.set_zoom(float(op.get("v", 8.0)))
+		"rot":
+			player.cam_yaw = -deg_to_rad(float(op.get("yaw", 0.0)))
+			player.cam_pitch = deg_to_rad(float(op.get("pitch", -15.0)))
+		"shake":
+			player.shake(float(op.get("v", 1.0)), float(op.get("t", 0.4)))
 
 
 ## The mouse is held in place (hidden or as a crosshair) while the camera turns:

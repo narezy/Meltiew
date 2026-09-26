@@ -84,6 +84,7 @@ var _facing := 0.0
 var _emote := ""
 var _since_hurt := 10.0
 var _shake := 0.0
+var _shake_power := 1.0
 
 
 func _ready() -> void:
@@ -169,6 +170,18 @@ func rotate_camera(delta_px: Vector2) -> void:
 	var sens := 0.0048 * float(Session.settings.camera_sensitivity)
 	cam_yaw -= delta_px.x * sens
 	cam_pitch = clampf(cam_pitch - delta_px.y * sens, -1.45, 1.2 if first_person else 0.6)
+
+
+## A script sets the zoom (Camera:SetZoom): past the place's own limits if it wants.
+func set_zoom(distance: float) -> void:
+	cam_distance = clampf(distance, 0.0, 200.0)
+	_set_first_person(cam_distance < 1.2)
+
+
+## A script shakes the view (Camera:Shake): strength 1 is a bump, 5 an earthquake.
+func shake(strength: float, seconds: float) -> void:
+	_shake = maxf(_shake, seconds)
+	_shake_power = maxf(strength, 0.0) * 1.5
 
 
 func zoom_camera(amount: float) -> void:
@@ -420,7 +433,12 @@ func _update_camera(delta: float) -> void:
 	if scripted_camera is Transform3D:
 		if not camera.top_level:
 			camera.top_level = true
-		camera.global_transform = scripted_camera
+		var t: Transform3D = scripted_camera
+		if _shake > 0.0:
+			_shake = maxf(_shake - delta, 0.0)
+			var k := minf(_shake, 0.35) * 0.08 * _shake_power
+			t.basis = t.basis * Basis.from_euler(Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * k)
+		camera.global_transform = t
 		return
 	if camera.top_level:
 		camera.top_level = false
@@ -431,7 +449,9 @@ func _update_camera(delta: float) -> void:
 	var shake := Vector3.ZERO
 	if _shake > 0.0:
 		_shake = maxf(_shake - delta, 0.0)
-		shake = Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _shake * 0.08
+		shake = Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * minf(_shake, 0.35) * 0.08 * _shake_power
+		if _shake <= 0.0:
+			_shake_power = 1.0
 	_camera_pivot.rotation = Vector3(cam_pitch, cam_yaw, 0) + shake
 	var want := 0.0 if first_person else cam_distance
 	_spring.spring_length = lerpf(_spring.spring_length, want, minf(delta * 12.0, 1.0))

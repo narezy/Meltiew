@@ -2365,6 +2365,40 @@ local function raycast(origin, direction, params)
 	})
 end
 
+-- The camera on this device (workspace.CurrentCamera): scripts can point it, zoom
+-- and turn the game's own camera, and shake it. Client only.
+local function camOnly(level)
+	if role ~= "client" then
+		error("the camera lives on each player's device: use it from a LocalScript", level + 1)
+	end
+end
+Methods.Camera = {
+	-- Put the camera at `position` looking at `focus` (switches to Scriptable).
+	LookAt = function(self, position, focus)
+		camOnly(2)
+		expectV3(position, "position", 3)
+		expectV3(focus, "focus", 3)
+		setProp(self, "CameraType", "Scriptable")
+		setProp(self, "Position", position)
+		setProp(self, "Focus", focus)
+	end,
+	-- How far the game's camera is from the character (Custom camera; 0 = first person).
+	SetZoom = function(_, distance)
+		camOnly(2)
+		emit({ o = "camctl", k = "zoom", v = math.clamp(tonumber(distance) or 8, 0, 200) })
+	end,
+	-- Turns the game's camera: yaw 0 looks along -Z, 90 to the right; pitch below 0 looks down.
+	SetRotation = function(_, yaw, pitch)
+		camOnly(2)
+		emit({ o = "camctl", k = "rot", yaw = tonumber(yaw) or 0, pitch = math.clamp(tonumber(pitch) or -15, -85, 85) })
+	end,
+	-- Shakes the view: strength 1 is a bump, 5 an earthquake.
+	Shake = function(_, strength, seconds)
+		camOnly(2)
+		emit({ o = "camctl", k = "shake", v = math.clamp(tonumber(strength) or 1, 0, 10), t = math.clamp(tonumber(seconds) or 0.4, 0, 10) })
+	end,
+}
+
 Methods.Workspace = {
 	-- The first part a ray hits: { Instance, Position, Normal, Distance, Material } or nil.
 	Raycast = function(_, origin, direction, params)

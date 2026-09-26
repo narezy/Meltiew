@@ -113,7 +113,10 @@
   ],
   "CameraType": [
    "Custom",
-   "Scriptable"
+   "Scriptable",
+   "Watch",
+   "Track",
+   "Follow"
   ],
   "MouseBehavior": [
    "Default",
@@ -1661,6 +1664,32 @@
       ]
      }
     },
+    "CameraSubject": {
+     "type": "Instance",
+     "default": null
+    },
+    "CameraOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       6,
+       12
+      ]
+     }
+    },
+    "Roll": {
+     "type": "number",
+     "default": 0.0,
+     "min": -180,
+     "max": 180
+    },
+    "Smoothing": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 5
+    },
     "LookVector": {
      "type": "Vector3",
      "default": {
@@ -1676,7 +1705,7 @@
    "events": [],
    "runtime": true,
    "icon": "camera",
-   "doc": "`workspace.CurrentCamera` in LocalScripts. With CameraType `Custom` the game moves it and Position, Focus and LookVector tell you where it is. Set CameraType to `Scriptable` and it stays at Position looking at Focus (cutscenes, menus, top-down views)."
+   "doc": "`workspace.CurrentCamera` in LocalScripts. **CameraType** picks who moves it: `Custom` (the game: it orbits the player, and scripts can still turn and zoom it with SetRotation / SetZoom), `Scriptable` (stays at Position looking at Focus: cutscenes, menus), `Watch` (stays at Position and keeps looking at CameraSubject), `Track` (follows CameraSubject from CameraOffset, without turning: top-down, side-scrollers), `Follow` (like Track, but CameraOffset turns with the subject: chase cameras). CameraSubject is a Part, Model or Humanoid (empty: your character). Roll tilts the view in degrees, Smoothing (seconds) makes it glide into place instead of jumping."
   }
  },
  "services": [

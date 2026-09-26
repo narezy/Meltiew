@@ -114,7 +114,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 
 ### Camera
 
-`workspace.CurrentCamera` in LocalScripts. With CameraType `Custom` the game moves it and Position, Focus and LookVector tell you where it is. Set CameraType to `Scriptable` and it stays at Position looking at Focus (cutscenes, menus, top-down views).
+`workspace.CurrentCamera` in LocalScripts. **CameraType** picks who moves it: `Custom` (the game: it orbits the player, and scripts can still turn and zoom it with SetRotation / SetZoom), `Scriptable` (stays at Position looking at Focus: cutscenes, menus), `Watch` (stays at Position and keeps looking at CameraSubject), `Track` (follows CameraSubject from CameraOffset, without turning: top-down, side-scrollers), `Follow` (like Track, but CameraOffset turns with the subject: chase cameras). CameraSubject is a Part, Model or Humanoid (empty: your character). Roll tilts the view in degrees, Smoothing (seconds) makes it glide into place instead of jumping.
 
 | Property | Type | Default | Notes |
 |---|---|---|---|
@@ -122,7 +122,13 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | FieldOfView | number | 70 | min 10, max 120 |
 | Position | Vector3 | Vector3.new(0, 10, 10) |  |
 | Focus | Vector3 | Vector3.new(0, 0, 0) |  |
+| CameraSubject | Instance |  |  |
+| CameraOffset | Vector3 | Vector3.new(0, 6, 12) |  |
+| Roll | number | 0 | min -180, max 180 |
+| Smoothing | number | 0 | min 0, max 5 |
 | LookVector | Vector3 | Vector3.new(0, 0, -1) | read-only |
+
+**Methods:** `LookAt(position, focus)`, `SetZoom(distance)`, `SetRotation(yaw, pitch)`, `Shake(strength, seconds)`
 
 ## Services
 
@@ -654,7 +660,7 @@ Put inside Lighting. Pick a preset or set Preset=Custom and six images (up, down
 
 ### CameraType
 
-`Custom`, `Scriptable`
+`Custom`, `Scriptable`, `Watch`, `Track`, `Follow`
 
 ### MouseBehavior
 

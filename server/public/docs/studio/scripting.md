@@ -263,16 +263,44 @@ Also `Button1Up`, `Button2Down/Up`, `Move`, `WheelForward/Backward`, `X`, `Y`, `
 
 ## Camera (LocalScripts)
 
-`workspace.CurrentCamera` is this device's camera. It has `Position`, `Focus`, `LookVector` and `FieldOfView`. Set `CameraType = "Scriptable"` and the game stops moving it: it stays at `Position` looking at `Focus` until you set `"Custom"` again.
+`workspace.CurrentCamera` is this device's camera. It has `Position`, `Focus`, `LookVector` and `FieldOfView`. **CameraType** decides who moves it:
+
+| CameraType | What the camera does |
+|---|---|
+| `Custom` | The game's camera: orbits the player, who turns and zooms it. |
+| `Scriptable` | Stays at `Position` looking at `Focus`, until you move it. Cutscenes, menus, fixed views. |
+| `Watch` | Stays at `Position`, always looking at `CameraSubject`. Security cameras, arenas. |
+| `Track` | Follows `CameraSubject` from `CameraOffset` without turning. Top-down and side-scrolling games. |
+| `Follow` | Like Track, but the offset turns with the subject. Chase cameras for cars and boats. |
+
+`CameraSubject` is a Part, a Model or a Humanoid; empty means your own character. `CameraOffset` defaults to `(0, 6, 12)`. `Roll` tilts the view in degrees, and `Smoothing` (seconds) makes the camera glide to where it should be instead of jumping.
 
 ```lua
 local cam = workspace.CurrentCamera
-cam.CameraType = "Scriptable"
-cam.Position = Vector3.new(0, 40, 30)
-cam.Focus = Vector3.new(0, 0, 0)
+
+-- a top-down game
+cam.CameraType = "Track"
+cam.CameraOffset = Vector3.new(0, 30, 0.1)
+
+-- a chase camera behind a car, a bit lazy
+cam.CameraType = "Follow"
+cam.CameraSubject = workspace.Car
+cam.CameraOffset = Vector3.new(0, 5, 12)
+cam.Smoothing = 0.3
+
+-- a cutscene shot: jump there, tilt, zoom in
+cam:LookAt(Vector3.new(40, 10, 40), workspace.Castle.Position)
+cam.Roll = 10
+cam.FieldOfView = 45
+
+-- and back to normal, facing east from above
+cam.CameraType = "Custom"
+cam:SetRotation(90, -30) -- yaw, pitch in degrees
+cam:SetZoom(20)          -- 0 is first person
+cam:Shake(3, 0.6)        -- strength, seconds
 ```
 
-StarterPlayer's `CameraMode` (`Classic`, `LockFirstPerson`, `LockThirdPerson`), `CameraMinZoom` and `CameraMaxZoom` set the camera rules for everyone.
+Position, Focus, FieldOfView, Roll and CameraOffset can be tweened with TweenService for smooth camera moves. StarterPlayer's `CameraMode` (`Classic`, `LockFirstPerson`, `LockThirdPerson`), `CameraMinZoom` and `CameraMaxZoom` set the player's own zoom limits; `SetZoom` from a script may go past them.
 
 ## Finding parts
 
