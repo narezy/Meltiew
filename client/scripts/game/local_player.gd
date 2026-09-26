@@ -31,6 +31,8 @@ var cam_pitch := -0.3
 var cam_distance := 7.5
 var move_input := Vector2.ZERO
 var sprint := false
+## Phones: the run button switches sprinting on until it's tapped again.
+var sprint_toggle := false
 ## True while typing in chat, so WASD goes to the text field only.
 var keyboard_blocked := false
 ## Extra horizontal push from slides/conveyors, set by world areas each frame.
@@ -47,6 +49,15 @@ var sprint_speed := SPRINT_SPEED
 var jump_velocity := JUMP_VELOCITY
 var gravity := GRAVITY
 var can_jump := true
+var can_sprint := true
+## Stamina: sprinting spends it, resting brings it back. max_stamina 0 = endless.
+var max_stamina := 100.0
+var stamina_drain := 20.0
+var stamina_regen := 15.0
+var stamina := 100.0
+## Ran dry: no sprinting until a third of it is back.
+var winded := false
+var _rest := 0.0
 var void_height := -25.0
 var max_hp := 100.0
 ## Studio places: the server owns health and decides when to respawn.
@@ -165,6 +176,26 @@ func zoom_camera(amount: float) -> void:
 		return
 	cam_distance = clampf(cam_distance + amount, _zoom_floor(), max_zoom)
 	_set_first_person(cam_distance < 1.2)
+
+
+func _update_stamina(delta: float, sprinting: bool) -> void:
+	if max_stamina <= 0.0:
+		stamina = 0.0
+		winded = false
+		return
+	stamina = minf(stamina, max_stamina)
+	if sprinting:
+		_rest = 0.0
+		stamina -= stamina_drain * delta
+		if stamina <= 0.0:
+			stamina = 0.0
+			winded = true
+	else:
+		_rest += delta
+		if _rest > 0.8:
+			stamina = minf(max_stamina, stamina + stamina_regen * delta)
+		if winded and stamina >= max_stamina * 0.3:
+			winded = false
 
 
 func toggle_first_person() -> void:
@@ -333,7 +364,9 @@ func _physics_process(delta: float) -> void:
 	if input.length() > 0.1 and _emote != "":
 		_emote = ""
 	var dir := Basis(Vector3.UP, cam_yaw) * Vector3(input.x, 0, input.y)
-	var top := sprint_speed if sprint else walk_speed
+	var sprinting := (sprint or sprint_toggle) and can_sprint and not winded and input.length() > 0.1 and not seated
+	_update_stamina(delta, sprinting)
+	var top := sprint_speed if sprinting else walk_speed
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
 	var rate := (ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL

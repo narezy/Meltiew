@@ -13,7 +13,7 @@ const JOINT_ORDER := ["torso", "head", "arm_l", "arm_r", "leg_l", "leg_r"]
 const CLIPS := {
 	"idle": ["Idle", 1.0, 0.25],
 	"walk": ["Walk", 0.85, 0.2],
-	"run": ["Walk", 1.3, 0.2],
+	"run": ["Run", 1.3, 0.2],
 	"jump": ["Jump", 1.0, 0.1],
 	"wave": ["Wave", 1.0, 0.15],
 	"dance": ["Dance", 1.0, 0.2],

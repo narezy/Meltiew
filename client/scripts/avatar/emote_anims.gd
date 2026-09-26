@@ -17,6 +17,52 @@ static func install(ap: AnimationPlayer) -> void:
 	for clip in ["Idle", "Walk", "Jump", "Wave"]:
 		if lib.has_animation(clip):
 			_complete(lib.get_animation(clip))
+	if lib.has_animation("Walk") and not lib.has_animation("Run"):
+		lib.add_animation("Run", _run(lib.get_animation("Walk")))
+
+
+## Running, made from the walk: arms and legs swing much wider, the body leans
+## into it and bounces twice per stride, the head stays level.
+static func _run(walk: Animation) -> Animation:
+	var a := walk.duplicate(true) as Animation
+	a.loop_mode = Animation.LOOP_LINEAR
+	var gains := {"ArmL": 2.0, "ArmR": 2.0, "LegL": 1.6, "LegR": 1.6}
+	for t in a.get_track_count():
+		if a.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			continue
+		var bone := str(a.track_get_path(t)).get_slice(":", 1)
+		if not gains.has(bone):
+			continue
+		for k in a.track_get_key_count(t):
+			var qk: Quaternion = a.track_get_key_value(t, k)
+			if qk.w < 0.0:
+				qk = -qk
+			var ang := qk.get_angle()
+			if ang > 0.0001:
+				a.track_set_key_value(t, k, Quaternion(qk.get_axis(), ang * float(gains[bone])))
+	var L := a.length
+	var torso := NodePath("Melly/Skeleton3D:Torso")
+	var head := NodePath("Melly/Skeleton3D:Head")
+	for path in [torso, head]:
+		var old := a.find_track(path, Animation.TYPE_ROTATION_3D)
+		if old != -1:
+			a.remove_track(old)
+	var tr := a.add_track(Animation.TYPE_ROTATION_3D)
+	a.track_set_path(tr, torso)
+	var hr := a.add_track(Animation.TYPE_ROTATION_3D)
+	a.track_set_path(hr, head)
+	for i in 5:
+		var twist := 0.1 * (1.0 if i % 4 == 1 else (-1.0 if i % 4 == 3 else 0.0))
+		a.rotation_track_insert_key(tr, L * i / 4.0, q(0.2, twist, 0.0))
+		a.rotation_track_insert_key(hr, L * i / 4.0, q(-0.14, -twist * 0.6, 0.0))
+	var old_p := a.find_track(torso, Animation.TYPE_POSITION_3D)
+	if old_p != -1:
+		a.remove_track(old_p)
+	var tp := a.add_track(Animation.TYPE_POSITION_3D)
+	a.track_set_path(tp, torso)
+	for i in 5:
+		a.position_track_insert_key(tp, L * i / 4.0, TORSO_REST + Vector3(0, 0.16 if i % 2 == 1 else 0.0, 0))
+	return a
 
 
 static func _complete(a: Animation) -> void:

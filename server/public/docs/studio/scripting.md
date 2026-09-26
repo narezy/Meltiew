@@ -104,7 +104,14 @@ end)
 
 A character is a Model named after the player with a `HumanoidRootPart` (where they stand; its `Position` updates as they move) and a `Humanoid`.
 
-**Humanoid** controls the character: `WalkSpeed`, `SprintSpeed`, `JumpPower`, `CanJump`, `Health`, `MaxHealth`, `AutoHeal` + `HealthRegen` (health per second) and `EmotesEnabled`. Change them on the server. `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
+**Humanoid** controls the character: `WalkSpeed`, `SprintSpeed`, `JumpPower`, `CanJump`, `Health`, `MaxHealth`, `AutoHeal` + `HealthRegen` (health per second) and `EmotesEnabled`. Change them on the server.
+
+Sprinting (Shift on a computer, the run button on a phone) uses up stamina, shown as a bar under health. `CanSprint = false` turns sprinting off. `MaxStamina` is how much there is (0 = endless, and the bar hides), `StaminaDrain` how much a second of sprinting costs and `StaminaRegen` how much comes back each second after a short rest. Set them on StarterPlayer for everyone, or on one Humanoid:
+
+```lua
+humanoid.MaxStamina = 200   -- a potion that lets you run twice as long
+humanoid.CanSprint = false  -- a stealth level: walking only
+``` `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
 
 Defaults for every new character come from **StarterPlayer**: the same humanoid settings plus `RespawnTime`, `ChatEnabled`, `CameraMode` (`Classic` or `LockFirstPerson`) and `CameraMaxZoom`.
 

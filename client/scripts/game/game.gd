@@ -34,6 +34,7 @@ var _heart_tex: Texture2D
 var _last_heart := -100000
 const HEART_COOLDOWN_MS := 2500
 var _island_announced := false
+var _mouse_rest := Vector2.INF  # where the cursor waits while the camera turns
 
 
 func _ready() -> void:
@@ -407,6 +408,10 @@ func _sync_place(delta: float) -> void:
 		player.sprint_speed = float(t.prop(hum, "SprintSpeed"))
 		player.jump_velocity = float(t.prop(hum, "JumpPower"))
 		player.can_jump = t.prop(hum, "CanJump")
+		player.can_sprint = t.prop(hum, "CanSprint") != false
+		player.max_stamina = float(t.prop(hum, "MaxStamina"))
+		player.stamina_drain = float(t.prop(hum, "StaminaDrain"))
+		player.stamina_regen = float(t.prop(hum, "StaminaRegen"))
 		var hp := float(t.prop(hum, "Health"))
 		var mx := float(t.prop(hum, "MaxHealth"))
 		if not is_equal_approx(hp, player.hp) or not is_equal_approx(mx, player.max_hp):
@@ -557,8 +562,11 @@ func _drop_tool() -> void:
 		place_host.tool_event(held, "drop", {"p": SValue.encode(front)})
 
 
-## Screen point the scripts see: the middle of the screen while the mouse is locked.
+## Screen point the scripts see: the middle of the screen while the mouse is locked
+## (where it rests while the right button turns the camera).
 func _pointer_pos(p: Vector2) -> Vector2:
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and hud.mouse_look() and not player.first_person and _mouse_rest != Vector2.INF:
+		return _mouse_rest
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		return get_viewport().get_visible_rect().size / 2.0
 	return p
@@ -607,13 +615,15 @@ func _tick_place(delta: float) -> void:
 	_apply_mouse_mode()
 
 
-## LockCenter / LockFirstPerson grab the mouse on computers, except while a menu,
-## the chat or the inventory needs it.
+## The mouse is held in place (hidden or as a crosshair) while the camera turns:
+## in first person, while the right button is down, and when a place asks for
+## LockCenter. Menus, the chat and the inventory give it back.
 func _apply_mouse_mode() -> void:
 	if DisplayServer.is_touchscreen_available():
 		return
-	var ms := place_host.mouse_settings
-	var lock: bool = ms.behavior != "Default" or (player.first_person and player.camera_mode == "LockFirstPerson")
+	var ms: Dictionary = place_host.mouse_settings if place_host else {"enabled": true, "behavior": "Default"}
+	var orbit := hud.mouse_look()
+	var lock: bool = ms.behavior != "Default" or player.first_person or orbit
 	var busy := menu.visible or hud.chat_open() or hud.inventory_open() or not get_window().has_focus() or not _joined
 	var want := Input.MOUSE_MODE_VISIBLE
 	if lock and not busy:
@@ -621,8 +631,17 @@ func _apply_mouse_mode() -> void:
 	elif not ms.enabled and not busy:
 		want = Input.MOUSE_MODE_HIDDEN
 	if Input.mouse_mode != want:
+		if want == Input.MOUSE_MODE_CAPTURED and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			_mouse_rest = get_viewport().get_mouse_position()
+		var was_captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 		Input.mouse_mode = want
-	hud.set_crosshair(_cursor_tex, want == Input.MOUSE_MODE_CAPTURED and ms.enabled)
+		if was_captured and _mouse_rest != Vector2.INF:
+			# Back where it was before the camera turn, not in the middle of the screen.
+			get_viewport().warp_mouse(_mouse_rest)
+		if want != Input.MOUSE_MODE_CAPTURED:
+			_mouse_rest = Vector2.INF
+	# A crosshair in the middle when aiming (first person, LockCenter); nothing while orbiting.
+	hud.set_crosshair(_cursor_tex, want == Input.MOUSE_MODE_CAPTURED and ms.enabled and not (orbit and not player.first_person and ms.behavior == "Default"))
 
 
 ## UserInputService.MouseIcon: any uploaded image as the cursor.
@@ -680,6 +699,8 @@ func _physics_process(delta: float) -> void:
 	if place_host:
 		_sync_place(delta)
 		_tick_place(delta)
+	else:
+		_apply_mouse_mode()
 	_send_accum += delta
 	if _send_accum >= 1.0 / SEND_HZ:
 		_send_accum = 0.0

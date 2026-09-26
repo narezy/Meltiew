@@ -32,6 +32,7 @@ var _handles: MeshInstance3D
 var _line_mesh := ImmediateMesh.new()
 var _handle_mesh := ImmediateMesh.new()
 var _press := Vector2.ZERO
+var _look_from := Vector2.ZERO
 
 
 func setup(d: EditDoc) -> void:
@@ -471,8 +472,14 @@ func _gui_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton:
 		match e.button_index:
 			MOUSE_BUTTON_RIGHT:
+				# The cursor stays where it was while you look around, and comes back there.
+				if e.pressed and not _looking:
+					_look_from = get_viewport().get_mouse_position()
+					Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+				elif not e.pressed and _looking:
+					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+					get_viewport().warp_mouse(_look_from)
 				_looking = e.pressed
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if e.pressed else Input.MOUSE_MODE_VISIBLE
 			MOUSE_BUTTON_MIDDLE:
 				_panning = e.pressed
 			MOUSE_BUTTON_WHEEL_UP:

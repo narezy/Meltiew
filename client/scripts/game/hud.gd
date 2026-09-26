@@ -12,6 +12,9 @@ var player: LocalPlayer
 var joystick: Joystick
 var jump_btn: TouchButton
 var emote_btn: TouchButton
+var sprint_btn: TouchButton
+var _stamina_bg: Panel
+var _stamina_fill: Panel
 var wheel: EmoteWheel
 
 var _root: Control
@@ -116,6 +119,24 @@ func _ready() -> void:
 	hp_row.add_child(_hp_label)
 	_root.add_child(hp_row)
 	_hp_row = hp_row
+	# Stamina: a thin bar right under health, lined up with it.
+	_stamina_bg = Panel.new()
+	_stamina_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stamina_bg.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_stamina_bg.custom_minimum_size = Vector2(HP_W, 6)
+	var stb := StyleBoxFlat.new()
+	stb.bg_color = Color(0, 0, 0, 0.35)
+	stb.set_corner_radius_all(3)
+	_stamina_bg.add_theme_stylebox_override("panel", stb)
+	_stamina_fill = Panel.new()
+	_stamina_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stamina_fill.size = Vector2(HP_W, 6)
+	var stf := StyleBoxFlat.new()
+	stf.bg_color = Color("#6ec8ff")
+	stf.set_corner_radius_all(3)
+	_stamina_fill.add_theme_stylebox_override("panel", stf)
+	_stamina_bg.add_child(_stamina_fill)
+	_root.add_child(_stamina_bg)
 	_build_tools()
 
 	# Closed chat: the last few messages float over the game and fade out.
@@ -204,11 +225,18 @@ func _ready() -> void:
 	# Bottom-right: jump + emotes.
 	jump_btn = TouchButton.make("jump", 120)
 	emote_btn = TouchButton.make("smile", 78)
-	for b in [jump_btn, emote_btn]:
+	sprint_btn = TouchButton.make("run", 78)
+	for b in [jump_btn, emote_btn, sprint_btn]:
 		b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		_root.add_child(b)
 	_place(jump_btn, Vector2(-165, -175))
 	_place(emote_btn, Vector2(-265, -110))
+	_place(sprint_btn, Vector2(-144, -272))
+	# Tap to run, tap again to walk (holding a button while steering is awkward on a phone).
+	sprint_btn.pressed_down.connect(func():
+		if player:
+			player.sprint_toggle = not player.sprint_toggle
+			sprint_btn.latched = player.sprint_toggle)
 	jump_btn.pressed_down.connect(func():
 		if player:
 			player.request_jump())
@@ -217,6 +245,7 @@ func _ready() -> void:
 		wheel.open())
 	if not DisplayServer.is_touchscreen_available():
 		jump_btn.visible = false
+		sprint_btn.visible = false
 
 	wheel = EmoteWheel.new()
 	wheel.theme = UI.theme
@@ -592,6 +621,31 @@ func set_health(hp: float) -> void:
 	_hp_label.text = str(int(ceil(hp)))
 
 
+## The stamina bar under health: hidden when stamina is endless or sprinting is
+## off, faded while full, amber while winded.
+func _update_stamina() -> void:
+	var on: bool = _hp_row.visible and player.can_sprint and player.max_stamina > 0.0
+	_stamina_bg.visible = on
+	if DisplayServer.is_touchscreen_available():
+		sprint_btn.visible = player.can_sprint and not player.dead
+		if not player.can_sprint and player.sprint_toggle:
+			player.sprint_toggle = false
+			sprint_btn.latched = false
+	if not on:
+		return
+	var r := _hp_row.get_global_rect()
+	var bar_x := r.position.x + (r.size.x - HP_W) * 0.5
+	for c in _hp_row.get_children():
+		if c is Panel:
+			bar_x = (c as Control).global_position.x
+	_stamina_bg.global_position = Vector2(bar_x, r.end.y + 4.0)
+	var frac := clampf(player.stamina / player.max_stamina, 0.0, 1.0)
+	_stamina_fill.size.x = HP_W * frac
+	var sb := _stamina_fill.get_theme_stylebox("panel") as StyleBoxFlat
+	sb.bg_color = Color("#ffb86b") if player.winded else Color("#6ec8ff")
+	_stamina_bg.modulate.a = move_toward(_stamina_bg.modulate.a, 0.45 if frac >= 0.999 else 1.0, get_process_delta_time() * 3.0)
+
+
 func big_message(text: String, seconds := 2.5) -> void:
 	_toast_big.text = text
 	var t := _toast_big.create_tween()
@@ -739,8 +793,13 @@ func hide_overlay() -> void:
 	_overlay.visible = false
 
 
+## The right mouse button is held to turn the camera.
+func mouse_look() -> bool:
+	return _mouse_look
+
+
 func release_touches() -> void:
-	for b in [jump_btn, emote_btn]:
+	for b in [jump_btn, emote_btn, sprint_btn]:
 		b.force_release()
 	joystick.reset()
 	_pinch.clear()
@@ -761,7 +820,7 @@ func _blocked(pos: Vector2) -> bool:
 func tap_allowed(pos: Vector2) -> bool:
 	if _blocked(pos) or _overlay.visible or wheel.visible:
 		return false
-	for b in [jump_btn, emote_btn]:
+	for b in [jump_btn, emote_btn, sprint_btn]:
 		if b.visible and b.get_global_rect().has_point(pos):
 			return false
 	return pos.x >= get_viewport().get_visible_rect().size.x * 0.42
@@ -787,7 +846,7 @@ func _input(event: InputEvent) -> void:
 
 func _touch(e: InputEventScreenTouch) -> void:
 	if e.pressed:
-		for b in [jump_btn, emote_btn]:
+		for b in [jump_btn, emote_btn, sprint_btn]:
 			if b.touch_press(e.index, e.position):
 				return
 		if _blocked(e.position):
@@ -800,7 +859,7 @@ func _touch(e: InputEventScreenTouch) -> void:
 			if _cam_finger < 0:
 				_cam_finger = e.index
 	else:
-		for b in [jump_btn, emote_btn]:
+		for b in [jump_btn, emote_btn, sprint_btn]:
 			b.touch_release(e.index)
 		joystick.end(e.index)
 		_pinch.erase(e.index)
@@ -873,3 +932,4 @@ func _process(_delta: float) -> void:
 		player.move_input = joystick.value
 		player.keyboard_blocked = chat_open()
 		player.sprint = Input.is_key_pressed(KEY_SHIFT) and not player.keyboard_blocked
+		_update_stamina()

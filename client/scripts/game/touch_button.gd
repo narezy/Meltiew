@@ -10,6 +10,11 @@ var icon_kind := "jump"
 var tint := UI.TEXT
 var bg := Color(0.09, 0.08, 0.12, 0.45)
 var bg_down := Color(0.72, 0.61, 1.0, 0.75)
+## Stays lit while true (toggle buttons like "run").
+var latched := false:
+	set(v):
+		latched = v
+		queue_redraw()
 var _finger := -1
 var _mouse_down := false
 var _icon: Icon
@@ -37,7 +42,7 @@ func is_down() -> bool:
 
 func _draw() -> void:
 	var r := size.x * 0.5
-	draw_circle(size * 0.5, r, bg_down if is_down() else bg)
+	draw_circle(size * 0.5, r, bg_down if is_down() or latched else bg)
 	draw_arc(size * 0.5, r - 1.5, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0, true)
 
 

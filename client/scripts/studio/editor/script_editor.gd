@@ -27,6 +27,8 @@ var _open: Array = []  # script ids
 var _current := ""
 var _pending_commit := 0.0
 var _loading := false
+var _key_frame := -1
+var _keys_this_frame := 0
 
 
 func setup(d: EditDoc) -> void:
@@ -64,13 +66,75 @@ func setup(d: EditDoc) -> void:
 	_code.delimiter_comments = PackedStringArray(["--"])
 	_code.delimiter_strings = PackedStringArray(["\" \"", "' '"])
 	_code.indent_automatic_prefixes = PackedStringArray(["then", "do", "function", "(", "{", "repeat", "else"])
+	# Phones: the keyboard types pasted text in one character at a time and keeps its
+	# own copy of the text. Auto-indent, auto-brackets and the completion popup change
+	# the text behind its back, so indents pile up and letters get deleted. Off there,
+	# and a toolbar pastes straight from the clipboard instead.
+	var touch := DisplayServer.is_touchscreen_available()
+	if touch:
+		_code.indent_automatic = false
+		_code.auto_brace_completion_enabled = false
+		_code.code_completion_enabled = false
+		add_child(_touch_bar())
 	_code.text_changed.connect(func():
 		if not _loading:
 			_pending_commit = 0.6
-		_code.request_code_completion())
+		if not touch:
+			_code.request_code_completion())
 	_code.code_completion_requested.connect(_complete)
+	_code.gui_input.connect(_on_code_input)
 	add_child(_code)
 	rebind()
+
+
+## A phone keyboard pastes by typing the text in, many keys in one frame. Its Enter
+## must not copy the previous line's indent: the pasted text has its own already.
+func _on_code_input(e: InputEvent) -> void:
+	if not (e is InputEventKey and e.pressed):
+		return
+	var f := Engine.get_process_frames()
+	if f == _key_frame:
+		_keys_this_frame += 1
+	else:
+		_key_frame = f
+		_keys_this_frame = 1
+	if _keys_this_frame >= 3 and e.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		_code.cancel_code_completion()
+		_code.insert_text_at_caret("\n")
+		_code.accept_event()
+
+
+## Paste / copy all / Tab / undo / redo for phones, where the keyboard has none of these.
+func _touch_bar() -> Control:
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 6)
+	var items := [
+		[L.t("se_paste"), func(): paste_clipboard()],
+		[L.t("se_copy_all"), func():
+			DisplayServer.clipboard_set(_code.text)
+			UI.toast(L.t("se_copied"), "ok")],
+		["Tab", func(): _code.insert_text_at_caret("\t")],
+		["↶", func(): _code.undo()],
+		["↷", func(): _code.redo()],
+	]
+	for it in items:
+		var b := UI.button(it[0], "ghost", 40)
+		b.add_theme_font_size_override("font_size", 15)
+		b.custom_minimum_size.x = 56
+		b.pressed.connect(it[1])
+		bar.add_child(b)
+	return bar
+
+
+## Puts the clipboard's text at the caret as it is (no auto-indent, no keyboard in between).
+func paste_clipboard() -> void:
+	var t := DisplayServer.clipboard_get().replace("\r\n", "\n").replace("\r", "\n")
+	if t == "":
+		return
+	if _code.has_selection():
+		_code.delete_selection()
+	_code.insert_text_at_caret(t)
+	_code.grab_focus()
 
 
 func rebind() -> void:

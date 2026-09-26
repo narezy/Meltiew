@@ -283,6 +283,25 @@
      "min": 0,
      "max": 80
     },
+    "CanSprint": {
+     "type": "bool",
+     "default": true
+    },
+    "MaxStamina": {
+     "type": "number",
+     "default": 100.0,
+     "min": 0
+    },
+    "StaminaDrain": {
+     "type": "number",
+     "default": 20.0,
+     "min": 0
+    },
+    "StaminaRegen": {
+     "type": "number",
+     "default": 15.0,
+     "min": 0
+    },
     "JumpPower": {
      "type": "number",
      "default": 8.2,
@@ -473,6 +492,25 @@
     "SprintSpeed": {
      "type": "number",
      "default": 7.0,
+     "min": 0
+    },
+    "CanSprint": {
+     "type": "bool",
+     "default": true
+    },
+    "MaxStamina": {
+     "type": "number",
+     "default": 100.0,
+     "min": 0
+    },
+    "StaminaDrain": {
+     "type": "number",
+     "default": 20.0,
+     "min": 0
+    },
+    "StaminaRegen": {
+     "type": "number",
+     "default": 15.0,
      "min": 0
     },
     "JumpPower": {

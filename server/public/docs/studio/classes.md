@@ -51,6 +51,10 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | MaxHealth | number | 100 | min 1 |
 | WalkSpeed | number | 5 | min 0 |
 | SprintSpeed | number | 7 | min 0 |
+| CanSprint | bool | true |  |
+| MaxStamina | number | 100 | min 0 |
+| StaminaDrain | number | 20 | min 0 |
+| StaminaRegen | number | 15 | min 0 |
 | JumpPower | number | 8.2 | min 0 |
 | CanJump | bool | true |  |
 | AutoHeal | bool | true |  |
@@ -175,6 +179,10 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 |---|---|---|---|
 | WalkSpeed | number | 5 | min 0, max 60 |
 | SprintSpeed | number | 7 | min 0, max 80 |
+| CanSprint | bool | true |  |
+| MaxStamina | number | 100 | min 0 |
+| StaminaDrain | number | 20 | min 0 |
+| StaminaRegen | number | 15 | min 0 |
 | JumpPower | number | 8.2 | min 0, max 60 |
 | CanJump | bool | true |  |
 | MaxHealth | number | 100 | min 1, max 100000 |
