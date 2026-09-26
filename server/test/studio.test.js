@@ -249,6 +249,22 @@ test('assets: upload, serve, quota, delete', async () => {
   assert.equal(r.data.usage.count, 1);
   assert.equal((await call('DELETE', `/api/assets/${a.id}`, null, users.guest)).status, 403);
   assert.equal((await call('DELETE', `/api/assets/${a.id}`, null, users.maker)).status, 200);
+
+  // Sounds: WAV/OGG/MP3 by their first bytes, listed apart from images, own quota.
+  const wav = Buffer.alloc(200);
+  wav.write('RIFF', 0, 'latin1');
+  wav.write('WAVEfmt ', 8, 'latin1');
+  r = await call('POST', '/api/assets', { name: 'beep', sound: wav.toString('base64') }, users.maker);
+  assert.equal(r.status, 200, r.raw);
+  assert.equal(r.data.asset.kind, 'sound');
+  const snd = await fetch(base + r.data.asset.url);
+  assert.equal(snd.headers.get('content-type'), 'audio/wav');
+  assert.equal((await call('POST', '/api/assets', { name: 'x', sound: Buffer.alloc(200).toString('base64') }, users.maker)).status, 400);
+  r = await call('GET', '/api/assets?kind=sound', null, users.maker);
+  assert.deepEqual(r.data.assets.map((x) => x.name), ['beep']);
+  assert.ok(r.data.usage.max_bytes >= 20 * 1024 * 1024);
+  r = await call('GET', '/api/assets', null, users.maker);
+  assert.equal(r.data.assets.length, 0, 'images and sounds are listed apart');
 });
 
 test('the app ships the same runtime and schema as the server', async () => {

@@ -116,6 +116,7 @@ func _ready() -> void:
 	props.setup(doc)
 	props.open_script.connect(open_script)
 	props.pick_asset.connect(func(done): assets.open(done))
+	props.pick_sound.connect(func(done): assets.open(done, "sound"))
 	right_split.add_child(_panel(props))
 	explorer.open_script.connect(open_script)
 	explorer.insert_requested.connect(func(c, parent): insert(c, parent))

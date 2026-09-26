@@ -329,9 +329,11 @@ A shape scripts build out of triangles: terrain, hills, rocks, a whole Minecraft
 
 *can be created with `Instance.new`*
 
+A sound. **SoundId** is a built-in sound (`pop`, `click`, `jump`, `coin`, `hurt`, `win`, `boing`, `whoosh`) or one you uploaded in Studio (`asset://...`, OGG, MP3 or WAV). Inside a part it's heard from that part (louder up close); anywhere else it plays for the whole screen. `sound:Play()`, `sound:Stop()`; `Looped` repeats it, `Volume` 0..2, `Pitch` makes it higher or lower.
+
 | Property | Type | Default | Notes |
 |---|---|---|---|
-| SoundId | [BuiltinSound](#builtinsound) | "pop" |  |
+| SoundId | sound | "pop" |  |
 | Volume | number | 0.8 | min 0, max 2 |
 | Pitch | number | 1 | min 0.1, max 4 |
 | Looped | bool | false |  |

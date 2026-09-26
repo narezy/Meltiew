@@ -10,6 +10,22 @@ import { VISIBILITIES, cleanI18n, decodeImage, templatePlace, validateMelt } fro
 export const ASSET_LIMIT_COUNT = 100;
 export const ASSET_LIMIT_BYTES = 25 * 1024 * 1024;
 const ASSET_MAX_BYTES = 2 * 1024 * 1024;
+// Sounds have their own, bigger allowance (per account), and a limit per file.
+export const SOUND_LIMIT_COUNT = 60;
+export const SOUND_LIMIT_BYTES = 40 * 1024 * 1024;
+const SOUND_MAX_BYTES = 5 * 1024 * 1024;
+
+/** An uploaded sound (base64): Ogg Vorbis, MP3 or WAV, told apart by their first bytes. */
+function decodeSound(b64, maxBytes) {
+  if (typeof b64 !== 'string') return null;
+  const buf = Buffer.from(b64.replace(/^data:[^,]*,/, ''), 'base64');
+  if (buf.length < 64 || buf.length > maxBytes) return null;
+  const head = buf.subarray(0, 12).toString('latin1');
+  if (head.startsWith('OggS')) return { buf, mime: 'audio/ogg' };
+  if (head.startsWith('RIFF') && head.slice(8, 12) === 'WAVE') return { buf, mime: 'audio/wav' };
+  if (head.startsWith('ID3') || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)) return { buf, mime: 'audio/mpeg' };
+  return null;
+}
 const COVER_MAX_BYTES = 3 * 1024 * 1024;
 const MAX_PLACES_PER_USER = 50;
 
@@ -33,10 +49,10 @@ export function createStudioRoutes(ctx) {
     returning: db.prepare('SELECT COUNT(*) AS n FROM place_players WHERE place_id = ? AND visits > 1'),
     votes: db.prepare('SELECT SUM(value = 1) AS likes, SUM(value = -1) AS dislikes FROM place_votes WHERE place_id = ?'),
     commentCount: db.prepare('SELECT COUNT(*) AS n FROM place_comments WHERE place_id = ?'),
-    assets: db.prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY created_at DESC'),
-    assetUsage: db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM assets WHERE owner_id = ?'),
+    assets: db.prepare('SELECT * FROM assets WHERE owner_id = ? AND kind = ? ORDER BY created_at DESC'),
+    assetUsage: db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM assets WHERE owner_id = ? AND kind = ?'),
     asset: db.prepare('SELECT * FROM assets WHERE id = ?'),
-    insertAsset: db.prepare('INSERT INTO assets (id, owner_id, name, mime, size, width, height, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    insertAsset: db.prepare('INSERT INTO assets (id, owner_id, name, mime, size, width, height, created_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
     deleteAsset: db.prepare('DELETE FROM assets WHERE id = ?'),
     comments: db.prepare(`SELECT c.*, u.username, u.display_name, u.role, u.render_hash, u.colors, u.hat, u.face FROM place_comments c JOIN users u ON u.id = c.user_id
       WHERE c.place_id = ? AND c.id < ? AND u.banned = 0 ORDER BY c.id DESC LIMIT 30`),
@@ -91,7 +107,7 @@ export function createStudioRoutes(ctx) {
   }
 
   function assetView(a) {
-    return { id: a.id, name: a.name, url: `/api/assets/${a.id}`, ref: `asset://${a.id}`, size: a.size, width: a.width, height: a.height, created_at: a.created_at };
+    return { id: a.id, kind: a.kind || 'image', name: a.name, url: `/api/assets/${a.id}`, ref: `asset://${a.id}`, size: a.size, width: a.width, height: a.height, created_at: a.created_at };
   }
 
   return {
@@ -261,25 +277,37 @@ export function createStudioRoutes(ctx) {
     },
 
     // --- assets (images for parts and UI) ----------------------------------------
-    'GET /api/assets': (req) => {
+    'GET /api/assets': (req, _b, url) => {
       const { user } = requireAuth(req);
-      const usage = q.assetUsage.get(user.id);
+      const kind = url.searchParams.get('kind') === 'sound' ? 'sound' : 'image';
+      const usage = q.assetUsage.get(user.id, kind);
+      const sound = kind === 'sound';
       return {
-        assets: q.assets.all(user.id).map(assetView),
-        usage: { count: usage.n, bytes: usage.bytes, max_count: ASSET_LIMIT_COUNT, max_bytes: ASSET_LIMIT_BYTES },
+        assets: q.assets.all(user.id, kind).map(assetView),
+        usage: { count: usage.n, bytes: usage.bytes, max_count: sound ? SOUND_LIMIT_COUNT : ASSET_LIMIT_COUNT, max_bytes: sound ? SOUND_LIMIT_BYTES : ASSET_LIMIT_BYTES },
       };
     },
 
+    // An image ({image}) or a sound ({sound}: ogg, mp3 or wav), base64.
     'POST /api/assets': (req, body) => {
       const { user } = requireAuth(req);
       if (!writeLimiter.allow('asset:' + user.id)) throw new HttpError(429, 'slow_down');
+      const id = crypto.randomBytes(8).toString('hex');
+      if (body.sound !== undefined) {
+        const snd = decodeSound(body.sound, SOUND_MAX_BYTES);
+        if (!snd) throw bad('bad_sound');
+        const usage = q.assetUsage.get(user.id, 'sound');
+        if (usage.n >= SOUND_LIMIT_COUNT || usage.bytes + snd.buf.length > SOUND_LIMIT_BYTES) throw new HttpError(403, 'sound_quota');
+        fs.writeFileSync(path.join(store.assetDir, id), snd.buf);
+        q.insertAsset.run(id, user.id, cleanText(body.name, 60) || 'sound', snd.mime, snd.buf.length, 0, 0, Date.now(), 'sound');
+        return { asset: assetView(q.asset.get(id)) };
+      }
       const img = decodeImage(body.image, ASSET_MAX_BYTES, 2048);
       if (!img) throw bad('bad_image');
-      const usage = q.assetUsage.get(user.id);
+      const usage = q.assetUsage.get(user.id, 'image');
       if (usage.n >= ASSET_LIMIT_COUNT || usage.bytes + img.buf.length > ASSET_LIMIT_BYTES) throw new HttpError(403, 'asset_quota');
-      const id = crypto.randomBytes(8).toString('hex');
       fs.writeFileSync(path.join(store.assetDir, id), img.buf);
-      q.insertAsset.run(id, user.id, cleanText(body.name, 60) || 'image', img.mime, img.buf.length, img.width, img.height, Date.now());
+      q.insertAsset.run(id, user.id, cleanText(body.name, 60) || 'image', img.mime, img.buf.length, img.width, img.height, Date.now(), 'image');
       return { asset: assetView(q.asset.get(id)) };
     },
 

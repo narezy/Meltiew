@@ -935,7 +935,7 @@
    "base": "Instance",
    "props": {
     "SoundId": {
-     "type": "enum:BuiltinSound",
+     "type": "sound",
      "default": "pop"
     },
     "Volume": {
@@ -964,7 +964,8 @@
    ],
    "icon": "music",
    "category": "3D",
-   "creatable": true
+   "creatable": true,
+   "doc": "A sound. **SoundId** is a built-in sound (`pop`, `click`, `jump`, `coin`, `hurt`, `win`, `boing`, `whoosh`) or one you uploaded in Studio (`asset://...`, OGG, MP3 or WAV). Inside a part it's heard from that part (louder up close); anywhere else it plays for the whole screen. `sound:Play()`, `sound:Stop()`; `Looped` repeats it, `Volume` 0..2, `Pitch` makes it higher or lower."
   },
   "LuaSourceContainer": {
    "base": "Instance",

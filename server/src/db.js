@@ -196,6 +196,9 @@ function migrate(db) {
       created_at INTEGER NOT NULL
     );
   `);
+  // Uploaded assets are images or sounds.
+  const acols = new Set(db.prepare('PRAGMA table_info(assets)').all().map((c) => c.name));
+  if (!acols.has('kind')) db.exec("ALTER TABLE assets ADD COLUMN kind TEXT NOT NULL DEFAULT 'image'");
   // Reports can be about a player, a place or a comment.
   const rcols = new Set(db.prepare('PRAGMA table_info(reports)').all().map((c) => c.name));
   if (!rcols.has('target_type')) db.exec("ALTER TABLE reports ADD COLUMN target_type TEXT NOT NULL DEFAULT 'user'");

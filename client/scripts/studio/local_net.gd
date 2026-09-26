@@ -136,7 +136,7 @@ func _call(fn: String, arg: Variant) -> Array:
 func _route(ops: Array) -> void:
 	for op in ops:
 		match str(op.get("o", "")):
-			"new", "set", "del", "parent", "sound", "mesh", "meshv":
+			"new", "set", "del", "parent", "sound", "sound_stop", "mesh", "meshv":
 				_shared.append(op)
 			"fire":
 				_mine.append({"o": "fire", "id": op.id, "args": op.get("args", [])})

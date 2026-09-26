@@ -229,9 +229,11 @@ For clicking things in the world, put a **ClickDetector** in a part; its `MouseC
 local s = Instance.new("Sound")
 s.SoundId = "coin" -- built in: pop, click, jump, coin, hurt, win, boing, whoosh
 s.Volume = 0.8
-s.Parent = workspace.Chest
+s.Parent = workspace.Chest -- inside a part: heard from there, louder up close
 s:Play()
 ```
+
+Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV (up to 5 MB each, 40 MB in all per account) and pick it in a Sound's `SoundId` with the "…" button, or copy its `asset://...` and set it from a script. `Looped = true` repeats it (music), `sound:Stop()` stops it, `Pitch` makes it higher or lower. A Sound outside the Workspace's parts (in a LocalScript's folder, in the camera) plays for the whole screen.
 
 ## Tools
 

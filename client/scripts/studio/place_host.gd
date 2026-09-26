@@ -109,6 +109,8 @@ func server_ops(ops: Array) -> void:
 					scene.mesh_op(op)
 			"sound":
 				scene.play_sound(str(op.id))
+			"sound_stop":
+				scene.stop_sound(str(op.id))
 			"fire":
 				events.append({"e": "fire", "id": op.id, "args": op.get("args", [])})
 			"ret":
@@ -233,6 +235,8 @@ func _apply(ops: Array) -> void:
 				scene.mesh_op(op)
 			"sound":
 				scene.play_sound(str(op.id))
+			"sound_stop":
+				scene.stop_sound(str(op.id))
 			"fire":
 				send.emit({"t": "remote", "id": op.id, "args": op.get("args", [])})
 			"invoke":

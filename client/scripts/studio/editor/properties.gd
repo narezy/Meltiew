@@ -5,6 +5,8 @@ extends VBoxContainer
 
 signal open_script(id: String)
 signal pick_asset(done: Callable)
+## Like pick_asset, for the uploaded sounds.
+signal pick_sound(done: Callable)
 
 var doc: EditDoc
 var _box: VBoxContainer
@@ -183,6 +185,36 @@ func _editor(key: String, type: String, p: Dictionary, value: Variant) -> Contro
 			_updaters[key] = func(v):
 				if not le.has_focus():
 					le.text = str(v)
+			return h
+		"sound":
+			# A built-in sound from the list, or one of yours (asset://...) from the "…" picker.
+			var h := UI.hbox(6)
+			var ob := OptionButton.new()
+			ob.add_theme_font_size_override("font_size", 14)
+			ob.fit_to_longest_item = false
+			ob.clip_text = true
+			ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var builtins := StudioSchema.enum_values("BuiltinSound")
+			var fill := func(v: String):
+				ob.clear()
+				for i in builtins.size():
+					ob.add_item(str(builtins[i]), i)
+				if v.begins_with("asset://"):
+					ob.add_item(L.t("st_my_sound"), builtins.size())
+					ob.select(builtins.size())
+				else:
+					ob.select(maxi(builtins.find(v), 0))
+			fill.call(str(value))
+			ob.item_selected.connect(func(i):
+				if i < builtins.size():
+					_apply(key, str(builtins[i])))
+			h.add_child(ob)
+			var b := UI.button("…", "ghost", 32)
+			b.custom_minimum_size.x = 36
+			b.tooltip_text = L.t("st_sounds")
+			b.pressed.connect(func(): pick_sound.emit(func(ref: String): _apply(key, ref)))
+			h.add_child(b)
+			_updaters[key] = func(v): fill.call(str(v))
 			return h
 		"Instance":
 			var shown := "—"

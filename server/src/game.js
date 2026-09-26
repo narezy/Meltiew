@@ -148,6 +148,7 @@ export class GameHub {
         case 'del':
         case 'parent':
         case 'sound':
+        case 'sound_stop':
         case 'mesh':
         case 'meshv':
           server.shared.push(op);

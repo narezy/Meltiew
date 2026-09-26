@@ -31,6 +31,8 @@ export const MESSAGES = {
   not_owned: ["You don't have this item yet: get it in the shop", 'У тебя пока нет этой вещи: она есть в магазине'],
   not_enough_pieces: ['Not enough pieces', 'Не хватает кусочков'],
   not_enough_orbs: ['Not enough orbs', 'Не хватает опыта'],
+  bad_sound: ['That is not a sound we can play (OGG, MP3 or WAV, up to 5 MB)', 'Такой звук не подходит (OGG, MP3 или WAV, до 5 МБ)'],
+  sound_quota: ['No room for more sounds: delete some first', 'Место под звуки кончилось: удали что-нибудь'],
   not_for_orbs: ['This one is sold for pieces only', 'Это продаётся только за кусочки'],
   not_for_pieces: ['This one is not sold for pieces', 'Это не продаётся за кусочки'],
   no_item: ['No such item', 'Такой вещи нет'],

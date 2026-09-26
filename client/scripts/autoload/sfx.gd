@@ -39,6 +39,11 @@ func play(name: String, pitch := 1.0) -> void:
 	p.play()
 
 
+## A built-in sound by name (pop, coin, win...), or null.
+func stream(name: String) -> AudioStream:
+	return _streams.get(name)
+
+
 func click() -> void:
 	play("click", randf_range(0.95, 1.05))
 

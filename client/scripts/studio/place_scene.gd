@@ -18,6 +18,7 @@ const SKY_PRESETS := {
 
 signal clicked(id: String)
 
+var _sounds := {}  # Sound id -> the player node while it plays
 var tree: PlaceTree
 ## Studio: everything is still (no physics), transforms apply instantly.
 var editing := false
@@ -123,6 +124,7 @@ func _on_added(id: String) -> void:
 
 
 func _on_removed(id: String, _parent: String) -> void:
+	stop_sound(id)
 	_destroy(id)
 	_pmesh_data.erase(id)
 	if tree.cls(id) == "" and (_is_sky_class(id)):
@@ -159,8 +161,11 @@ func _on_changed(id: String, key: String) -> void:
 		_style_text(id)
 	elif _lights.has(id):
 		_style_light(id)
-	elif c == "ClickDetector":
-		pass
+	elif _sounds.has(id):
+		if key == "Volume" or key == "Pitch":
+			_style_sound(id, _sounds[id])
+		elif key == "Playing" and tree.prop(id, "Playing") != true:
+			stop_sound(id)
 	if _is_lighting(id):
 		_apply_lighting()
 
@@ -829,8 +834,67 @@ func _apply_lighting() -> void:
 
 # --- sounds ------------------------------------------------------------------------
 
+## Sound:Play(). Built-in sounds and uploaded ones (asset://). A Sound inside a part
+## is heard from that part; anywhere else it plays for the whole screen.
 func play_sound(id: String) -> void:
 	if not tree.has(id):
 		return
-	var sound := str(tree.prop(id, "SoundId"))
-	Sfx.play(sound, float(tree.prop(id, "Pitch")))
+	var ref := str(tree.prop(id, "SoundId"))
+	if ref.begins_with("asset://"):
+		AudioCache.fetch(ref, func(stream: AudioStream):
+			if stream and tree.has(id) and str(tree.prop(id, "SoundId")) == ref:
+				_start_sound(id, stream))
+	else:
+		var st := Sfx.stream(ref)
+		if st:
+			_start_sound(id, st)
+
+
+func stop_sound(id: String) -> void:
+	var p: Node = _sounds.get(id)
+	_sounds.erase(id)
+	if is_instance_valid(p):
+		p.queue_free()
+
+
+func _start_sound(id: String, stream: AudioStream) -> void:
+	stop_sound(id)
+	var looped: bool = tree.prop(id, "Looped") == true
+	if looped:
+		stream = stream.duplicate()
+		if stream is AudioStreamOggVorbis or stream is AudioStreamMP3:
+			stream.set("loop", true)
+		elif stream is AudioStreamWAV:
+			var w := stream as AudioStreamWAV
+			w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+			w.loop_end = int(w.get_length() * w.mix_rate)
+	var parent := tree.parent_of(id)
+	var holder: Node = body_of(parent) if parent != "" and tree.is_a(parent, "BasePart") else null
+	var p: Node
+	if holder:
+		var p3 := AudioStreamPlayer3D.new()
+		p3.unit_size = 12.0
+		p3.max_distance = 150.0
+		holder.add_child(p3)
+		p = p3
+	else:
+		p = AudioStreamPlayer.new()
+		add_child(p)
+	p.set("stream", stream)
+	_style_sound(id, p)
+	p.connect("finished", func():
+		if _sounds.get(id) == p:
+			_sounds.erase(id)
+		p.queue_free())
+	_sounds[id] = p
+	p.call("play")
+
+
+func _style_sound(id: String, p: Node) -> void:
+	var vol := clampf(float(tree.prop(id, "Volume")), 0.0, 2.0)
+	var db := linear_to_db(maxf(vol, 0.0001))
+	if p is AudioStreamPlayer3D:
+		(p as AudioStreamPlayer3D).volume_db = db
+	else:
+		(p as AudioStreamPlayer).volume_db = db
+	p.set("pitch_scale", clampf(float(tree.prop(id, "Pitch")), 0.1, 4.0))

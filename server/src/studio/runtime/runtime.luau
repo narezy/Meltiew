@@ -855,7 +855,7 @@ local function coerce(info, key, p, v)
 			n = p.max
 		end
 		return n
-	elseif t == "string" or t == "source" or t == "asset" then
+	elseif t == "string" or t == "source" or t == "asset" or t == "sound" then
 		if v == nil then
 			return ""
 		end
@@ -1817,6 +1817,9 @@ Methods.Sound = {
 	end,
 	Stop = function(self)
 		setProp(self, "Playing", false)
+		if inScope(self) then
+			emit({ o = "sound_stop", id = D[self].id })
+		end
 	end,
 }
 Methods.Model = {
