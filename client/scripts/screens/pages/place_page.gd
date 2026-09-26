@@ -176,6 +176,10 @@ func _build() -> void:
 	_root.add_child(sh)
 	_servers_box = UI.vbox(10)
 	_root.add_child(_servers_box)
+	if str(_place.get("kind", "")) == "studio":
+		var passes := UI.vbox(10)
+		_root.add_child(passes)
+		_load_passes(passes)
 	_comments_box = UI.vbox(10)
 	_root.add_child(_comments_box)
 	_load_comments()
@@ -444,3 +448,46 @@ func _comment_row(c: Dictionary, enabled: bool, can_post: bool) -> Control:
 		actions.add_child(rep)
 	row.add_child(actions)
 	return card
+
+
+## Gamepasses sold in this place: picture, name, price, buy.
+func _load_passes(box: VBoxContainer) -> void:
+	var r := await Api.request("GET", "/api/places/%s/passes" % place_id)
+	if not r.ok or not is_instance_valid(box) or r.data.passes.is_empty():
+		return
+	for c in box.get_children():
+		c.queue_free()
+	box.add_child(UI.label(L.t("eco_passes"), 24, UI.TEXT, "black"))
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 12)
+	flow.add_theme_constant_override("v_separation", 12)
+	box.add_child(flow)
+	for p in r.data.passes:
+		var card := UI.card(12, UI.CARD, 18)
+		card.custom_minimum_size.x = 190
+		var v := UI.vbox(8)
+		card.add_child(v)
+		var pic := TextureRect.new()
+		pic.custom_minimum_size = Vector2(166, 166)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		v.add_child(pic)
+		if str(p.get("image", "")) != "":
+			AssetCache.fetch(str(p.image), func(t: Texture2D):
+				if is_instance_valid(pic) and t:
+					pic.texture = t)
+		var name := UI.label(str(p.name), 17, UI.TEXT, "bold")
+		name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name.custom_minimum_size.x = 166
+		v.add_child(name)
+		if p.get("owned", false):
+			v.add_child(UI.label(L.t("eco_owned"), 15, UI.MINT, "bold"))
+		else:
+			var b := UI.button(L.t("eco_buy_pass", [int(p.price)]), "primary", 44)
+			b.add_theme_font_size_override("font_size", 15)
+			var pid := int(p.id)
+			b.pressed.connect(func():
+				if await Economy.gamepass_prompt(self, place_id, pid):
+					_load_passes(box))
+			v.add_child(b)
+		flow.add_child(card)

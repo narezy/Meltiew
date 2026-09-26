@@ -11,6 +11,8 @@ signal spawn_requested(pos: Vector3)
 signal teleport_requested(pos: Vector3)
 ## A LocalScript changed the cursor: UserInputService.MouseIcon / MouseIconEnabled / MouseBehavior.
 signal mouse_settings_changed
+## A script offered a gamepass (MarketplaceService:PromptGamePassPurchase).
+signal pass_prompt(pass_id: int)
 ## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
 signal core_gui_changed(kind: String, on: bool)
 
@@ -27,6 +29,9 @@ var strings := {}
 var failed := ""
 var mouse_settings := {"icon": "", "enabled": true, "behavior": "Default"}
 var core_gui := {"Backpack": true, "Health": true, "Chat": true, "Emotes": true}
+## Gamepasses: the ones this player owns here, and the place's list (id, name, price).
+var passes: Array = []
+var pass_info: Array = []
 
 var _vm: RefCounted
 var _touching := {}  # part id -> seconds since last contact
@@ -76,7 +81,7 @@ func start(p_user_id: int, p_lang: String, p_strings: Dictionary, snapshot: Arra
 	_vm.sandbox()
 	var touch := DisplayServer.is_touchscreen_available()
 	var device := {"touch": touch, "keyboard": not touch or OS.has_feature("pc"), "mouse": not touch or OS.has_feature("pc")}
-	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device})
+	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device, "passes": passes, "pass_info": pass_info})
 	_call("__dispatch", snapshot)
 	_call("__start", "")
 	return true
@@ -102,6 +107,8 @@ func server_ops(ops: Array) -> void:
 				spawn_requested.emit(SValue.decode(op.pos))
 			"print":
 				output.emit(op)
+			"prompt_pass":
+				pass_prompt.emit(int(op.get("id", 0)))
 	if not events.is_empty() and _vm:
 		_call("__dispatch", events)
 
@@ -223,6 +230,8 @@ func _apply(ops: Array) -> void:
 			"mouse":
 				mouse_settings = {"icon": str(op.get("icon", "")), "enabled": op.get("enabled", true) != false, "behavior": str(op.get("behavior", "Default"))}
 				mouse_settings_changed.emit()
+			"prompt_pass":
+				pass_prompt.emit(int(op.get("id", 0)))
 			"coregui":
 				core_gui[str(op.k)] = op.get("on", true) == true
 				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])
@@ -301,6 +310,12 @@ func user_of_character(model: String) -> int:
 
 
 ## workspace.CurrentCamera ("" before the player is set up).
+## The gamepass dialog closed: scripts on this device hear whether it was bought.
+func pass_result(pass_id: int, bought: bool) -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "pass_bought", "id": pass_id, "bought": bought}])
+
+
 func camera() -> String:
 	var ws := tree.service("Workspace")
 	return tree.child_of_class(ws, "Camera") if ws != "" else ""

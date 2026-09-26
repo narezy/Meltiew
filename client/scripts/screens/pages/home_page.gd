@@ -26,10 +26,17 @@ func _ready() -> void:
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(root)
 
+	var head_row := UI.hbox(12)
 	var head := UI.vbox(2)
+	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(UI.label(L.t("hello_name", [Session.user.get("display_name", "")]), 34, UI.TEXT, "black"))
 	head.add_child(UI.label(L.t("home_sub"), 19, UI.MUTED))
-	root.add_child(head)
+	head_row.add_child(head)
+	# Pieces and orbs: tap to buy pieces or see today's quests.
+	var chips := Economy.chips(self)
+	chips.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	head_row.add_child(chips)
+	root.add_child(head_row)
 
 	_friends_section = UI.vbox(10)
 	var fh := UI.hbox(8)

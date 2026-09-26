@@ -219,6 +219,8 @@ func _on_message(m: Dictionary) -> void:
 		"leave":
 			_remove_remote(int(m.id))
 			_refresh_players()
+		"wallet":
+			Economy.set_wallet(m.get("wallet", {}))
 		"look":
 			var u: Dictionary = m.player
 			users[int(u.id)] = u
@@ -349,6 +351,14 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
+	place_host.passes = p.get("passes", [])
+	place_host.pass_info = p.get("pass_info", [])
+	var place_id := str(p.get("id", ""))
+	place_host.pass_prompt.connect(func(pass_id: int):
+		hud.release_touches()
+		var bought: bool = await Economy.gamepass_prompt(self, place_id, pass_id)
+		if place_host:
+			place_host.pass_result(pass_id, bought))
 	if not place_host.start(my_id, L.lang, p.get("strings", {}), p.get("snapshot", []), world):
 		hud.add_chat("", L.t("place_unsupported"))
 	place_host.scene.avatar_of = _avatar_of_character

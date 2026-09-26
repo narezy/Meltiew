@@ -178,6 +178,18 @@ func _draw() -> void:
 			_line([Vector2(15, 4), Vector2(7, 12), Vector2(15, 20)])
 		"down":
 			_line([Vector2(5, 9), Vector2(12, 16), Vector2(19, 9)])
+		"piece":
+			# A puzzle piece: square body, a knob on top and one on the right.
+			_poly([Vector2(4, 8), Vector2(18, 8), Vector2(18, 21), Vector2(4, 21)])
+			_circle(Vector2(11, 6.5), 3.4, true)
+			_circle(Vector2(19.5, 14.5), 3.4, true)
+			var s := size.x / 24.0
+			draw_circle(Vector2(4, 14.5) * s, 2.6 * s, Color(0, 0, 0, 0.25))
+		"orb":
+			_circle(Vector2(12, 12), 9.5, true)
+			var s2 := size.x / 24.0
+			draw_circle(Vector2(9, 9) * s2, 4.0 * s2, Color(1, 1, 1, 0.25))
+			draw_circle(Vector2(12, 12) * s2, 3.4 * s2, Color(1, 1, 1, 0.95))
 		"backpack":
 			_line([Vector2(9, 6), Vector2(9, 4), Vector2(15, 4), Vector2(15, 6)])
 			_line([Vector2(6, 21), Vector2(4.5, 19.5), Vector2(4.5, 9.5), Vector2(7, 6.5), Vector2(17, 6.5),

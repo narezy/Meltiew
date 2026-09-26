@@ -139,6 +139,48 @@ func _route(ops: Array) -> void:
 				_mine.append(line)
 			"kick":
 				message.emit({"t": "kicked", "code": "place", "m": str(op.get("msg", ""))})
+			"prompt_pass":
+				_mine.append({"o": "prompt_pass", "id": op.id})
+			"ds":
+				# A play test keeps saved data in memory, for this test only.
+				_events.append(_datastore(op))
+
+
+var _ds := {}  # "store/key" -> value
+
+
+func _datastore(op: Dictionary) -> Dictionary:
+	var key := "%s/%s" % [str(op.get("store", "")), str(op.get("key", ""))]
+	var out := {"e": "ds_ret", "rid": op.rid, "ok": true, "value": null, "err": ""}
+	match str(op.get("op", "")):
+		"get":
+			out.value = _ds.get(key)
+		"set":
+			if op.get("value") == null:
+				_ds.erase(key)
+			else:
+				_ds[key] = op.value
+			out.value = op.get("value")
+		"inc":
+			var cur: Variant = _ds.get(key, 0)
+			if not (cur is float or cur is int):
+				out.ok = false
+				out.err = "IncrementAsync needs a number stored at that key"
+			else:
+				_ds[key] = float(cur) + float(op.get("delta", 1))
+				out.value = _ds[key]
+		"remove":
+			out.value = _ds.get(key)
+			_ds.erase(key)
+		"list":
+			var prefix := str(op.get("store", "")) + "/"
+			var keys: Array = []
+			for k in _ds:
+				if str(k).begins_with(prefix):
+					keys.append(str(k).substr(prefix.length()))
+			keys.sort()
+			out.value = keys
+	return out
 
 
 func _flush() -> void:

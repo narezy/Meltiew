@@ -65,6 +65,11 @@ func _ready() -> void:
 	add_child(_poll)
 	_poll_requests()
 	_check_launch()
+	# First visit of the day: a few orbs.
+	var bonus := int(Session.get_meta("daily_bonus", 0))
+	if bonus > 0:
+		Session.set_meta("daily_bonus", 0)
+		UI.toast(L.t("eco_daily_bonus", [bonus]), "ok")
 	L.changed.connect(func(): get_tree().reload_current_scene())
 	if str(Session.user.get("birthdate", "")) == "" and not _asked_birthday:
 		_asked_birthday = true
@@ -81,6 +86,8 @@ func _notification(what: int) -> void:
 			play(launch.server, launch.game)
 			return
 		_check_launch()
+		# Back from paying in the browser.
+		Economy.check_pending_payment()
 
 
 ## Full-screen "Joining..." while the game scene loads after "Play" on the website.

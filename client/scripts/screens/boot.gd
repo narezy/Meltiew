@@ -51,6 +51,7 @@ func _route() -> void:
 	spin.queue_free()
 	if r.ok:
 		Session.set_user(r.data.user)
+		Session.set_meta("daily_bonus", int(r.data.get("daily_bonus", 0)))
 		Busts.sync_my_render()
 		# Opened from "Play" on the website: straight into the game, no menu detour.
 		var launch := Launcher.take()

@@ -18,6 +18,8 @@ var _tab_pages := {}
 var _tab_buttons := {}
 var _dirty := false
 var _custom_picker: ColorPickerButton
+var _prices := {"accessory": {}, "face": {}}  # id -> {pieces} / {orbs}
+var _tags := {}  # "kind:id" -> price tag Control shown while it isn't yours
 
 
 func _ready() -> void:
@@ -35,7 +37,12 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_stretch_ratio = 0.62 if compact else 0.8
 	add_child(left)
-	left.add_child(UI.label(L.t("nav_avatar"), 34, UI.TEXT, "black"))
+	var title_row := UI.hbox(10)
+	var title := UI.label(L.t("nav_avatar"), 34, UI.TEXT, "black")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(title)
+	title_row.add_child(Economy.chips(self))
+	left.add_child(title_row)
 	var stage_card := UI.card(0, Color(UI.CARD, 0.55), 26)
 	stage_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(stage_card)
@@ -110,6 +117,67 @@ func _ready() -> void:
 	_show_tab("colors")
 	_apply_preview()
 	_set_dirty(false)
+	_load_prices()
+	Session.user_changed.connect(_refresh_tags)
+
+
+## Prices from the shop: tags on everything that isn't yours yet.
+func _load_prices() -> void:
+	var r := await Api.request("GET", "/api/shop")
+	if not r.ok or not is_inside_tree():
+		return
+	for it in r.data.get("accessories", []):
+		if it.get("price") is Dictionary:
+			_prices.accessory[str(it.id)] = it.price
+	for f in r.data.get("faces", []):
+		if f.get("price") is Dictionary:
+			_prices.face[str(f.id)] = f.price
+	if r.data.get("wallet") is Dictionary:
+		Economy.set_wallet(r.data.wallet, Session.user.get("owned", null))
+	_refresh_tags()
+
+
+func _add_tag(b: Control, kind: String, id: String) -> void:
+	var holder := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UI.BG, 0.85)
+	sb.set_corner_radius_all(10)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	holder.add_theme_stylebox_override("panel", sb)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.position = Vector2(4, 4)
+	holder.visible = false
+	b.add_child(holder)
+	_tags[kind + ":" + id] = holder
+
+
+func _refresh_tags() -> void:
+	if not is_inside_tree():
+		return
+	for key in _tags:
+		var parts: PackedStringArray = key.split(":", true, 1)
+		var price: Variant = _prices[parts[0]].get(parts[1])
+		var holder: PanelContainer = _tags[key]
+		var mine := Economy.owned(parts[0]).has(parts[1])
+		holder.visible = price is Dictionary and not mine
+		for c in holder.get_children():
+			c.queue_free()
+		if holder.visible:
+			holder.add_child(Economy.price_tag(price, 14))
+
+
+## What's on the preview that isn't yours: [[kind, id, price]].
+func _to_buy() -> Array:
+	var out: Array = []
+	for id in _worn:
+		var price: Variant = _prices.accessory.get(id)
+		if price is Dictionary and not Economy.owned("accessory").has(id):
+			out.append(["accessory", id, price])
+	var fprice: Variant = _prices.face.get(_face)
+	if fprice is Dictionary and not Economy.owned("face").has(_face) and _face != str(Session.user.get("face", "")):
+		out.append(["face", _face, fprice])
+	return out
 
 
 func _show_tab(id: String) -> void:
@@ -260,6 +328,7 @@ func _build_faces_tab() -> Control:
 			_apply_preview())
 		grid.add_child(b)
 		_face_buttons[id] = b
+		_add_tag(b, "face", id)
 	return grid
 
 
@@ -268,7 +337,7 @@ func _build_faces_tab() -> Control:
 func _build_hats_tab() -> Control:
 	var v := UI.vbox(12)
 	var head := UI.hbox(10)
-	var hint := UI.label(L.t("acc_hint", [Accessories.max_worn]), 15, UI.MUTED)
+	var hint := UI.label(L.t("acc_hint", [Accessories.max_worn]) + " " + L.t("eco_shop_hint"), 15, UI.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(hint)
@@ -324,6 +393,7 @@ func _build_hats_tab() -> Control:
 			_apply_preview())
 		grid.add_child(b)
 		_acc_buttons[id] = b
+		_add_tag(b, "accessory", id)
 	return v
 
 
@@ -378,8 +448,10 @@ func _randomize() -> void:
 		var skin: String = ["#f5f1ec", "#ffd9c2", "#e8b48f", "#b07852", "#6b4431"].pick_random()
 		for part in ["head", "arm_l", "arm_r"]:
 			_colors[part] = skin
-	_worn = Accessories.random_look()
-	_face = Faces.LIST.pick_random()[0]
+	# Only things you own, so "random" never asks you to pay.
+	var mine := Economy.owned("accessory")
+	_worn = Accessories.random_look().filter(func(id): return mine.has(id))
+	_face = Economy.owned("face").pick_random()
 	_apply_preview()
 	_stage.avatar.play("wave")
 
@@ -390,6 +462,19 @@ func _on_save() -> void:
 		UI.toast(L.t("nick_short"), "error")
 		_show_tab("profile")
 		return
+	var buying := _to_buy()
+	if not buying.is_empty():
+		var lines := PackedStringArray()
+		for it in buying:
+			var p: Dictionary = it[2]
+			var what: String = Accessories.name_of(it[1]) if it[0] == "accessory" else str(it[1])
+			lines.append("%s: %s" % [what, ("%d %s" % [p.pieces, L.t("eco_pieces")]) if p.has("pieces") else ("%d %s" % [p.orbs, L.t("eco_orbs")])])
+		if not await UI.confirm(self, L.t("eco_buy_items_q"), L.t("eco_buy_items_text") + "\n\n" + "\n".join(lines), L.t("eco_buy_save")):
+			return
+		for it in buying:
+			if not await Economy.buy(it[0], it[1]):
+				return
+		_refresh_tags()
 	_save.disabled = true
 	_save.text = L.t("saving")
 	var r := await Api.request("PATCH", "/api/me", {
