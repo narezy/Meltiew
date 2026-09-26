@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { migrateEconomy } from './economy.js';
 
 export function openDb(file) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -198,4 +199,5 @@ function migrate(db) {
   const rcols = new Set(db.prepare('PRAGMA table_info(reports)').all().map((c) => c.name));
   if (!rcols.has('target_type')) db.exec("ALTER TABLE reports ADD COLUMN target_type TEXT NOT NULL DEFAULT 'user'");
   if (!rcols.has('target_ref')) db.exec("ALTER TABLE reports ADD COLUMN target_ref TEXT NOT NULL DEFAULT ''");
+  migrateEconomy(db);
 }

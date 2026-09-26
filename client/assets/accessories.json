@@ -62,7 +62,10 @@
      "r": 0.08,
      "h": 0.16
     }
-   ]
+   ],
+   "price": {
+    "orbs": 250
+   }
   },
   {
    "id": "crown",
@@ -257,7 +260,10 @@
      "rough": 0.2,
      "glow": 0.6
     }
-   ]
+   ],
+   "price": {
+    "pieces": 99
+   }
   },
   {
    "id": "tophat",
@@ -311,7 +317,10 @@
      "bottom": 0.47,
      "h": 0.14
     }
-   ]
+   ],
+   "price": {
+    "pieces": 35
+   }
   },
   {
    "id": "halo",
@@ -341,7 +350,10 @@
       "period": 2.4
      }
     }
-   ]
+   ],
+   "price": {
+    "pieces": 79
+   }
   },
   {
    "id": "catears",
@@ -359,7 +371,7 @@
       1.53,
       -0.05
      ],
-     "color": "#302d38",
+     "color": "#433d4f",
      "rot": [
       0,
       0,
@@ -397,7 +409,7 @@
       1.53,
       -0.05
      ],
-     "color": "#302d38",
+     "color": "#433d4f",
      "rot": [
       0,
       0,
@@ -428,7 +440,10 @@
       0.06
      ]
     }
-   ]
+   ],
+   "price": {
+    "orbs": 500
+   }
   },
   {
    "id": "headphones",
@@ -526,7 +541,10 @@
      "bottom": 0.18,
      "h": 0.22
     }
-   ]
+   ],
+   "price": {
+    "orbs": 450
+   }
   },
   {
    "id": "flower",
@@ -618,7 +636,10 @@
       }
      ]
     }
-   ]
+   ],
+   "price": {
+    "orbs": 200
+   }
   },
   {
    "id": "cattail",
@@ -650,7 +671,7 @@
         0,
         0
        ],
-       "color": "#302d38",
+       "color": "#433d4f",
        "r": 0.1,
        "r_end": 0.065,
        "points": [
@@ -693,7 +714,743 @@
       }
      ]
     }
-   ]
+   ],
+   "price": {
+    "pieces": 49
+   }
+  },
+  {
+   "id": "partyhat",
+   "name": {
+    "en": "Party hat",
+    "ru": "Праздничный колпак"
+   },
+   "slot": "hat",
+   "bone": "Head",
+   "rot": [
+    0,
+    0,
+    8
+   ],
+   "parts": [
+    {
+     "shape": "cone",
+     "pos": [
+      0,
+      1.75,
+      0
+     ],
+     "color": "#7ee0c3",
+     "bottom": 0.36,
+     "h": 0.85
+    },
+    {
+     "shape": "torus",
+     "pos": [
+      0,
+      1.41,
+      0
+     ],
+     "color": "#ff8fb1",
+     "inner": 0.3,
+     "outer": 0.4
+    },
+    {
+     "shape": "sphere",
+     "pos": [
+      0,
+      2.21,
+      0
+     ],
+     "color": "#ffd166",
+     "r": 0.12,
+     "h": 0.24
+    }
+   ],
+   "price": {
+    "orbs": 300
+   }
+  },
+  {
+   "id": "beanie",
+   "name": {
+    "en": "Beanie",
+    "ru": "Шапка-бини"
+   },
+   "slot": "hat",
+   "bone": "Head",
+   "parts": [
+    {
+     "shape": "sphere",
+     "pos": [
+      0,
+      1.05,
+      0
+     ],
+     "color": "#e05b6f",
+     "r": 0.78,
+     "h": 0.8,
+     "half": true,
+     "rough": 0.9
+    },
+    {
+     "shape": "cylinder",
+     "pos": [
+      0,
+      1.13,
+      0
+     ],
+     "color": "#c9485d",
+     "top": 0.79,
+     "bottom": 0.79,
+     "h": 0.26,
+     "rough": 0.9
+    },
+    {
+     "shape": "sphere",
+     "pos": [
+      0,
+      1.88,
+      0
+     ],
+     "color": "#f4f1ec",
+     "r": 0.16,
+     "h": 0.32,
+     "rough": 0.95
+    }
+   ],
+   "price": {
+    "orbs": 400
+   }
+  },
+  {
+   "id": "bunnyears",
+   "name": {
+    "en": "Bunny ears",
+    "ru": "Заячьи ушки"
+   },
+   "slot": "ears",
+   "bone": "Head",
+   "parts": [
+    {
+     "shape": "capsule",
+     "pos": [
+      -0.3,
+      1.83,
+      -0.05
+     ],
+     "color": "#f4f1ec",
+     "rot": [
+      0,
+      0,
+      10
+     ],
+     "r": 0.14,
+     "h": 1.0
+    },
+    {
+     "shape": "capsule",
+     "pos": [
+      0.3,
+      1.83,
+      -0.05
+     ],
+     "color": "#f4f1ec",
+     "rot": [
+      0,
+      0,
+      -10
+     ],
+     "r": 0.14,
+     "h": 1.0
+    },
+    {
+     "shape": "capsule",
+     "pos": [
+      -0.31,
+      1.83,
+      0.06
+     ],
+     "color": "#ff8fb1",
+     "rot": [
+      0,
+      0,
+      10
+     ],
+     "r": 0.08,
+     "h": 0.8
+    },
+    {
+     "shape": "capsule",
+     "pos": [
+      0.31,
+      1.83,
+      0.06
+     ],
+     "color": "#ff8fb1",
+     "rot": [
+      0,
+      0,
+      -10
+     ],
+     "r": 0.08,
+     "h": 0.8
+    }
+   ],
+   "price": {
+    "pieces": 45
+   }
+  },
+  {
+   "id": "horns",
+   "name": {
+    "en": "Little horns",
+    "ru": "Рожки"
+   },
+   "slot": "halo",
+   "bone": "Head",
+   "parts": [
+    {
+     "shape": "cone",
+     "pos": [
+      -0.4,
+      1.51,
+      0.1
+     ],
+     "color": "#d94f5c",
+     "rot": [
+      0,
+      0,
+      22
+     ],
+     "bottom": 0.14,
+     "h": 0.42,
+     "rough": 0.4
+    },
+    {
+     "shape": "cone",
+     "pos": [
+      0.4,
+      1.51,
+      0.1
+     ],
+     "color": "#d94f5c",
+     "rot": [
+      0,
+      0,
+      -22
+     ],
+     "bottom": 0.14,
+     "h": 0.42,
+     "rough": 0.4
+    }
+   ],
+   "price": {
+    "pieces": 59
+   }
+  },
+  {
+   "id": "sunglasses",
+   "name": {
+    "en": "Sunglasses",
+    "ru": "Солнечные очки"
+   },
+   "slot": "face",
+   "bone": "Head",
+   "parts": [
+    {
+     "shape": "box",
+     "pos": [
+      -0.3,
+      0.78,
+      0.7
+     ],
+     "color": "#15131c",
+     "size": [
+      0.46,
+      0.26,
+      0.05
+     ],
+     "rough": 0.15,
+     "metal": 0.4
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0.3,
+      0.78,
+      0.7
+     ],
+     "color": "#15131c",
+     "size": [
+      0.46,
+      0.26,
+      0.05
+     ],
+     "rough": 0.15,
+     "metal": 0.4
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      0.84,
+      0.7
+     ],
+     "color": "#15131c",
+     "size": [
+      0.2,
+      0.05,
+      0.05
+     ]
+    },
+    {
+     "shape": "box",
+     "pos": [
+      -0.68,
+      0.84,
+      0.35
+     ],
+     "color": "#15131c",
+     "size": [
+      0.04,
+      0.05,
+      0.7
+     ]
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0.68,
+      0.84,
+      0.35
+     ],
+     "color": "#15131c",
+     "size": [
+      0.04,
+      0.05,
+      0.7
+     ]
+    }
+   ],
+   "price": {
+    "pieces": 29
+   }
+  },
+  {
+   "id": "heartglasses",
+   "name": {
+    "en": "Heart glasses",
+    "ru": "Очки-сердечки"
+   },
+   "slot": "face",
+   "bone": "Head",
+   "parts": [
+    {
+     "shape": "sphere",
+     "pos": [
+      -0.38,
+      0.83,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "r": 0.13,
+     "h": 0.1,
+     "glow": 0.3
+    },
+    {
+     "shape": "sphere",
+     "pos": [
+      -0.22,
+      0.83,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "r": 0.13,
+     "h": 0.1,
+     "glow": 0.3
+    },
+    {
+     "shape": "prism",
+     "pos": [
+      -0.3,
+      0.68,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "rot": [
+      0,
+      0,
+      180
+     ],
+     "size": [
+      0.37,
+      0.24,
+      0.1
+     ],
+     "glow": 0.3
+    },
+    {
+     "shape": "sphere",
+     "pos": [
+      0.22,
+      0.83,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "r": 0.13,
+     "h": 0.1,
+     "glow": 0.3
+    },
+    {
+     "shape": "sphere",
+     "pos": [
+      0.38,
+      0.83,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "r": 0.13,
+     "h": 0.1,
+     "glow": 0.3
+    },
+    {
+     "shape": "prism",
+     "pos": [
+      0.3,
+      0.68,
+      0.71
+     ],
+     "color": "#ff5c8a",
+     "rot": [
+      0,
+      0,
+      180
+     ],
+     "size": [
+      0.37,
+      0.24,
+      0.1
+     ],
+     "glow": 0.3
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      0.84,
+      0.7
+     ],
+     "color": "#ff8fb1",
+     "size": [
+      0.14,
+      0.04,
+      0.04
+     ]
+    }
+   ],
+   "price": {
+    "orbs": 450
+   }
+  },
+  {
+   "id": "scarf",
+   "name": {
+    "en": "Scarf",
+    "ru": "Шарф"
+   },
+   "slot": "neck",
+   "bone": "Torso",
+   "parts": [
+    {
+     "shape": "torus",
+     "pos": [
+      0,
+      1.93,
+      0
+     ],
+     "color": "#4cc9f0",
+     "inner": 0.42,
+     "outer": 0.62,
+     "rough": 0.95
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0.25,
+      1.45,
+      0.47
+     ],
+     "color": "#4cc9f0",
+     "rot": [
+      0,
+      0,
+      6
+     ],
+     "size": [
+      0.3,
+      0.8,
+      0.1
+     ],
+     "rough": 0.95
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0.25,
+      1.1,
+      0.48
+     ],
+     "color": "#f4f1ec",
+     "rot": [
+      0,
+      0,
+      6
+     ],
+     "size": [
+      0.3,
+      0.1,
+      0.11
+     ],
+     "rough": 0.95
+    }
+   ],
+   "price": {
+    "orbs": 350
+   }
+  },
+  {
+   "id": "bowtie",
+   "name": {
+    "en": "Bow tie",
+    "ru": "Бабочка"
+   },
+   "slot": "neck",
+   "bone": "Torso",
+   "parts": [
+    {
+     "shape": "prism",
+     "pos": [
+      -0.2,
+      1.82,
+      0.44
+     ],
+     "color": "#e05b6f",
+     "rot": [
+      0,
+      0,
+      90
+     ],
+     "size": [
+      0.32,
+      0.3,
+      0.1
+     ]
+    },
+    {
+     "shape": "prism",
+     "pos": [
+      0.2,
+      1.82,
+      0.44
+     ],
+     "color": "#e05b6f",
+     "rot": [
+      0,
+      0,
+      -90
+     ],
+     "size": [
+      0.32,
+      0.3,
+      0.1
+     ]
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      1.82,
+      0.47
+     ],
+     "color": "#c9485d",
+     "size": [
+      0.12,
+      0.14,
+      0.1
+     ]
+    }
+   ],
+   "price": {
+    "orbs": 250
+   }
+  },
+  {
+   "id": "wings",
+   "name": {
+    "en": "Angel wings",
+    "ru": "Крылья"
+   },
+   "slot": "back",
+   "bone": "Torso",
+   "parts": [
+    {
+     "shape": "group",
+     "pos": [
+      -0.3,
+      1.3,
+      -0.45
+     ],
+     "rot": [
+      0,
+      -25,
+      15
+     ],
+     "anim": {
+      "type": "sway",
+      "axis": "y",
+      "deg": 8,
+      "period": 1.6
+     },
+     "parts": [
+      {
+       "shape": "sphere",
+       "pos": [
+        -0.55,
+        0.25,
+        0
+       ],
+       "color": "#f7f4ff",
+       "r": 0.55,
+       "h": 0.12,
+       "rough": 0.5,
+       "glow": 0.15
+      },
+      {
+       "shape": "sphere",
+       "pos": [
+        -0.4,
+        -0.25,
+        0
+       ],
+       "color": "#e9e2ff",
+       "r": 0.4,
+       "h": 0.1,
+       "rough": 0.5,
+       "glow": 0.15
+      }
+     ]
+    },
+    {
+     "shape": "group",
+     "pos": [
+      0.3,
+      1.3,
+      -0.45
+     ],
+     "rot": [
+      0,
+      25,
+      -15
+     ],
+     "anim": {
+      "type": "sway",
+      "axis": "y",
+      "deg": 8,
+      "period": 1.6
+     },
+     "parts": [
+      {
+       "shape": "sphere",
+       "pos": [
+        0.55,
+        0.25,
+        0
+       ],
+       "color": "#f7f4ff",
+       "r": 0.55,
+       "h": 0.12,
+       "rough": 0.5,
+       "glow": 0.15
+      },
+      {
+       "shape": "sphere",
+       "pos": [
+        0.4,
+        -0.25,
+        0
+       ],
+       "color": "#e9e2ff",
+       "r": 0.4,
+       "h": 0.1,
+       "rough": 0.5,
+       "glow": 0.15
+      }
+     ]
+    }
+   ],
+   "price": {
+    "pieces": 129
+   }
+  },
+  {
+   "id": "backpack",
+   "name": {
+    "en": "Backpack",
+    "ru": "Рюкзак"
+   },
+   "slot": "back",
+   "bone": "Torso",
+   "parts": [
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      1.15,
+      -0.62
+     ],
+     "color": "#ffb35c",
+     "size": [
+      1.0,
+      1.1,
+      0.45
+     ],
+     "rough": 0.85
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      1.62,
+      -0.6
+     ],
+     "color": "#e8952f",
+     "size": [
+      1.02,
+      0.28,
+      0.5
+     ],
+     "rough": 0.85
+    },
+    {
+     "shape": "box",
+     "pos": [
+      0,
+      0.95,
+      -0.87
+     ],
+     "color": "#e8952f",
+     "size": [
+      0.6,
+      0.4,
+      0.1
+     ],
+     "rough": 0.85
+    }
+   ],
+   "price": {
+    "orbs": 600
+   }
   }
  ]
 }

@@ -76,6 +76,82 @@ items.append({"id": "cattail", "name": {"en": "Cat tail", "ru": "Кошачий 
     ]},
 ]})
 
+# --- more hats, faces, neck, back ---------------------------------------------------
+items.append({"id": "partyhat", "name": {"en": "Party hat", "ru": "Праздничный колпак"}, "slot": "hat", "bone": "Head", "rot": [0, 0, 8], "parts": [
+    part("cone", [0, TOP + 0.42, 0], "#7ee0c3", bottom=0.36, h=0.85),
+    part("torus", [0, TOP + 0.08, 0], "#ff8fb1", inner=0.3, outer=0.4),
+    part("sphere", [0, TOP + 0.88, 0], "#ffd166", r=0.12, h=0.24),
+]})
+
+items.append({"id": "beanie", "name": {"en": "Beanie", "ru": "Шапка-бини"}, "slot": "hat", "bone": "Head", "parts": [
+    part("sphere", [0, TOP - 0.28, 0], "#e05b6f", r=0.78, h=0.8, half=True, rough=0.9),
+    part("cylinder", [0, TOP - 0.2, 0], "#c9485d", top=0.79, bottom=0.79, h=0.26, rough=0.9),
+    part("sphere", [0, TOP + 0.55, 0], "#f4f1ec", r=0.16, h=0.32, rough=0.95),
+]})
+
+items.append({"id": "bunnyears", "name": {"en": "Bunny ears", "ru": "Заячьи ушки"}, "slot": "ears", "bone": "Head", "parts": [
+    part("capsule", [side * 0.3, TOP + 0.5, -0.05], "#f4f1ec", rot=[0, 0, -side * 10], r=0.14, h=1.0) for side in (-1, 1)
+] + [
+    part("capsule", [side * 0.31, TOP + 0.5, 0.06], "#ff8fb1", rot=[0, 0, -side * 10], r=0.08, h=0.8) for side in (-1, 1)
+]})
+
+items.append({"id": "horns", "name": {"en": "Little horns", "ru": "Рожки"}, "slot": "halo", "bone": "Head", "parts": [
+    part("cone", [side * 0.4, TOP + 0.18, 0.1], "#d94f5c", rot=[0, 0, -side * 22], bottom=0.14, h=0.42, rough=0.4) for side in (-1, 1)
+]})
+
+items.append({"id": "sunglasses", "name": {"en": "Sunglasses", "ru": "Солнечные очки"}, "slot": "face", "bone": "Head", "parts": [
+    part("box", [-0.3, 0.78, 0.7], "#15131c", size=[0.46, 0.26, 0.05], rough=0.15, metal=0.4),
+    part("box", [0.3, 0.78, 0.7], "#15131c", size=[0.46, 0.26, 0.05], rough=0.15, metal=0.4),
+    part("box", [0, 0.84, 0.7], "#15131c", size=[0.2, 0.05, 0.05]),
+    part("box", [-0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.7]),
+    part("box", [0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.7]),
+]})
+
+hearts = []
+for side in (-1, 1):
+    cx = side * 0.3
+    hearts.append(part("sphere", [cx - 0.08, 0.83, 0.71], "#ff5c8a", r=0.13, h=0.1, glow=0.3))
+    hearts.append(part("sphere", [cx + 0.08, 0.83, 0.71], "#ff5c8a", r=0.13, h=0.1, glow=0.3))
+    hearts.append(part("prism", [cx, 0.68, 0.71], "#ff5c8a", rot=[0, 0, 180], size=[0.37, 0.24, 0.1], glow=0.3))
+hearts.append(part("box", [0, 0.84, 0.7], "#ff8fb1", size=[0.14, 0.04, 0.04]))
+items.append({"id": "heartglasses", "name": {"en": "Heart glasses", "ru": "Очки-сердечки"}, "slot": "face", "bone": "Head", "parts": hearts})
+
+items.append({"id": "scarf", "name": {"en": "Scarf", "ru": "Шарф"}, "slot": "neck", "bone": "Torso", "parts": [
+    part("torus", [0, 1.93, 0], "#4cc9f0", inner=0.42, outer=0.62, rough=0.95),
+    part("box", [0.25, 1.45, 0.47], "#4cc9f0", rot=[0, 0, 6], size=[0.3, 0.8, 0.1], rough=0.95),
+    part("box", [0.25, 1.1, 0.48], "#f4f1ec", rot=[0, 0, 6], size=[0.3, 0.1, 0.11], rough=0.95),
+]})
+
+items.append({"id": "bowtie", "name": {"en": "Bow tie", "ru": "Бабочка"}, "slot": "neck", "bone": "Torso", "parts": [
+    part("prism", [-0.2, 1.82, 0.44], "#e05b6f", rot=[0, 0, 90], size=[0.32, 0.3, 0.1]),
+    part("prism", [0.2, 1.82, 0.44], "#e05b6f", rot=[0, 0, -90], size=[0.32, 0.3, 0.1]),
+    part("box", [0, 1.82, 0.47], "#c9485d", size=[0.12, 0.14, 0.1]),
+]})
+
+wing = lambda side: {"shape": "group", "pos": [side * 0.3, 1.3, -0.45], "rot": [0, side * 25, side * -15],
+                     "anim": {"type": "sway", "axis": "y", "deg": 8, "period": 1.6}, "parts": [
+    part("sphere", [side * 0.55, 0.25, 0], "#f7f4ff", r=0.55, h=0.12, rough=0.5, glow=0.15),
+    part("sphere", [side * 0.4, -0.25, 0], "#e9e2ff", r=0.4, h=0.1, rough=0.5, glow=0.15),
+]}
+items.append({"id": "wings", "name": {"en": "Angel wings", "ru": "Крылья"}, "slot": "back", "bone": "Torso", "parts": [wing(-1), wing(1)]})
+
+items.append({"id": "backpack", "name": {"en": "Backpack", "ru": "Рюкзак"}, "slot": "back", "bone": "Torso", "parts": [
+    part("box", [0, 1.15, -0.62], "#ffb35c", size=[1.0, 1.1, 0.45], rough=0.85),
+    part("box", [0, 1.62, -0.6], "#e8952f", size=[1.02, 0.28, 0.5], rough=0.85),
+    part("box", [0, 0.95, -0.87], "#e8952f", size=[0.6, 0.4, 0.1], rough=0.85),
+]})
+
+# Prices: pieces (bought with money) or orbs (earned by playing).
+PRICES = {
+    "cap": {"orbs": 250}, "flower": {"orbs": 200}, "headphones": {"orbs": 450}, "catears": {"orbs": 500},
+    "partyhat": {"orbs": 300}, "beanie": {"orbs": 400}, "scarf": {"orbs": 350}, "bowtie": {"orbs": 250},
+    "heartglasses": {"orbs": 450}, "backpack": {"orbs": 600},
+    "tophat": {"pieces": 35}, "crown": {"pieces": 99}, "halo": {"pieces": 79}, "cattail": {"pieces": 49},
+    "sunglasses": {"pieces": 29}, "wings": {"pieces": 129}, "bunnyears": {"pieces": 45}, "horns": {"pieces": 59},
+}
+for it in items:
+    it["price"] = PRICES[it["id"]]
+
 catalog = {
     "version": 2,
     "max_worn": 4,

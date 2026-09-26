@@ -43,6 +43,13 @@ function connect(token) {
   });
 }
 
+// Items cost pieces or orbs now: hand them out directly for tests about wearing them.
+function own(username, kind, ids) {
+  const u = app.db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const give = app.db.prepare("INSERT OR IGNORE INTO owned_items (user_id, kind, item_id, source, created_at) VALUES (?, ?, ?, 'test', 0)");
+  for (const id of ids) give.run(u.id, kind, id);
+}
+
 before(() => {
   app = startServer({ port: PORT, dbFile: ':memory:' });
 });
@@ -68,6 +75,7 @@ test('register and login', async () => {
 });
 
 test('profile update validates input', async () => {
+  own('alice', 'accessory', ['crown']);
   const r = await call('PATCH', '/api/me', { bio: 'hi', colors: { torso: '#FF00aa' }, hat: 'crown' }, users.alice);
   assert.equal(r.status, 200);
   assert.equal(r.data.user.colors.torso, '#ff00aa');
@@ -82,6 +90,7 @@ test('friend request flow', async () => {
   let r = await call('POST', '/api/friends/request', { username: 'bob' }, users.alice);
   assert.equal(r.data.relation, 'outgoing');
   r = await call('GET', '/api/friends', null, users.bob);
+  if (r.data.incoming?.length !== 1) console.log('DEBUG friends', r.status, JSON.stringify(r.data).slice(0, 600));
   assert.equal(r.data.incoming.length, 1);
   r = await call('POST', '/api/friends/accept', { user_id: r.data.incoming[0].id }, users.bob);
   assert.equal(r.data.relation, 'friends');
@@ -351,13 +360,14 @@ test('birthdate: one free change, then a cooldown; faces, friends privacy, place
   r = await call('PATCH', '/api/me', { birthdate: '1991-01-01' }, users.alice);
   assert.equal(r.status, 403);
   assert.match(r.data.message, /\d{4}-\d{2}-\d{2}/);
+  own('alice', 'face', [':3']);
   r = await call('PATCH', '/api/me', { face: ':3', hide_friends: true }, users.alice);
   assert.equal(r.data.user.face, ':3');
   assert.equal((await call('PATCH', '/api/me', { face: 'lol' }, users.alice)).status, 400);
   const hidden = await call('GET', '/api/users/alice/friends', null, users.bob);
   assert.equal(hidden.data.hidden, true);
-  const own = await call('GET', '/api/users/alice/friends', null, users.alice);
-  assert.equal(own.data.hidden, false);
+  const ownList = await call('GET', '/api/users/alice/friends', null, users.alice);
+  assert.equal(ownList.data.hidden, false);
   assert.equal((await call('GET', '/api/places?q=trampo', null, users.alice)).data.places.length, 1);
   assert.equal((await call('GET', '/api/places?q=zzzz', null, users.alice)).data.places.length, 0);
   assert.equal((await call('GET', '/api/places', null, users.alice)).data.places[0].cover_square, '/img/cover_square.png');
@@ -411,6 +421,7 @@ test('accessories: catalog, several at once, one per slot, old apps keep working
   assert.ok(cat.data.items.some((it) => it.id === 'cattail' && it.bone === 'Torso'));
   const reg = await call('POST', '/api/register', { username: 'dressup1', password: 'secret123', birthdate: '2000-01-01' });
   const t = reg.data.token;
+  own('dressup1', 'accessory', ['catears', 'crown', 'cattail', 'cap', 'tophat']);
   let r = await call('PATCH', '/api/me', { accessories: ['catears', 'crown', 'cattail'] }, t);
   assert.deepEqual(r.data.user.accessories, ['catears', 'crown', 'cattail']);
   assert.equal(r.data.user.hat, 'catears', 'older apps see the first head item');

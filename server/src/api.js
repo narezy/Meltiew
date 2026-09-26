@@ -7,6 +7,7 @@ import { createVersionGate, DOWNLOAD_PAGE, LATEST_CLIENT } from './version.js';
 import { FACES, ageOf, chatRules, validBirthdate } from './age.js';
 import { filterText } from './filter.js';
 import { createStudioRoutes } from './studio/routes.js';
+import { createEconomy, priceOf } from './economy.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -55,7 +56,9 @@ function readJson(req, limit = MAX_BODY) {
     req.on('end', () => {
       if (!chunks.length) return resolve({});
       try {
-        const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        // Kept for webhooks that sign the exact bytes (payments).
+        req.rawBody = Buffer.concat(chunks).toString('utf8');
+        const data = JSON.parse(req.rawBody);
         resolve(data && typeof data === 'object' ? data : {});
       } catch {
         reject(bad('bad_json'));
@@ -262,6 +265,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   function selfProfile(u) {
     return {
       ...publicProfile(u),
+      wallet: economy.wallet(u.id),
+      owned: economy.ownedOf(u.id),
       birthdate: u.birthdate || '',
       birthdate_change: birthdateChange(u),
       hide_friends: !!u.hide_friends,
@@ -333,6 +338,20 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     return target;
   }
 
+  const economy = createEconomy({
+    db,
+    hub,
+    mediaDir: store.mediaDir,
+    HttpError,
+    bad,
+    cleanText,
+    requireAuth,
+    requireStaff,
+    authenticate,
+    writeLimiter,
+    log: (...a) => console.log(new Date().toISOString(), ...a),
+  });
+
   const routes = {
     // The accessory catalog (public, same for everyone).
     'GET /api/accessories': () => CATALOG,
@@ -392,7 +411,9 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
     'GET /api/me': (req) => {
       const { user } = requireAuth(req);
-      return { user: selfProfile(user) };
+      // The first visit of the day (app or site) brings a few orbs.
+      const daily = economy.claimDaily(user.id);
+      return { user: selfProfile(q.userById.get(user.id)), daily_bonus: daily };
     },
 
     'PATCH /api/me': (req, body) => {
@@ -429,6 +450,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       }
       if (body.face !== undefined) {
         if (!FACES.includes(body.face)) throw bad('bad_face');
+        if (body.face !== user.face && !economy.owns(user.id, 'face', body.face)) throw new HttpError(403, 'not_owned');
         next.face = body.face;
       }
       if (body.hide_friends !== undefined) next.hide_friends = body.hide_friends ? 1 : 0;
@@ -441,6 +463,9 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
         if (body.hat !== 'none' && !accessoryExists(body.hat)) throw bad('bad_hat');
         worn = cleanWorn([...worn.filter((id) => legacyHat([id]) === 'none'), ...(body.hat === 'none' ? [] : [body.hat])]);
       }
+      // Only what you own (or already wear) goes on.
+      const wearing = new Set(wornOf(user));
+      if (worn.some((id) => !wearing.has(id) && priceOf('accessory', id) && !economy.owns(user.id, 'accessory', id))) throw new HttpError(403, 'not_owned');
       next.hat = legacyHat(worn);
       db.prepare(
         'UPDATE users SET display_name = ?, bio = ?, colors = ?, hat = ?, accessories = ?, birthdate = ?, face = ?, hide_friends = ? WHERE id = ?',
@@ -640,6 +665,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       const value = Number(body.value);
       if (value === 1 || value === -1) pq.setVote.run(p.id, user.id, value);
       else pq.clearVote.run(p.id, user.id);
+      if (value === 1) economy.progress(user.id, 'like');
       return { place: placeView(p, user.id, pickLang(req)) };
     },
 
@@ -944,6 +970,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
   Object.assign(
     routes,
+    economy.routes,
     createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 
@@ -1030,5 +1057,5 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     } catch {}
   }
 
-  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate, cheatReport };
+  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate, cheatReport, economy };
 }

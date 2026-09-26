@@ -2063,6 +2063,130 @@ Methods.StarterGui = {
 }
 
 ---------------------------------------------------------------------------
+-- Gamepasses (MarketplaceService) and saved data (DataStoreService)
+---------------------------------------------------------------------------
+local passOwners = {} -- userId -> { [passId] = true }
+local passInfo = {} -- passId -> { Name, Price }
+
+local function setPassInfo(list)
+	for k, p in list or {} do
+		local id = type(k) == "number" and type(p) == "table" and tonumber(p.id)
+		if id then
+			passInfo[id] = table.freeze({ Id = id, Name = tostring(p.name or ""), Price = tonumber(p.price) or 0 })
+		end
+	end
+end
+
+local function setPassOwner(userId, list)
+	local set = passOwners[userId] or {}
+	for k, id in list or {} do
+		local n = type(k) == "number" and tonumber(id)
+		if n then
+			set[n] = true
+		end
+	end
+	passOwners[userId] = set
+end
+
+local MarketplaceService = {
+	PromptGamePassPurchaseFinished = Signal.new("PromptGamePassPurchaseFinished"),
+}
+-- Does this player own the pass? (players in this server; on a device, the LocalPlayer)
+function MarketplaceService:UserOwnsGamePassAsync(userId, passId)
+	local set = passOwners[tonumber(userId)]
+	return set ~= nil and set[tonumber(passId)] == true
+end
+-- { Id, Name, Price } of one of this place's passes, or nil.
+function MarketplaceService:GetGamePassInfo(passId)
+	return passInfo[tonumber(passId)]
+end
+-- Shows the purchase dialog for a pass (Price is in pieces).
+function MarketplaceService:PromptGamePassPurchase(player, passId)
+	local id = tonumber(passId)
+	if not id then
+		error("PromptGamePassPurchase needs a gamepass id", 2)
+	end
+	if role == "server" then
+		emit({ o = "prompt_pass", to = userIdOf(player), id = id })
+	else
+		if not isInstance(player) or D[player].props.UserId ~= localUserId then
+			error("a LocalScript can only prompt the LocalPlayer", 2)
+		end
+		emit({ o = "prompt_pass", id = id })
+	end
+end
+
+local pendingDs = {} -- request id -> waiting thread
+local nextDsRid = 1
+
+local function dsRequest(req)
+	if role ~= "server" then
+		error("DataStores work in server Scripts only (ask the server with a RemoteEvent)", 3)
+	end
+	local co = coroutine.running()
+	local rid = nextDsRid
+	nextDsRid += 1
+	pendingDs[rid] = co
+	req.o = "ds"
+	req.rid = rid
+	emit(req)
+	local ok, value, err = coroutine.yield()
+	if not ok then
+		error("DataStore: " .. tostring(err), 3)
+	end
+	return decodeValue(value)
+end
+
+local function dsKey(key)
+	if type(key) ~= "string" and type(key) ~= "number" then
+		error("DataStore keys are strings", 3)
+	end
+	return tostring(key)
+end
+
+local DataStore = {}
+DataStore.__index = DataStore
+function DataStore:GetAsync(key)
+	return dsRequest({ op = "get", store = self.Name, key = dsKey(key) })
+end
+function DataStore:SetAsync(key, value)
+	local t = typeOf(value)
+	if isInstance(value) or t == "function" or t == "thread" or t == "userdata" then
+		error("DataStores save numbers, strings, booleans, tables and Vector3/Color3 values", 2)
+	end
+	dsRequest({ op = "set", store = self.Name, key = dsKey(key), value = encodeValue(value) })
+end
+-- Reads the value, gives it to `fn`, saves what `fn` returns (nil = leave it). Returns the new value.
+function DataStore:UpdateAsync(key, fn)
+	local old = self:GetAsync(key)
+	local new = fn(old)
+	if new ~= nil then
+		self:SetAsync(key, new)
+	end
+	return new
+end
+-- Adds to a number (missing counts as 0) and returns the result, in one step.
+function DataStore:IncrementAsync(key, delta)
+	return dsRequest({ op = "inc", store = self.Name, key = dsKey(key), delta = tonumber(delta) or 1 })
+end
+function DataStore:RemoveAsync(key)
+	return dsRequest({ op = "remove", store = self.Name, key = dsKey(key) })
+end
+-- Up to `limit` (100) key names after `after`, in order.
+function DataStore:ListKeysAsync(after, limit)
+	return dsRequest({ op = "list", store = self.Name, key = "", after = after and tostring(after) or "", limit = tonumber(limit) or 50 })
+end
+
+local DataStoreService = {}
+function DataStoreService:GetDataStore(name)
+	name = tostring(name or "")
+	if name == "" or #name > 50 then
+		error("GetDataStore needs a name (up to 50 characters)", 2)
+	end
+	return setmetatable({ Name = name }, DataStore)
+end
+
+---------------------------------------------------------------------------
 -- Players and characters (the server owns health; clients own movement)
 ---------------------------------------------------------------------------
 local playersByUser = {} -- userId -> Player
@@ -2527,6 +2651,8 @@ local specialServices = {
 	LocalizationService = LocalizationService,
 	Debris = Debris,
 	HttpService = HttpService,
+	MarketplaceService = MarketplaceService,
+	DataStoreService = DataStoreService,
 }
 Methods.DataModel = {
 	GetService = function(_, name)
@@ -2674,6 +2800,8 @@ function handlers.player_add(e)
 	d.props.DisplayName = tostring(e.display or e.name)
 	d.props.UserId = tonumber(e.userId) or 0
 	d.props.Language = tostring(e.lang or "en")
+	setPassOwner(d.props.UserId, e.passes)
+	setPassInfo(e.pass_info)
 	d.props.CameraMode = starterValue("CameraMode") or "Classic"
 	d.props.CameraMinZoom = starterValue("CameraMinZoom") or 0.5
 	d.props.CameraMaxZoom = starterValue("CameraMaxZoom") or 14
@@ -2817,6 +2945,29 @@ function handlers.tool(e)
 		end
 		D[tool].droppedAt = simTime
 		setParent(tool, services.Workspace)
+	end
+end
+
+-- server: a DataStore answer
+function handlers.ds_ret(e)
+	local co = pendingDs[e.rid]
+	pendingDs[e.rid] = nil
+	if co and coroutine.status(co) == "suspended" then
+		resume(co, e.ok == true, e.value, e.err)
+	end
+end
+
+-- a gamepass was bought (server: from the website or app; client: the dialog's answer)
+function handlers.pass_bought(e)
+	local uid = role == "server" and tonumber(e.userId) or localUserId
+	local id = tonumber(e.id)
+	local bought = e.bought ~= false
+	if bought and uid and id then
+		setPassOwner(uid, { id })
+	end
+	local player = uid and playersByUser[uid]
+	if player then
+		MarketplaceService.PromptGamePassPurchaseFinished:_fire(player, id, bought)
 	end
 end
 
@@ -2976,6 +3127,10 @@ G.__init = hostCall(function(cfg)
 	localUserId = tonumber(cfg.userId)
 	playerLang = tostring(cfg.lang or "en")
 	stringsTable = cfg.strings or {}
+	if cfg.passes and localUserId then
+		setPassOwner(localUserId, cfg.passes)
+	end
+	setPassInfo(cfg.pass_info)
 	local device = cfg.device or {}
 	UIS.TouchEnabled = device.touch == true
 	UIS.KeyboardEnabled = device.keyboard == true

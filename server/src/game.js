@@ -168,6 +168,16 @@ export class GameHub {
         case 'kick':
           server.kicks.push(op);
           break;
+        case 'prompt_pass':
+          // A script offers a gamepass: that player's app shows the purchase dialog.
+          this.target(server, op.to, { o: 'prompt_pass', id: op.id });
+          break;
+        case 'ds': {
+          // DataStore: answered on the next step (scripts wait for it).
+          const res = this.places?.datastore ? this.places.datastore(server.game, server.id, op) : { ok: false, err: 'DataStore is not available' };
+          server.inbox.push({ e: 'ds_ret', rid: op.rid, ok: res.ok, value: res.value ?? null, err: res.err || '' });
+          break;
+        }
         case 'print': {
           const line = { level: op.level, msg: String(op.msg).slice(0, 2000), src: op.src || '', at: Date.now() };
           server.logs.push(line);
@@ -382,6 +392,7 @@ export class GameHub {
           const wait = m.e === 'heart' ? HEART_COOLDOWN_MS : EMOTE_COOLDOWN_MS;
           if (now - (conn.player.emotesAt[m.e] || 0) < wait) return;
           conn.player.emotesAt[m.e] = now;
+          this.economy?.progress(conn.user.id, 'emote', 1);
           this.broadcast(conn.server, { t: 'emote', id: conn.user.id, e: m.e }, conn.user.id);
         }
         return;
@@ -461,7 +472,10 @@ export class GameHub {
 
     // Studio places: the joining app gets the current world first, then hears about
     // its own arrival (Player, character, spawn point) like everyone else.
-    const place = studio ? { id: game, strings: server.strings, snapshot: server.vm.snapshot() } : null;
+    // Gamepasses: which of this place's passes the player owns, and what's on sale.
+    const passes = studio ? this.economy?.passesOwned(conn.user.id, game) || [] : [];
+    const passInfo = studio ? this.economy?.passesInfo(game) || [] : [];
+    const place = studio ? { id: game, strings: server.strings, snapshot: server.vm.snapshot(), passes, pass_info: passInfo } : null;
     conn.send({
       t: 'welcome',
       server: this.describe(server),
@@ -477,12 +491,13 @@ export class GameHub {
     this.broadcast(server, { t: 'join', player: { ...player.user, p: player.p, r: player.r, a: player.a } }, conn.user.id);
     this.broadcast(server, { t: 'sys', k: 'joined', n: player.user.display_name }, conn.user.id);
     if (studio) {
-      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang }]));
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, passes, pass_info: passInfo }]));
       this.flushPlace(server);
     }
     // Every place (the playground too) keeps visit history: stats and "recently played".
     this.places?.visit(game, conn.user.id);
     this.onJoin(game);
+    this.economy?.progress(conn.user.id, 'places', 1, game);
     this.log(`${conn.user.username} joined ${server.id} (${server.players.size}/${MAX_PLAYERS})`);
   }
 
@@ -568,6 +583,25 @@ export class GameHub {
     }
     conn.server = null;
     conn.player = null;
+  }
+
+  /** Who plays where, for the once-a-minute quest progress. */
+  sessions() {
+    return [...this.servers.values()]
+      .filter((s) => s.players.size)
+      .map((s) => ({ game: s.game, players: [...s.players.keys()], friendsOf: (id) => this.loadFriends(id) }));
+  }
+
+  /** Someone bought a gamepass: scripts in that place hear about it right away. */
+  passBought(userId, placeId, passId) {
+    const entry = this.byUser.get(userId);
+    if (!entry || entry.server.game !== placeId || !entry.server.vm) return;
+    entry.server.inbox.push({ e: 'pass_bought', userId, id: passId });
+  }
+
+  /** New balance after a purchase lands (the app updates its counters). */
+  notifyWallet(userId, wallet) {
+    this.byUser.get(userId)?.conn.send({ t: 'wallet', wallet });
   }
 
   /** Pushes fresh profile data (colors, hat, name) to everyone who can see this user. */

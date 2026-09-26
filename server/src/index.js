@@ -10,6 +10,7 @@ import { pickLang, msg } from './i18n.js';
 import { LANGUAGE_CODES } from './languages.js';
 import { PlaceStore } from './studio/places.js';
 import { GameHub } from './game.js';
+import { createDataStore } from './studio/datastore.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 7350);
@@ -72,6 +73,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
   const store = new PlaceStore(db, studioDir);
   const placeRow = db.prepare("SELECT * FROM places WHERE id = ? AND kind = 'studio' AND deleted = 0");
   let api;
+  let datastore;
   const hub = new GameHub({
     log,
     loadBlocks: (id) => api.blockSet(id),
@@ -83,6 +85,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
       load: (id) => store.load(id),
       canJoin: (user, id) => store.canSee(placeRow.get(id), user, api.isFriend),
       visit: (id, userId) => store.recordVisit(id, userId),
+      datastore: (placeId, serverId, op) => datastore.handle(placeId, serverId, op),
       // Players leaving during shutdown may arrive after the database closed.
       playtime: (id, userId, ms) => {
         try {
@@ -92,6 +95,8 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
     },
   });
   api = createApi({ db, hub, renderDir: renders, store, owner });
+  datastore = createDataStore(db);
+  hub.economy = api.economy;
 
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {
@@ -149,6 +154,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
   const close = () =>
     new Promise((resolve) => {
       clearInterval(heartbeat);
+      api.economy.stop();
       hub.stop();
       wss.close();
       server.closeAllConnections?.();
