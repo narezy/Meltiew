@@ -18,6 +18,8 @@ var _bg: MeshInstance3D
 var _quad: QuadMesh
 var _mat: ShaderMaterial
 var _time := 0.0
+## How far above the tail tip the text's middle is (metres).
+var _text_up := 0.0
 ## Where to float: the avatar whose top we follow.
 var avatar: MellyAvatar
 
@@ -63,7 +65,8 @@ func show_text(text: String) -> void:
 	_mat.set_shader_parameter("size", size)
 	_mat.set_shader_parameter("tail", TAIL)
 	_mat.set_shader_parameter("radius", minf(0.12, body.y * 0.5))
-	_label.position = Vector3(0, TAIL + body.y * 0.5, 0)
+	_text_up = TAIL + body.y * 0.5
+	_label.position = Vector3(0, _text_up, 0)
 	_time = SHOW_SEC
 	visible = true
 	scale = Vector3.ONE * 0.6
@@ -85,3 +88,9 @@ func _process(delta: float) -> void:
 func _follow() -> void:
 	if avatar and avatar.is_inside_tree() and is_inside_tree():
 		global_position = Vector3(avatar.global_position.x, avatar.top_y() + GAP, avatar.global_position.z)
+	# The bubble turns to the camera around the tail tip (see the shader), so its middle
+	# is along the camera's up, not straight up: put the text there too, or it slides
+	# out of the bubble when you look from above or below.
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam:
+		_label.global_position = global_position + cam.global_basis.y.normalized() * _text_up

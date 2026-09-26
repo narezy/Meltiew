@@ -452,3 +452,7 @@ html { overflow-x: clip; }
   .nav { flex-wrap: wrap; row-gap: 6px; }
   .nav-links { order: 3; width: 100%; justify-content: space-between; }
 }
+/* Long words (script names in hints, links) wrap instead of pushing the page wider. */
+body { overflow-wrap: break-word; }
+.card, .stack > * { min-width: 0; }
+.shop-item .pic img.face-tile { height: 84px; width: 84px; border-radius: 16px; padding: 6px; object-fit: contain; }

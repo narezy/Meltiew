@@ -247,7 +247,8 @@ const SHOP_ROUTES = {
       const items = tab === 'accessories' ? shop.accessories : shop.faces;
       $('#grid').innerHTML = items.map((it) => {
         const worn = tab === 'accessories' ? look.accessories.includes(it.id) : look.face === it.id;
-        const pic = tab === 'faces_tab' ? `<img src="/img/faces/${FACE_SLUGS[it.id] || 'grin'}.png" alt="">` : `<img data-thumb="${esc(it.id)}" alt="">`;
+        // Faces are dark lines: show them on a skin-colored tile, the way they sit on the head.
+        const pic = tab === 'faces_tab' ? `<img class="face-tile" style="background:${esc(state.me.colors?.head || '#f5f1ec')}" src="/img/faces/${FACE_SLUGS[it.id] || 'grin'}.png" alt="">` : `<img data-thumb="${esc(it.id)}" alt="">`;
         const action = it.owned || !it.price
           ? `<span class="pill">${it.price ? t('owned') : t('free')}</span>`
           : `<div class="buy-row">${buyButtons(it)}</div>`;
