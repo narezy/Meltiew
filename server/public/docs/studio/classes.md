@@ -83,6 +83,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | Anchored | bool | true |  |
 | CanCollide | bool | true |  |
 | CanTouch | bool | true |  |
+| Climbable | bool | false |  |
 | CastShadow | bool | true |  |
 | Texture | asset | "" |  |
 | TextureScale | number | 1 | min 0.05 |

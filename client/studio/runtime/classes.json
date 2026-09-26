@@ -794,6 +794,10 @@
      "type": "bool",
      "default": true
     },
+    "Climbable": {
+     "type": "bool",
+     "default": false
+    },
     "CastShadow": {
      "type": "bool",
      "default": true

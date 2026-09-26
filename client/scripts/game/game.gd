@@ -363,6 +363,9 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.camera_control.connect(_camera_control)
+	player.climb_check = func(collider: Object) -> bool:
+		var id := PlaceScene.id_of(collider)
+		return id != "" and place_host.tree.has(id) and place_host.tree.prop(id, "Climbable") == true
 	place_host.animation_requested.connect(func(anim: String): player.play_custom(anim))
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
 	place_host.passes = p.get("passes", [])

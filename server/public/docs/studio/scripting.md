@@ -249,6 +249,10 @@ s:Play()
 
 Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV (up to 5 MB each, 40 MB in all per account) and pick it in a Sound's `SoundId` with the "…" button, or copy its `asset://...` and set it from a script. `Looped = true` repeats it (music), `sound:Stop()` stops it, `Pitch` makes it higher or lower. A Sound outside the Workspace's parts (in a LocalScript's folder, in the camera) plays for the whole screen.
 
+## Climbing and steps
+
+Players walk up ledges up to about 0.65 studs high without jumping (stairs, kerbs). Turn on **Climbable** on any part to make it a wall they can climb: walking into it climbs up, walking away climbs down, sideways moves along it, jump lets go, and at the top they step onto it. From scripts: `part.Climbable = true`.
+
 ## Animations, Rigs and the emote wheel
 
 **Place → Animator** opens the Animator. Pick a body part, move the time slider and turn the part with the sliders: a key is set right there, and Melly moves smoothly from key to key. Set the length and whether it loops, then **Save**: the animation gets an id like `anim://12` (copied for you). Any place can play it.

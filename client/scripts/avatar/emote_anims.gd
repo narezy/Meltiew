@@ -19,6 +19,34 @@ static func install(ap: AnimationPlayer) -> void:
 			_complete(lib.get_animation(clip))
 	if lib.has_animation("Walk") and not lib.has_animation("Run"):
 		lib.add_animation("Run", _run(lib.get_animation("Walk")))
+	if not lib.has_animation("Climb"):
+		lib.add_animation("Climb", _climb())
+
+
+## Climbing a wall: hands reach up in turn, knees come up in turn, leaning in.
+static func _climb() -> Animation:
+	var a := Animation.new()
+	a.length = 0.8
+	a.loop_mode = Animation.LOOP_LINEAR
+	var d := deg_to_rad(1.0)
+	var tracks := {
+		"ArmL": [q(-165 * d), q(-110 * d), q(-165 * d)],
+		"ArmR": [q(-110 * d), q(-165 * d), q(-110 * d)],
+		"LegL": [q(-45 * d), q(0), q(-45 * d)],
+		"LegR": [q(0), q(-45 * d), q(0)],
+		"Torso": [q(8 * d), q(8 * d), q(8 * d)],
+		"Head": [q(-20 * d), q(-20 * d), q(-20 * d)],
+	}
+	for bone in tracks:
+		var t := a.add_track(Animation.TYPE_ROTATION_3D)
+		a.track_set_path(t, NodePath("Melly/Skeleton3D:" + bone))
+		a.track_set_interpolation_type(t, Animation.INTERPOLATION_CUBIC)
+		for i in 3:
+			a.rotation_track_insert_key(t, a.length * i / 2.0, tracks[bone][i])
+	var tp := a.add_track(Animation.TYPE_POSITION_3D)
+	a.track_set_path(tp, NodePath("Melly/Skeleton3D:Torso"))
+	a.position_track_insert_key(tp, 0.0, TORSO_REST)
+	return a
 
 
 ## Running, made from the walk: arms and legs swing much wider, the body leans

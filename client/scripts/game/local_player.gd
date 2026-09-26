@@ -20,6 +20,9 @@ const JUMP_VELOCITY := 8.2
 const GRAVITY := 22.0
 const MAX_FALL := 50.0
 const COYOTE_TIME := 0.12
+## Ledges up to this high are walked onto without jumping (stairs, kerbs, low blocks).
+const STEP_HEIGHT := 0.65
+const CLIMB_SPEED := 6.0
 const JUMP_BUFFER := 0.14
 const TURN_SPEED := 9.0
 const RESPAWN_DELAY := 3.0
@@ -63,6 +66,11 @@ var bhop_max := 24.0
 ## Jump is being held (space or the jump button): the HUD sets it every frame.
 var jump_held := false
 var _hopping := false  # landed from a bhop jump this frame and jumped straight on
+## Climbing a part with Climbable on: `climb_check(collider)` says which parts are.
+var climb_check: Callable
+var climbing := false
+var _climb_normal := Vector3.ZERO
+var _climb_cooldown := 0.0
 ## Stamina: sprinting spends it, resting brings it back. max_stamina 0 = endless.
 var max_stamina := 100.0
 var stamina_drain := 20.0
@@ -205,6 +213,62 @@ func zoom_camera(amount: float) -> void:
 		return
 	cam_distance = clampf(cam_distance + amount, _zoom_floor(), max_zoom)
 	_set_first_person(cam_distance < 1.2)
+
+
+## Walks onto a ledge up to STEP_HEIGHT without jumping: if the way ahead is blocked
+## but clear a step higher, and there's ground to stand on there, lift up onto it.
+func _step_up(step: Vector3) -> void:
+	if step.length() < 0.0005 or not test_move(global_transform, step):
+		return
+	var up := Vector3(0, STEP_HEIGHT, 0)
+	if test_move(global_transform, up):
+		return
+	var raised := global_transform.translated(up)
+	var ahead := step.normalized() * maxf(step.length(), 0.3)
+	if test_move(raised, ahead):
+		return
+	var col := KinematicCollision3D.new()
+	var probe := raised.translated(ahead)
+	if not test_move(probe, -up, col):
+		return
+	var rise := STEP_HEIGHT - col.get_travel().length()
+	if rise < 0.03 or col.get_normal().y < 0.7:
+		return
+	# Stand on the ledge itself (a little in from its edge, or the round feet slide back off).
+	global_position = probe.origin - up + Vector3(0, rise + 0.02, 0)
+	velocity.y = maxf(velocity.y, 0.0)
+	# The step pushed the walk speed to zero against the edge: give it back.
+	var hv := Vector3(velocity.x, 0, velocity.z)
+	if hv.length() < walk_speed * 0.5:
+		var keep := step.normalized() * walk_speed * 0.5
+		velocity.x = keep.x
+		velocity.z = keep.z
+
+
+## Starts climbing when walking into a Climbable part; at the top, hops up onto it.
+func _update_climb(dir: Vector3) -> void:
+	var wall := Vector3.ZERO
+	if climb_check.is_valid():
+		for i in get_slide_collision_count():
+			var c := get_slide_collision(i)
+			var n := c.get_normal()
+			if absf(n.y) < 0.4 and climb_check.call(c.get_collider()):
+				wall = Vector3(n.x, 0, n.z).normalized()
+				break
+	if climbing:
+		if wall == Vector3.ZERO:
+			climbing = false
+			if velocity.y > 0.0:
+				# Over the top edge: a little hop forward onto it.
+				velocity = -_climb_normal * 3.0 + Vector3(0, 5.5, 0)
+		else:
+			_climb_normal = wall
+			if is_on_floor() and dir.dot(-wall) < -0.3:
+				climbing = false  # standing at the bottom and walking away
+	elif wall != Vector3.ZERO and _climb_cooldown <= 0.0 and dir.dot(-wall) > 0.3:
+		climbing = true
+		_climb_normal = wall
+		_emote = ""
 
 
 func _update_stamina(delta: float, sprinting: bool) -> void:
@@ -388,9 +452,19 @@ func _physics_process(delta: float) -> void:
 		_coyote -= delta
 	_jump_buffer -= delta
 
-	if not on_floor:
+	_climb_cooldown -= delta
+	if not on_floor and not climbing:
 		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
+	if climbing:
+		_fall_speed = 0.0
+		if _jump_buffer > 0.0:
+			# Jump off the wall: backwards and up.
+			climbing = false
+			_climb_cooldown = 0.35
+			_jump_buffer = 0.0
+			velocity = _climb_normal * 6.0 + Vector3(0, jump_velocity * 0.8, 0)
+			jumped.emit()
 
 	_hopping = false
 	if bhop and jump_held and on_floor and can_jump:
@@ -426,7 +500,13 @@ func _physics_process(delta: float) -> void:
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
 	var rate := ((ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL) * traction
-	if bhop and (not on_floor or _hopping) and hv.length() > top and dir.length() > 0.05:
+	if climbing:
+		# On the wall: toward it climbs up, away climbs down, sideways shuffles along it.
+		var into := dir.dot(-_climb_normal)
+		velocity.y = CLIMB_SPEED * clampf(into * 1.4, -1.0, 1.0) if absf(into) > 0.15 else 0.0
+		var side := dir - _climb_normal * dir.dot(_climb_normal)
+		hv = -_climb_normal * 1.5 + side * walk_speed * 0.4
+	elif bhop and (not on_floor or _hopping) and hv.length() > top and dir.length() > 0.05:
 		# Hopping faster than you can run: steer without losing speed (air strafing).
 		var want := Vector3(dir.x, 0, dir.z).normalized() * hv.length()
 		hv = hv.slerp(want, minf(delta * 4.0, 1.0)) if hv.length() > 0.01 else want
@@ -434,7 +514,10 @@ func _physics_process(delta: float) -> void:
 		hv = hv.move_toward(target, rate * delta)
 	velocity.x = hv.x + external_push.x
 	velocity.z = hv.z + external_push.z
+	if (on_floor or _was_on_floor) and not climbing:
+		_step_up(Vector3(velocity.x, 0, velocity.z) * delta)
 	move_and_slide()
+	_update_climb(dir)
 	velocity.x -= external_push.x
 	velocity.z -= external_push.z
 	external_push = Vector3.ZERO
@@ -445,14 +528,18 @@ func _physics_process(delta: float) -> void:
 		_fall_speed = 0.0
 	_was_on_floor = now_floor
 
-	if first_person or shift_locked:
+	if climbing:
+		_facing = atan2(_climb_normal.x, _climb_normal.z)  # face the wall
+	elif first_person or shift_locked:
 		_facing = cam_yaw
 	elif dir.length() > 0.05:
 		_facing = lerp_angle(_facing, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 	avatar.rotation.y = _facing
 
 	var hspeed := Vector2(velocity.x, velocity.z).length()
-	if not now_floor:
+	if climbing:
+		_anim_state = "climb"
+	elif not now_floor:
 		_anim_state = "jump" if velocity.y > 1.0 else "fall"
 	elif hspeed > walk_speed * 1.12:
 		_anim_state = "run"
