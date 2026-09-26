@@ -223,6 +223,8 @@ export class PlaceStore {
     if (row.kind !== 'studio' || row.visibility === 'public') return true;
     if (!user) return false;
     if (row.owner_id === user.id || user.role === 'owner' || user.role === 'admin') return true;
+    // A community's place: its members see it while it's private or friends-only.
+    if (row.community_id != null && this.isCommunityMember?.(row.community_id, user.id)) return true;
     return row.visibility === 'friends' && isFriend(row.owner_id, user.id);
   }
 

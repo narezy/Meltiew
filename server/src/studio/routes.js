@@ -30,7 +30,7 @@ const COVER_MAX_BYTES = 3 * 1024 * 1024;
 const MAX_PLACES_PER_USER = 50;
 
 export function createStudioRoutes(ctx) {
-  const { db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang } = ctx;
+  const { db, hub, store, communities, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang } = ctx;
   const q = {
     mine: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY updated_at DESC"),
     countMine: db.prepare("SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0"),
@@ -60,6 +60,11 @@ export function createStudioRoutes(ctx) {
     insertComment: db.prepare('INSERT INTO place_comments (place_id, user_id, body, created_at) VALUES (?, ?, ?, ?)'),
     deleteComment: db.prepare('DELETE FROM place_comments WHERE id = ?'),
     userByName: db.prepare('SELECT * FROM users WHERE username = ?'),
+    userById: db.prepare('SELECT * FROM users WHERE id = ?'),
+    ofCommunity: db.prepare("SELECT * FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY updated_at DESC"),
+    countCommunity: db.prepare("SELECT COUNT(*) AS n FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0"),
+    setCommunity: db.prepare('UPDATE places SET community_id = ? WHERE id = ?'),
+    setEditor: db.prepare('UPDATE places SET edited_by = ? WHERE id = ?'),
   };
 
   const isStaff = (u) => u.role === 'owner' || u.role === 'admin';
@@ -68,7 +73,7 @@ export function createStudioRoutes(ctx) {
     const auth = requireAuth(req);
     const row = q.one.get(id);
     if (!row || row.kind !== 'studio') throw new HttpError(404, 'no_place');
-    if (row.owner_id !== auth.user.id && !isStaff(auth.user)) throw new HttpError(403, 'forbidden');
+    if (!communities?.canEditPlace(row, auth.user) && !isStaff(auth.user)) throw new HttpError(403, 'forbidden');
     return { ...auth, row };
   }
 
@@ -89,6 +94,9 @@ export function createStudioRoutes(ctx) {
       max_players: row.max_players,
       version: row.version,
       updated_at: row.updated_at,
+      // Community places: whose they are, and who saved last (several people edit them).
+      ...(row.community_id ? { community: communities?.card(row.community_id) } : {}),
+      edited_by: row.edited_by ? q.userById.get(row.edited_by)?.display_name || '' : '',
       published_at: row.published_at,
       i18n,
     };
@@ -115,13 +123,25 @@ export function createStudioRoutes(ctx) {
     'GET /api/studio/places': (req) => {
       const { user } = requireAuth(req);
       const lang = pickLang(req);
-      return { places: q.mine.all(user.id).map((r) => studioView(r, user, lang)) };
+      // Yours, plus the places of communities where your role lets you build.
+      const rows = q.mine.all(user.id).filter((r) => !r.community_id);
+      const seen = new Set(rows.map((r) => r.id));
+      for (const c of communities?.buildable(user.id) || []) {
+        for (const r of q.ofCommunity.all(c.id)) if (!seen.has(r.id)) rows.push(r), seen.add(r.id);
+      }
+      for (const r of q.mine.all(user.id)) if (!seen.has(r.id) && communities?.canEditPlace(r, user)) rows.push(r), seen.add(r.id);
+      return { places: rows.map((r) => studioView(r, user, lang)), communities: communities?.buildable(user.id) || [] };
     },
 
     'POST /api/studio/places': (req, body) => {
       const { user } = requireAuth(req);
       if (!writeLimiter.allow('studio:' + user.id)) throw new HttpError(429, 'slow_down');
-      if (q.countMine.get(user.id).n >= MAX_PLACES_PER_USER) throw bad('too_many_places');
+      // Made for a community (your role there must allow building), or for yourself.
+      const communityId = body.community_id != null ? Number(body.community_id) : null;
+      if (communityId != null) {
+        if (!communities?.canMakePlaces(communityId, user.id)) throw new HttpError(403, 'forbidden');
+        if (q.countCommunity.get(communityId).n >= MAX_PLACES_PER_USER) throw bad('too_many_places');
+      } else if (q.countMine.get(user.id).n >= MAX_PLACES_PER_USER) throw bad('too_many_places');
       const name = cleanText(body.name, 60) || 'My place';
       let melt = templatePlace(name);
       // Apps before 1.4.1 still send the place as `marp`.
@@ -137,6 +157,8 @@ export function createStudioRoutes(ctx) {
       const id = store.newId();
       const now = Date.now();
       q.insert.run(id, name, name, user.username, now, user.id, now);
+      if (communityId != null) q.setCommunity.run(communityId, id);
+      q.setEditor.run(user.id, id);
       store.write(id, melt);
       q.saveMeta.run(name, melt.meta.i18n.name.ru || name, melt.meta.description, melt.meta.i18n.description.ru || melt.meta.description, JSON.stringify(melt.meta.i18n), now, id);
       return { place: studioView(q.one.get(id), user, pickLang(req)) };
@@ -159,6 +181,11 @@ export function createStudioRoutes(ctx) {
       } catch (e) {
         throw new HttpError(400, 'bad_place', { r: e.reason || '' });
       }
+      // Several people edit community places: saving over someone else's newer save
+      // needs a yes (the app asks). `base_version` is the version this editor opened.
+      if (body.base_version != null && Number(body.base_version) !== row.version && row.edited_by && row.edited_by !== user.id && !body.force) {
+        throw new HttpError(409, 'edited_elsewhere', { by: q.userById.get(row.edited_by)?.display_name || '', version: row.version });
+      }
       // Publishing another project into this place: new content, same name and page.
       if (body.keep_meta) {
         const old = store.load(row.id);
@@ -167,6 +194,7 @@ export function createStudioRoutes(ctx) {
       store.write(row.id, melt);
       const m = melt.meta;
       q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
+      q.setEditor.run(user.id, row.id);
       // Anyone playing an older version is moved to a fresh server shortly.
       hub.placeUpdated?.(row.id);
       return { place: studioView(q.one.get(row.id), user, pickLang(req)), meta: m };
@@ -174,6 +202,15 @@ export function createStudioRoutes(ctx) {
 
     'PATCH /api/studio/places/:id': (req, body, _u, params) => {
       const { user, row } = ownPlace(req, params.id);
+      // Hand your own place to a community you build for (it can't be taken back out by you alone).
+      if (body.community_id !== undefined) {
+        const cid = body.community_id == null ? null : Number(body.community_id);
+        if (cid == null) {
+          // Only the community's owner gives a place back to its maker.
+          if (!row.community_id || (communities?.membership(row.community_id, user.id)?.rank || 0) < 255) throw new HttpError(403, 'forbidden');
+        } else if (row.owner_id !== user.id || !communities?.canMakePlaces(cid, user.id)) throw new HttpError(403, 'forbidden');
+        q.setCommunity.run(cid, row.id);
+      }
       if (body.visibility !== undefined) {
         if (!VISIBILITIES.includes(body.visibility)) throw bad('bad_visibility');
         q.setVisibility.run(body.visibility, body.visibility, Date.now(), row.id);
@@ -216,7 +253,12 @@ export function createStudioRoutes(ctx) {
     },
 
     'DELETE /api/studio/places/:id': (req, _b, _u, params) => {
-      const { row } = ownPlace(req, params.id);
+      const { user, row } = ownPlace(req, params.id);
+      // A community's place: its maker or the community's managers delete it, not every builder.
+      if (row.community_id && row.owner_id !== user.id && !isStaff(user)) {
+        const mem = communities?.membership(row.community_id, user.id);
+        if (!mem || (mem.rank < 255 && !mem.perms.has('manage'))) throw new HttpError(403, 'forbidden');
+      }
       q.del.run(row.id);
       hub.closePlace?.(row.id);
       store.remove(row.id);

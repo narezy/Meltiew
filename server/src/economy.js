@@ -343,7 +343,9 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
     const auth = requireAuth(req);
     const row = q.place.get(placeId);
     if (!row || row.kind !== 'studio') throw new HttpError(404, 'no_place');
-    if (row.owner_id !== auth.user.id && auth.user.role !== 'owner' && auth.user.role !== 'admin') throw new HttpError(403, 'forbidden');
+    if (!hub.canEditPlace?.(auth.user, row) && row.owner_id !== auth.user.id && auth.user.role !== 'owner' && auth.user.role !== 'admin') {
+      throw new HttpError(403, 'forbidden');
+    }
     return { ...auth, row };
   }
 
@@ -588,6 +590,7 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
 
   return {
     routes,
+    change,
     wallet,
     ownedOf,
     owns,

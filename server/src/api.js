@@ -10,6 +10,7 @@ import { createStudioRoutes } from './studio/routes.js';
 import { createEconomy, priceOf } from './economy.js';
 import { createBadges } from './badges.js';
 import { createAnimations } from './animations.js';
+import { createCommunities } from './communities.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -179,6 +180,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       max_players: studio ? p.max_players : MAX_PLAYERS,
       // The owner gets the untranslated texts and every translation to edit.
       ...(studio && viewerId && p.owner_id === viewerId ? { edit: { name: p.name, description: p.description, i18n } } : {}),
+      // Places made by a community show it as their maker.
+      ...(studio && p.community_id ? { community: communities.card(p.community_id) } : {}),
       author: author
         ? authorCard(author)
         : { id: 0, username: p.author_username, display_name: p.author_username, role: 'owner', render: '' },
@@ -356,6 +359,10 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
   const badges = createBadges({ db, hub, mediaDir: store.mediaDir, HttpError, bad, cleanText, requireAuth, authenticate });
   const animations = createAnimations({ db, HttpError, bad, cleanText, requireAuth, writeLimiter });
+  const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard });
+  // Community places: editable by members whose role has "places"; private ones visible to members.
+  hub.canEditPlace = (user, row) => communities.canEditPlace(row, user);
+  store.isCommunityMember = (communityId, userId) => communities.isMember(communityId, userId);
 
   const routes = {
     // The accessory catalog (public, same for everyone).
@@ -978,7 +985,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     economy.routes,
     badges.routes,
     animations.routes,
-    createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
+    communities.routes,
+    createStudioRoutes({ db, hub, store, communities, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 
   const compiled = Object.entries(routes).map(([key, handler]) => {
@@ -1048,7 +1056,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
         }
         return send(200, out);
       } catch (err) {
-        if (err instanceof HttpError) return send(err.status, { error: err.code, message: msg(err.code, lang, err.vars) });
+        if (err instanceof HttpError) return send(err.status, { ...err.vars, error: err.code, message: msg(err.code, lang, err.vars) });
         console.error(err);
         return send(500, { error: 'internal', message: msg('internal', lang) });
       }

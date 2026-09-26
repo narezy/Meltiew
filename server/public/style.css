@@ -312,6 +312,9 @@ input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transp
 .studio-row { padding: 12px 16px; flex-wrap: wrap; }
 .studio-row img { width: 128px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; }
 .studio-row select { width: auto; }
+/* The name and stats keep a readable width; the controls wrap under them when space runs out. */
+.studio-row .grow { flex: 1 1 200px; min-width: 160px; }
+.studio-row h3 { overflow-wrap: anywhere; }
 .assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .asset { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .asset img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 12px; background: var(--bg2); }
@@ -343,6 +346,7 @@ input.busy { background-image: radial-gradient(circle, var(--accent) 35%, transp
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile b { font-size: 24px; }
   .studio-row img { width: 96px; }
+  .studio-row .grow { flex-basis: calc(100% - 110px); min-width: 0; }
 }
 @media (max-width: 760px) { .user-row { flex-wrap: wrap; } }
 /* Chats never grow the page: the grid row and both columns scroll inside. */

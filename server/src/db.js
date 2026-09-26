@@ -4,6 +4,7 @@ import path from 'node:path';
 import { migrateEconomy } from './economy.js';
 import { migrateBadges } from './badges.js';
 import { migrateAnimations } from './animations.js';
+import { migrateCommunities } from './communities.js';
 
 export function openDb(file) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -207,4 +208,5 @@ function migrate(db) {
   migrateEconomy(db);
   migrateBadges(db);
   migrateAnimations(db);
+  migrateCommunities(db);
 }
