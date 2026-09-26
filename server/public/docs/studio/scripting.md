@@ -284,6 +284,41 @@ seat:Sit(player.Character.Humanoid) -- sit someone down from a script
 seat.Disabled = true                -- nobody can sit
 ```
 
+## Appearance: dressing players in your place
+
+An **Appearance** says how players look **in your place only**: body colors, a face and any
+accessories, even ones they don't own. Their real avatar and profile never change.
+
+- Put an Appearance in **StarterPlayer** and everyone wears it when they join (uniforms, teams, costumes).
+  Turn on **KeepColors**, **KeepFace** or **KeepAccessories** to leave that part as the player's own.
+- From a Script, dress one player:
+
+```lua
+local Players = game:GetService("Players")
+
+-- a red team: red body, the player's own face and accessories
+local red = Instance.new("Appearance")
+red.TorsoColor = Color3.fromHex("#ff5a6e")
+red.LeftArmColor = red.TorsoColor
+red.RightArmColor = red.TorsoColor
+red.KeepFace = true
+red.KeepAccessories = true
+
+Players.PlayerAdded:Connect(function(player)
+	player:ApplyAppearance(red)
+end)
+
+-- add a crown to what someone wears now
+local look = Players:GetAppearanceAsync(player.UserId)
+look.Accessories = look.Accessories .. ",crown"
+player:ApplyAppearance(look)
+
+player:ResetAppearance()  -- their own look again
+```
+
+`Accessories` is a list of accessory ids separated by commas (`"crown,halo"`, or `""` for none);
+pick them with the "…" button in Studio's properties. Only Scripts (on the server) change looks.
+
 ## Animations, Rigs and the emote wheel
 
 **Place → Animator** opens the Animator. Pick a body part, move the time slider and turn the part with the sliders: a key is set right there, and Melly moves smoothly from key to key. Set the length and whether it loops, then **Save**: the animation gets an id like `anim://12` (copied for you). Any place can play it.

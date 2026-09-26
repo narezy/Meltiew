@@ -1925,6 +1925,72 @@
     }
    },
    "doc": "A seat: touch it and you sit down, jump to get up. Paint it like any part, or set Transparency to 1 to hide it inside a chair you built. It faces its front (−Z). `Occupant` is the Humanoid sitting on it (or nil): `seat:GetPropertyChangedSignal(\"Occupant\"):Connect(...)`. `seat:Sit(humanoid)` sits a player down from a script; Disabled = true stops anyone sitting."
+  },
+  "Appearance": {
+   "base": "Instance",
+   "props": {
+    "HeadColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#f5f1ec"
+     }
+    },
+    "TorsoColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#baa4e2"
+     }
+    },
+    "LeftArmColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#f5f1ec"
+     }
+    },
+    "RightArmColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#f5f1ec"
+     }
+    },
+    "LeftLegColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#302d38"
+     }
+    },
+    "RightLegColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#302d38"
+     }
+    },
+    "Face": {
+     "type": "enum:Face",
+     "default": ":D"
+    },
+    "Accessories": {
+     "type": "accessories",
+     "default": ""
+    },
+    "KeepColors": {
+     "type": "bool",
+     "default": false
+    },
+    "KeepFace": {
+     "type": "bool",
+     "default": false
+    },
+    "KeepAccessories": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [],
+   "icon": "avatar",
+   "category": "Logic",
+   "creatable": true,
+   "doc": "How players look **in this place only**: body colors, a **Face** and any **Accessories** (even ones they don't own), without touching their real avatar. Put one in StarterPlayer and everyone wears it when they join; turn on **KeepColors**, **KeepFace** or **KeepAccessories** to leave that part as the player's own. From a Script: `player:ApplyAppearance(app)` dresses one player, `player:ResetAppearance()` gives their own look back, and `game.Players:GetAppearanceAsync(player.UserId)` returns an Appearance with what they wear now, to change and apply."
   }
  },
  "services": [

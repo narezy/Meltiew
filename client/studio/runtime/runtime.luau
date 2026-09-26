@@ -2895,6 +2895,36 @@ Methods.Tool = {
 	end,
 }
 
+-- Appearance: how a player looks in this place only (their real avatar is untouched).
+local LOOK_PARTS = { HeadColor = "head", TorsoColor = "torso", LeftArmColor = "arm_l", RightArmColor = "arm_r", LeftLegColor = "leg_l", RightLegColor = "leg_r" }
+
+local function appearanceLook(app)
+	local p = D[app].props
+	local look = {
+		colors = {},
+		face = tostring(p.Face or ":D"),
+		accessories = {},
+		keep = { colors = p.KeepColors == true, face = p.KeepFace == true, accessories = p.KeepAccessories == true },
+	}
+	for key, part in LOOK_PARTS do
+		look.colors[part] = Color3.ToHex(p[key])
+	end
+	for a in string.gmatch(tostring(p.Accessories or ""), "[^,%s]+") do
+		look.accessories[#look.accessories + 1] = a
+	end
+	return look
+end
+
+local function applyLook(player, look)
+	local d = D[player]
+	d.appliedLook = look
+	emit({ o = "look", to = d.props.UserId, look = look or { reset = true } })
+end
+
+local function isAppearance(v)
+	return typeOf(v) == "Instance" and D[v] and D[v].class.name == "Appearance"
+end
+
 Methods.Player = {
 	-- LocalScripts: the pointer (Hit, Target, X, Y, Icon, Button1Down...).
 	GetMouse = function(self)
@@ -2902,6 +2932,23 @@ Methods.Player = {
 			error("GetMouse only works on the LocalPlayer in a LocalScript", 2)
 		end
 		return Mouse
+	end,
+	-- Dresses this player in an Appearance, in this place only.
+	ApplyAppearance = function(self, app)
+		if role ~= "server" then
+			error("ApplyAppearance can only be called from a Script", 2)
+		end
+		if not isAppearance(app) then
+			error("ApplyAppearance needs an Appearance", 2)
+		end
+		applyLook(self, appearanceLook(app))
+	end,
+	-- Their own look again.
+	ResetAppearance = function(self)
+		if role ~= "server" then
+			error("ResetAppearance can only be called from a Script", 2)
+		end
+		applyLook(self, nil)
 	end,
 	Kick = function(self, message)
 		if role ~= "server" then
@@ -2930,6 +2977,41 @@ Methods.Player = {
 }
 
 Methods.Players = {
+	-- What this player wears here right now, as a new Appearance to change and apply.
+	GetAppearanceAsync = function(_, userId)
+		local player = playersByUser[tonumber(userId)]
+		if not player then
+			error("GetAppearanceAsync: that player isn't in this server", 2)
+		end
+		local own = D[player].ownLook or {}
+		local applied = D[player].appliedLook
+		local colors = own.colors or {}
+		local face = own.face
+		local acc = own.accessories or {}
+		if applied then
+			if not applied.keep.colors then
+				colors = applied.colors
+			end
+			if not applied.keep.face then
+				face = applied.face
+			end
+			if not applied.keep.accessories then
+				acc = applied.accessories
+			end
+		end
+		local app = create("Appearance")
+		local p = D[app].props
+		for key, part in LOOK_PARTS do
+			if type(colors[part]) == "string" then
+				p[key] = Color3.fromHex(colors[part])
+			end
+		end
+		if face then
+			p.Face = tostring(face)
+		end
+		p.Accessories = table.concat(acc, ",")
+		return app
+	end,
 	GetPlayers = function(self)
 		local out = {}
 		for _, ch in D[self].children do
@@ -3368,11 +3450,22 @@ function handlers.player_add(e)
 	d.props.CameraMinZoom = starterValue("CameraMinZoom") or 0.5
 	d.props.CameraMaxZoom = starterValue("CameraMaxZoom") or 14
 	playersByUser[d.props.UserId] = p
+	d.ownLook = type(e.look) == "table" and e.look or {}
 	local bp = create("Backpack")
 	D[bp].name = "Backpack"
 	setParent(bp, p)
 	setParent(p, services.Players)
 	fireEvent(services.Players, "PlayerAdded", p)
+	-- An Appearance in StarterPlayer dresses everyone who joins (unless a script already did).
+	local sp = services.StarterPlayer
+	if role == "server" and sp and not d.appliedLook then
+		for _, ch in D[sp].children do
+			if D[ch].class.name == "Appearance" then
+				applyLook(p, appearanceLook(ch))
+				break
+			end
+		end
+	end
 	loadCharacter(p)
 end
 function handlers.player_remove(e)

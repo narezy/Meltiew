@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
-import { parseColors } from './colors.js';
-import { wornOf, legacyHat } from './accessories.js';
+import { parseColors, BODY_PARTS, COLOR_RE } from './colors.js';
+import { wornOf, legacyHat, accessoryExists, cleanWorn } from './accessories.js';
 import { msg } from './i18n.js';
 import { MoveGuard, PLAYGROUND_LIMITS } from './anticheat.js';
-import { chatRules } from './age.js';
+import { chatRules, FACES } from './age.js';
 import { filterText } from './filter.js';
 import { PlaceVM } from './studio/vm.js';
 
@@ -78,6 +78,34 @@ function dist(a, b) {
 
 function meltHash(melt) {
   return crypto.createHash('sha1').update(JSON.stringify(melt)).digest('hex');
+}
+
+/** A place's Appearance for a player, checked: known colors, face and accessories. */
+function cleanLook(raw) {
+  if (!raw || typeof raw !== 'object' || raw.reset) return null;
+  const colors = {};
+  for (const part of BODY_PARTS) if (COLOR_RE.test(raw.colors?.[part])) colors[part] = raw.colors[part];
+  const list = Array.isArray(raw.accessories) ? raw.accessories.map(String).filter(accessoryExists) : [];
+  const keep = raw.keep || {};
+  return {
+    colors,
+    face: FACES.includes(raw.face) ? raw.face : ':D',
+    accessories: cleanWorn(list) || [],
+    keep: { colors: keep.colors === true, face: keep.face === true, accessories: keep.accessories === true },
+  };
+}
+
+/** Someone's public look with a place's Appearance on top (their real avatar stays as it is). */
+function withLook(u, look) {
+  if (!look) return u;
+  const out = { ...u };
+  if (!look.keep.colors) out.colors = { ...u.colors, ...look.colors };
+  if (!look.keep.face) out.face = look.face;
+  if (!look.keep.accessories) {
+    out.accessories = look.accessories;
+    out.hat = legacyHat(look.accessories);
+  }
+  return out;
 }
 
 function finite(n, lim) {
@@ -212,6 +240,15 @@ export class GameHub {
             this.byUser.get(uid)?.conn.send({ t: 'badge', badge: { id: b.id, name: b.name, description: b.description, image: this.badges.imageUrl(b) } });
             this.target(server, uid, { o: 'badge_got', id: b.id });
           }
+          break;
+        }
+        case 'look': {
+          // Appearance from a script: this player looks like that for everyone here, in this place only.
+          const who = server.players.get(Number(op.to));
+          if (!who) break;
+          who.look = cleanLook(op.look);
+          who.user = withLook(publicUser(who.conn.user), who.look);
+          this.broadcast(server, { t: 'look', player: who.user });
           break;
         }
         case 'sit':
@@ -668,7 +705,8 @@ export class GameHub {
       conn.send({ t: 'phys_own', o: Object.fromEntries([...server.phys].map(([id, e]) => [id, e.owner])) });
     }
     if (studio) {
-      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
+      const look = { colors: player.user.colors, face: player.user.face, accessories: player.user.accessories };
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, look, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
       this.flushPlace(server);
     }
     // Every place (the playground too) keeps visit history: stats and "recently played".
@@ -851,7 +889,7 @@ export class GameHub {
     if (!entry) return;
     entry.conn.user = user;
     entry.conn.rules = chatRules(user.birthdate);
-    entry.player.user = publicUser(user);
+    entry.player.user = withLook(publicUser(user), entry.player.look);
     this.broadcast(entry.server, { t: 'look', player: entry.player.user });
   }
 

@@ -248,6 +248,9 @@ func _on_message(m: Dictionary) -> void:
 			if remotes.has(int(u.id)):
 				remotes[int(u.id)].user = u
 				remotes[int(u.id)].refresh_look()
+			elif int(u.id) == my_id:
+				# A place's Appearance (or a profile change): only this game's Melly, not the saved avatar.
+				player.avatar.apply_user(u)
 			_refresh_players()
 		"chat":
 			var id := int(m.id)

@@ -31,7 +31,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | CameraMinZoom | number | 0.5 | min 0, max 100 |
 | CameraMaxZoom | number | 14 | min 0.5, max 100 |
 
-**Methods:** `GetMouse()`, `Kick(message)`, `LoadCharacter()`, `Teleport(pos)`
+**Methods:** `GetMouse()`, `ApplyAppearance(app)`, `ResetAppearance()`, `Kick(message)`, `LoadCharacter()`, `Teleport(pos)`
 
 **Events:** `CharacterAdded`
 
@@ -227,7 +227,7 @@ Tools put here are copied into every player's Backpack each time their character
 |---|---|---|---|
 | MaxPlayers | number | 10 | read-only, min 1, max 30 |
 
-**Methods:** `GetPlayers()`, `GetPlayerByUserId(id)`, `GetPlayerFromCharacter(model)`
+**Methods:** `GetAppearanceAsync(userId)`, `GetPlayers()`, `GetPlayerByUserId(id)`, `GetPlayerFromCharacter(model)`
 
 **Events:** `PlayerAdded`, `PlayerRemoving`
 
@@ -647,6 +647,26 @@ Put it in StarterPlayer to swap one of the emote wheel's moves for your own anim
 | Slot | [EmoteSlot](#emoteslot) | "dance" |  |
 | Animation | animation | "" |  |
 | Title | string | "" |  |
+
+### Appearance
+
+*can be created with `Instance.new`*
+
+How players look **in this place only**: body colors, a **Face** and any **Accessories** (even ones they don't own), without touching their real avatar. Put one in StarterPlayer and everyone wears it when they join; turn on **KeepColors**, **KeepFace** or **KeepAccessories** to leave that part as the player's own. From a Script: `player:ApplyAppearance(app)` dresses one player, `player:ResetAppearance()` gives their own look back, and `game.Players:GetAppearanceAsync(player.UserId)` returns an Appearance with what they wear now, to change and apply.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| HeadColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| TorsoColor | Color3 | Color3.fromHex("#baa4e2") |  |
+| LeftArmColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| RightArmColor | Color3 | Color3.fromHex("#f5f1ec") |  |
+| LeftLegColor | Color3 | Color3.fromHex("#302d38") |  |
+| RightLegColor | Color3 | Color3.fromHex("#302d38") |  |
+| Face | [Face](#face) | ":D" |  |
+| Accessories | accessories | "" |  |
+| KeepColors | bool | false |  |
+| KeepFace | bool | false |  |
+| KeepAccessories | bool | false |  |
 
 ## Enums
 
