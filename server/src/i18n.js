@@ -74,6 +74,7 @@ export const MESSAGES = {
   not_found: ['No such endpoint', 'Нет такого метода'],
   // Game socket
   server_gone: ['That server has closed', 'Сервер уже закрылся'],
+  place_updated: ['This place just got updated! Moving you to a fresh server...', 'Плейс обновился! Переносим тебя на свежий сервер...'],
   server_full: ['Server is full ({n}/{n})', 'Сервер заполнен ({n}/{n})'],
   duplicate: ['You joined from another device', 'Ты зашёл(ла) в игру с другого устройства'],
 };

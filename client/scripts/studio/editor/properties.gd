@@ -73,9 +73,7 @@ func _rebuild() -> void:
 	_box.add_child(head)
 	var help := str(StudioSchema.raw(c).get("doc", ""))
 	if help != "":
-		var hl := UI.label(help, 13, UI.MUTED)
-		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_box.add_child(hl)
+		_box.add_child(UI.md_label(help, 13, UI.MUTED))
 	_row("Name", "string", {}, doc.tree.name_of(id))
 	var props: Dictionary = StudioSchema.info(c).props
 	for k in props:

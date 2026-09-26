@@ -17,9 +17,6 @@ func _ready() -> void:
 	dim.theme = UI.theme
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
-			_close())
 	add_child(dim)
 	var center := CenterContainer.new()
 	center.theme = UI.theme
@@ -29,6 +26,7 @@ func _ready() -> void:
 	_card = UI.card(24, UI.CARD, 28)
 	_card.custom_minimum_size = Vector2(760, 420)
 	center.add_child(_card)
+	UI.close_outside(dim, _card, _close)
 	var row := UI.hbox(24)
 	_card.add_child(row)
 	var stage_bg := UI.card(0, UI.BG_2, 22)

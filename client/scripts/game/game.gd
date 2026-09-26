@@ -19,6 +19,7 @@ var menu: GameMenu
 var remotes := {}  # user id -> RemotePlayer
 var users := {}  # user id -> public user dict (everyone incl. me)
 var my_id := -1
+var admin: AdminPanel
 var server_info := {}
 var _send_accum := 0.0
 var _last_sent := {}
@@ -80,7 +81,13 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind_player(player)
 	hud.menu_requested.connect(_open_menu)
-	hud.chat_submitted.connect(func(t): net.send({"t": "chat", "m": t}))
+	hud.chat_submitted.connect(func(t: String):
+		# ":a" opens the owner's admin panel instead of going to the chat.
+		if t.strip_edges().to_lower() == ":a" and _is_owner():
+			_toggle_admin()
+			return
+		net.send({"t": "chat", "m": t}))
+	hud.admin_requested.connect(_toggle_admin)
 	hud.emote_picked.connect(_emote)
 	hud.tool_picked.connect(_pick_tool)
 
@@ -252,6 +259,10 @@ func _on_message(m: Dictionary) -> void:
 					hud.add_chat("", L.t("sys_left", [m.get("n", "")]))
 				"slow":
 					hud.add_chat("", L.t("sys_slow"))
+				"muted":
+					hud.add_chat("", L.t("sys_muted"))
+				"unmuted":
+					hud.add_chat("", L.t("sys_unmuted"))
 				"no_chat":
 					hud.add_chat("", L.t("sys_no_chat"))
 				"admin":
@@ -313,6 +324,21 @@ func _on_message(m: Dictionary) -> void:
 					hud.show_overlay(str(m.get("m", "")) if str(m.get("m", "")) != "" else L.t("kicked_admin"), [[L.t("to_menu"), _leave]])
 				_:
 					hud.show_overlay(L.t("err_duplicate"), [[L.t("to_menu"), _leave]])
+		"rejoin":
+			# The place was updated: everyone here moves to a server running the new version.
+			if not Session.test_melt.is_empty():
+				return
+			_leaving = true
+			hud.show_overlay(str(m.get("m", "")) if str(m.get("m", "")) != "" else L.t("place_updated"))
+			await get_tree().create_timer(1.2).timeout
+			net.close()
+			Session.pending_server = str(m.get("server", "auto"))
+			get_tree().reload_current_scene()
+		"admin":
+			if admin:
+				admin.on_result(m)
+		"admin_kill":
+			player.die()
 		"pong":
 			_ping_ms = Time.get_ticks_msec() - int(m.c)
 
@@ -721,7 +747,7 @@ func _apply_mouse_mode() -> void:
 	var ms: Dictionary = place_host.mouse_settings if place_host else {"enabled": true, "behavior": "Default"}
 	var orbit := hud.mouse_look()
 	var lock: bool = ms.behavior != "Default" or player.first_person or orbit or player.shift_locked
-	var busy := menu.visible or hud.chat_open() or hud.inventory_open() or not get_window().has_focus() or not _joined
+	var busy := menu.visible or (admin != null and admin.visible) or hud.chat_open() or hud.inventory_open() or not get_window().has_focus() or not _joined
 	var want := Input.MOUSE_MODE_VISIBLE
 	if lock and not busy:
 		want = Input.MOUSE_MODE_CAPTURED
@@ -786,7 +812,26 @@ func _remove_remote(id: int) -> void:
 		remotes.erase(id)
 
 
+func _is_owner() -> bool:
+	return str(Session.user.get("role", "")) == "owner"
+
+
+## The owner's admin panel (made on first use).
+func _toggle_admin() -> void:
+	if not _is_owner():
+		return
+	if admin == null:
+		admin = AdminPanel.new()
+		admin.game = self
+		admin.visible = false
+		add_child(admin)
+	hud.release_touches()
+	admin.toggle()
+
+
 func _refresh_players() -> void:
+	if admin:
+		admin.refresh()
 	hud.set_server(L.field(server_info, "name"), users.size(), int(server_info.get("max_players", 10)))
 
 

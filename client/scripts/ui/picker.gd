@@ -86,9 +86,6 @@ func _open() -> void:
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(dim)
-	dim.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
-			layer.queue_free())
 	var vp := get_viewport().get_visible_rect().size
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -97,6 +94,7 @@ func _open() -> void:
 	var card := UI.card(22, UI.CARD, 18)
 	card.custom_minimum_size = Vector2(minf(460.0, vp.x - 32.0), 0)
 	center.add_child(card)
+	UI.close_outside(dim, card, layer.queue_free)
 	var v := UI.vbox(10)
 	card.add_child(v)
 	var head := UI.hbox(8)

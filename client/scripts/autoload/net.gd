@@ -49,14 +49,29 @@ func _process(_delta: float) -> void:
 		if not _was_open:
 			_was_open = true
 			connected.emit()
-		while _ws.get_available_packet_count() > 0:
+		while _ws != null and _ws.get_available_packet_count() > 0:
 			var parsed: Variant = JSON.parse_string(_ws.get_packet().get_string_from_utf8())
 			if typeof(parsed) == TYPE_DICTIONARY:
 				message.emit(parsed)
 	elif state == WebSocketPeer.STATE_CLOSED:
 		var code := _ws.get_close_code()
+		# Whatever arrived right before the close (a "please update", a kick) still counts.
+		var kicked := false
+		while _ws != null and _ws.get_available_packet_count() > 0:
+			var last: Variant = JSON.parse_string(_ws.get_packet().get_string_from_utf8())
+			if typeof(last) == TYPE_DICTIONARY and not _closing:
+				kicked = kicked or str(last.get("t", "")) == "kicked"
+				message.emit(last)
+		if _ws == null or kicked:
+			_ws = null
+			return
 		_ws = null
 		if _closing:
+			return
+		if code == 4003:
+			# Turned away for an old app version.
+			_was_open = false
+			message.emit({"t": "kicked", "code": "update", "m": ""})
 			return
 		var reason := L.t("err_ws_lost")
 		if not _was_open:

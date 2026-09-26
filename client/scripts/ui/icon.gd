@@ -198,6 +198,13 @@ func _draw() -> void:
 		"piece", "orb":
 			# The currencies are drawn from the same SVGs as the website, smooth at any size.
 			draw_texture_rect(currency_texture(kind), Rect2(Vector2.ZERO, size), false)
+		"lock":
+			# A padlock: shift lock.
+			_line([Vector2(5, 11), Vector2(19, 11), Vector2(19, 21), Vector2(5, 21), Vector2(5, 11)])
+			_arc(Vector2(12, 8), 4.5, PI, TAU)
+			_line([Vector2(7.5, 8), Vector2(7.5, 11)])
+			_line([Vector2(16.5, 8), Vector2(16.5, 11)])
+			_circle(Vector2(12, 16), 1.4, true)
 		"run":
 			# A lightning bolt: go fast.
 			_poly([Vector2(13.5, 2.5), Vector2(5, 13.5), Vector2(11, 13.5), Vector2(9.5, 21.5), Vector2(19, 9.5), Vector2(13, 9.5)])

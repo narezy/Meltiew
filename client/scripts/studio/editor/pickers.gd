@@ -160,8 +160,21 @@ static func animation(parent: Node, allow_none: bool, done: Callable, open_anima
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		mine.add_child(l)
 	for a in items:
-		var b := UI.button("%s   · %s · %.1f s" % [str(a.name), str(a.ref), float(a.length)], "flat", 40)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# Each one with its id (what scripts play) and a button to copy it.
 		var ref := str(a.ref)
+		var row := UI.hbox(6)
+		var b := UI.button("%s  · %.1f s" % [str(a.name), float(a.length)], "flat", 44)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func(): pick.call(ref))
-		mine.add_child(b)
+		row.add_child(b)
+		var cp := UI.button(ref, "ghost", 44)
+		cp.add_theme_font_size_override("font_size", 14)
+		cp.add_theme_color_override("font_color", UI.MINT)
+		cp.tooltip_text = L.t("an_copy")
+		cp.pressed.connect(func():
+			DisplayServer.clipboard_set(ref)
+			UI.toast(L.t("st_copied") + ": " + ref, "ok"))
+		row.add_child(cp)
+		mine.add_child(row)

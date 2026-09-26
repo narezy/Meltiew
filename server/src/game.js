@@ -28,6 +28,9 @@ const MAX_VM_FAILURES = 20;
 const LOG_LINES = 200;
 const TOOL_EVENTS = new Set(['equip', 'unequip', 'activate', 'deactivate', 'drop']);
 const EMPTY_SERVER_TTL_MS = 30_000;
+// After the creator saves a new version, live servers wait this long (more saves
+// restart the wait) and then move everyone to a fresh server running it.
+const MIGRATE_DELAY_MS = 4000;
 const WORLD_LIMIT = 400;
 export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead', 'climb']);
 export const HEART_COOLDOWN_MS = 2500;
@@ -57,6 +60,15 @@ function publicUser(u) {
     role: u.role || 'user',
     face: u.face || ':D',
   };
+}
+
+/** The platform's owner (nrz): the only one with the in-game admin panel. */
+export function isOwner(user) {
+  return user?.role === 'owner';
+}
+
+function meltHash(melt) {
+  return crypto.createHash('sha1').update(JSON.stringify(melt)).digest('hex');
 }
 
 function finite(n, lim) {
@@ -105,6 +117,7 @@ export class GameHub {
     const melt = this.places.load(placeId);
     if (!row || !melt) throw new Error('no place');
     const vm = await PlaceVM.create();
+    const hash = meltHash(melt);
     let id;
     do id = crypto.randomBytes(3).toString('hex'); while (this.servers.has(id));
     this.nameCounter += 1;
@@ -131,6 +144,9 @@ export class GameHub {
       logs: [],
       failures: 0,
       lastStep: Date.now(),
+      hash, // which version of the place this server runs
+      retired: false, // replaced by a server with the newer version
+      migrateAt: 0,
     };
     this.servers.set(id, server);
     this.routeOps(server, vm.init({ role: 'server', place: melt, seed: crypto.randomInt(1 << 30) }));
@@ -268,6 +284,37 @@ export class GameHub {
     this.flushPlace(server);
   }
 
+  /** The creator saved the place: servers running an older version move everyone soon. */
+  placeUpdated(placeId) {
+    const melt = this.places?.load(placeId);
+    if (!melt) return;
+    const hash = meltHash(melt);
+    for (const s of this.servers.values()) {
+      if (s.game !== placeId || !s.vm || s.retired || s.hash === hash) continue;
+      if (s.players.size === 0) {
+        s.retired = true; // nobody to move: just never hand it out again
+        continue;
+      }
+      s.migrateAt = Date.now() + MIGRATE_DELAY_MS;
+    }
+  }
+
+  /** Starts a server with the place's newest version and sends this server's players to it. */
+  async migrate(server) {
+    server.migrateAt = 0;
+    server.retired = true;
+    let fresh;
+    try {
+      fresh = await this.createPlaceServer(server.game);
+    } catch (err) {
+      this.log(`migrate ${server.id} failed: ${err.message}`);
+      return;
+    }
+    fresh.maxPlayers = Math.max(fresh.maxPlayers, server.players.size);
+    this.log(`place ${server.game} updated: moving ${server.players.size} from ${server.id} to ${fresh.id}`);
+    for (const p of server.players.values()) p.conn.send({ t: 'rejoin', server: fresh.id, m: msg('place_updated', p.conn.lang) });
+  }
+
   /** Closes every server of a studio place (it was deleted or made private). */
   closePlace(placeId) {
     for (const s of [...this.servers.values()]) if (s.game === placeId) this.closeServer(s.id);
@@ -295,7 +342,7 @@ export class GameHub {
 
   listServers(game = 'playground') {
     return [...this.servers.values()]
-      .filter((s) => s.game === game)
+      .filter((s) => s.game === game && !s.retired)
       .map((s) => this.describe(s))
       .sort((a, b) => b.players - a.players || a.created_at - b.created_at);
   }
@@ -342,7 +389,7 @@ export class GameHub {
     let best = null;
     let bestScore = -1;
     for (const s of this.servers.values()) {
-      if (s.game !== game || s.players.size >= (s.maxPlayers || MAX_PLAYERS)) continue;
+      if (s.game !== game || s.retired || s.players.size >= (s.maxPlayers || MAX_PLAYERS)) continue;
       let friends = 0;
       for (const id of s.players.keys()) if (friendIds.has(id)) friends += 1;
       const score = friends * 100 + s.players.size;
@@ -428,6 +475,8 @@ export class GameHub {
         return;
       case 'ping':
         return conn.send({ t: 'pong', c: m.c ?? 0, s: Date.now() });
+      case 'admin':
+        return this.adminCommand(conn, m);
       default:
     }
   }
@@ -468,6 +517,8 @@ export class GameHub {
     if (m.server && m.server !== 'auto' && m.server !== 'new') {
       server = this.servers.get(String(m.server));
       if (!server || server.game !== game) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
+      // A server replaced by a newer version of the place: go to a current one instead.
+      if (server.retired) server = this.pickServer(game, this.loadFriends(conn.user.id)) || (await this.createPlaceServer(game));
     } else {
       if (m.server !== 'new') server = this.pickServer(game, this.loadFriends(conn.user.id));
       if (!server) server = studio ? await this.createPlaceServer(game) : this.createServer(game);
@@ -533,8 +584,12 @@ export class GameHub {
     const pl = conn.player;
     if (!pl || !Array.isArray(m.p)) return;
     const pos = [finite(m.p[0], WORLD_LIMIT), finite(m.p[1], WORLD_LIMIT), finite(m.p[2], WORLD_LIMIT)];
-    const bad = pl.guard.check(pos, this.limitsFor(conn.server, conn.user.id));
-    if (bad) return this.caught(conn, pl, bad);
+    // The platform owner flies and speeds around with the in-game admin panel.
+    if (isOwner(conn.user)) pl.guard.reset(pos);
+    else {
+      const bad = pl.guard.check(pos, this.limitsFor(conn.server, conn.user.id));
+      if (bad) return this.caught(conn, pl, bad);
+    }
     pl.p = pos;
     pl.r = finite(m.r, 100);
     // Built-in states, or a custom animation from the animator (anim://<id>).
@@ -575,6 +630,7 @@ export class GameHub {
     conn.lastChat = now;
     if (conn.chatBurst > 6) return conn.send({ t: 'sys', k: 'slow' });
     if (!conn.rules.chat) return conn.send({ t: 'sys', k: 'no_chat' });
+    if (conn.server.muted?.has(conn.user.id)) return conn.send({ t: 'sys', k: 'muted' });
     const base = { t: 'chat', id: conn.user.id, name: conn.user.display_name };
     // Staff get their badge next to the name, like on profiles.
     if (conn.user.role === 'owner' || conn.user.role === 'admin') base.role = conn.user.role;
@@ -586,6 +642,55 @@ export class GameHub {
       // The sender always sees what they typed; minors get the filtered version.
       const data = p.conn !== conn && p.conn.rules.filter_chat ? clean : raw;
       if (p.conn.ws.readyState === 1) p.conn.ws.send(data);
+    }
+  }
+
+  /**
+   * The in-game admin panel (the platform owner only): mute for this server, kick,
+   * bring, kill, announce. Flying and speed happen in the owner's own app.
+   */
+  adminCommand(conn, m) {
+    const server = conn.server;
+    if (!server || !isOwner(conn.user)) return;
+    const target = server.players.get(Number(m.id));
+    server.muted ??= new Set();
+    const done = (k, name = '') => conn.send({ t: 'admin', ok: k, name, muted: [...server.muted] });
+    switch (m.cmd) {
+      case 'state':
+        return done('state');
+      case 'mute':
+        if (!target || target.conn === conn) return;
+        server.muted.add(target.user.id);
+        target.conn.send({ t: 'sys', k: 'muted' });
+        return done('mute', target.user.display_name);
+      case 'unmute':
+        if (!target) return;
+        server.muted.delete(target.user.id);
+        target.conn.send({ t: 'sys', k: 'unmuted' });
+        return done('unmute', target.user.display_name);
+      case 'kick':
+        if (!target || target.conn === conn) return;
+        this.kick(target.user.id, 'kicked', '');
+        return done('kick', target.user.display_name);
+      case 'bring': {
+        if (!target || target.conn === conn) return;
+        const p = conn.player.p;
+        const pos = [p[0] + 1.5, p[1] + 0.5, p[2]];
+        target.guard.reset(pos);
+        target.conn.send({ t: 'correct', p: pos });
+        return done('bring', target.user.display_name);
+      }
+      case 'kill':
+        if (!target) return;
+        target.conn.send({ t: 'admin_kill' });
+        return done('kill', target.user.display_name);
+      case 'announce': {
+        const text = String(m.m ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200);
+        if (!text) return;
+        this.broadcast(server, { t: 'sys', k: 'admin', m: text });
+        return done('announce');
+      }
+      default:
     }
   }
 
@@ -696,6 +801,7 @@ export class GameHub {
         }
         continue;
       }
+      if (server.migrateAt && now >= server.migrateAt) this.migrate(server);
       if (server.vm) this.stepPlace(server, now);
       const states = [];
       for (const [id, p] of server.players) {

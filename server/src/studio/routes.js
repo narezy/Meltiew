@@ -167,6 +167,8 @@ export function createStudioRoutes(ctx) {
       store.write(row.id, melt);
       const m = melt.meta;
       q.saveMeta.run(m.name, m.i18n.name.ru || m.name, m.description, m.i18n.description.ru || m.description, JSON.stringify(m.i18n), Date.now(), row.id);
+      // Anyone playing an older version is moved to a fresh server shortly.
+      hub.placeUpdated?.(row.id);
       return { place: studioView(q.one.get(row.id), user, pickLang(req)), meta: m };
     },
 

@@ -271,6 +271,25 @@ func avatar_badge(u: Dictionary, size := 52) -> Control:
 	return p
 
 
+## Closes a popup only on a tap that starts and ends on the dim around `card`:
+## pressing inside the card, or dragging to scroll, never closes it.
+func close_outside(dim: Control, card: Control, on_close: Callable) -> void:
+	var st := {"down": false, "at": Vector2.ZERO}
+	dim.gui_input.connect(func(e: InputEvent):
+		if not (e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT):
+			return
+		var p: Vector2 = dim.get_global_transform() * e.position
+		var outside := not card.get_global_rect().has_point(p)
+		if e.pressed:
+			st.down = outside
+			st.at = p
+			return
+		var close: bool = st.down and outside and p.distance_to(st.at) < 16.0
+		st.down = false
+		if close:
+			on_close.call())
+
+
 func confirm(parent: Node, title: String, text: String, ok_text := "", danger := false) -> bool:
 	if ok_text == "":
 		ok_text = L.t("yes")
@@ -491,6 +510,39 @@ func _build_theme() -> Theme:
 	t.set_stylebox("normal", "RichTextLabel", StyleBoxEmpty.new())
 	t.set_stylebox("focus", "RichTextLabel", StyleBoxEmpty.new())
 	return t
+
+
+## A wrapped label for the little bit of Markdown our docs use: **bold**, *italic*,
+## `code` and [links](url) (shown as their text).
+func md_label(text: String, size := 15, color := MUTED) -> RichTextLabel:
+	var r := RichTextLabel.new()
+	r.bbcode_enabled = true
+	r.fit_content = true
+	r.scroll_active = false
+	r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	r.mouse_filter = Control.MOUSE_FILTER_PASS
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.add_theme_font_size_override("normal_font_size", size)
+	r.add_theme_font_size_override("bold_font_size", size)
+	r.add_theme_font_size_override("italics_font_size", size)
+	r.add_theme_color_override("default_color", color)
+	r.text = md_to_bbcode(text)
+	return r
+
+
+static func md_to_bbcode(md: String) -> String:
+	# Brackets are BBCode, so real ones are escaped (links become their text first).
+	var out := md.replace("[", "\u0001").replace("]", "\u0002")
+	var re := RegEx.create_from_string("\u0001(.+?)\u0002\\([^)\\s]*\\)")
+	out = re.sub(out, "$1", true)
+	out = out.replace("\u0001", "[lb]").replace("\u0002", "[rb]")
+	re = RegEx.create_from_string("`([^`]+)`")
+	out = re.sub(out, "[color=#c9b8ff]$1[/color]", true)
+	re = RegEx.create_from_string("\\*\\*(.+?)\\*\\*")
+	out = re.sub(out, "[b]$1[/b]", true)
+	re = RegEx.create_from_string("(^|[^*\\w])\\*([^*\\s][^*]*?)\\*(?!\\w)")
+	out = re.sub(out, "$1[i]$2[/i]", true)
+	return out
 
 
 ## Calls `cb` on a tap (press + release without dragging), so rows inside

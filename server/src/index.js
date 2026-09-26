@@ -126,8 +126,10 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
     wss.handleUpgrade(req, socket, head, (ws) => {
       const lang = LANGUAGE_CODES.has(url.searchParams.get('lang')) ? url.searchParams.get('lang') : pickLang(req);
       if (!api.gate.allows('app', url.searchParams.get('v'))) {
+        // Close a moment later: apps read messages only while the socket is open,
+        // so an instant close would swallow the "please update" and look like a crash.
         ws.send(JSON.stringify({ t: 'kicked', code: 'update', m: msg('update_required', lang, { v: api.gate.min() }) }));
-        ws.close(4003, 'update');
+        setTimeout(() => ws.close(4003, 'update'), 1500).unref?.();
         return;
       }
       ws.isAlive = true;

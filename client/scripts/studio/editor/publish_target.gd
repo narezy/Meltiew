@@ -34,9 +34,7 @@ static func choose(parent: Node, current_id: String) -> Dictionary:
 
 	var result := [null]
 	close.pressed.connect(func(): result[0] = {})
-	dim.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
-			result[0] = {})
+	UI.close_outside(dim, card, func(): result[0] = {})
 
 	var current_name := ""
 	var others: Array = []

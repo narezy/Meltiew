@@ -21,7 +21,7 @@ var _mode_buttons := {}
 var _name: LineEdit
 var _length: SpinBox
 var _loop: CheckBox
-var _ref: Label
+var _ref: Button
 var _playhead: HSlider
 var _time_label: Label
 var _play_btn: Button
@@ -75,13 +75,12 @@ func _ready() -> void:
 		data.loop = on
 		_refresh())
 	top.add_child(_loop)
-	# The saved id: click it to copy.
-	_ref = UI.label("", 15, UI.MINT, "bold")
-	_ref.mouse_filter = Control.MOUSE_FILTER_STOP
+	# The saved id scripts use: tap it to copy.
+	_ref = UI.button(L.t("an_id_none"), "ghost", 40)
+	_ref.add_theme_font_size_override("font_size", 14)
+	_ref.add_theme_color_override("font_color", UI.MINT)
 	_ref.tooltip_text = L.t("an_copy")
-	_ref.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
-			_copy_ref())
+	_ref.pressed.connect(_copy_ref)
 	top.add_child(_ref)
 	for it in [["an_new", _new, "ghost"], ["an_open", _open_list, "ghost"], ["an_save", _save, "primary"], ["an_close", func(): visible = false, "ghost"]]:
 		var b := UI.button(L.t(it[0]), it[2], 40)
@@ -437,7 +436,7 @@ func _new() -> void:
 	_length.value = 2.0
 	_loop.button_pressed = true
 	_time = 0.0
-	_ref.text = ""
+	_set_ref("")
 	_refresh()
 
 
@@ -453,15 +452,25 @@ func _save() -> void:
 		return
 	anim_id = int(r.data.animation.id)
 	CustomAnims.put(anim_id, data.duplicate(true))
-	_ref.text = str(r.data.animation.ref)
-	DisplayServer.clipboard_set(_ref.text)
-	UI.toast(L.t("an_saved", [_ref.text]), "ok")
+	_set_ref(str(r.data.animation.ref))
+	DisplayServer.clipboard_set(_ref_value)
+	UI.toast(L.t("an_saved", [_ref_value]), "ok")
+
+
+var _ref_value := ""
+
+
+func _set_ref(ref: String) -> void:
+	_ref_value = ref
+	_ref.text = "ID  " + ref if ref != "" else L.t("an_id_none")
 
 
 func _copy_ref() -> void:
-	if _ref.text != "":
-		DisplayServer.clipboard_set(_ref.text)
-		UI.toast(L.t("st_copied"), "ok")
+	if _ref_value != "":
+		DisplayServer.clipboard_set(_ref_value)
+		UI.toast(L.t("st_copied") + ": " + _ref_value, "ok")
+	else:
+		UI.toast(L.t("an_id_hint"))
 
 
 func _open_list() -> void:
@@ -485,6 +494,6 @@ func _load(id: int) -> void:
 	_name.text = str(a.name)
 	_length.value = float(data.length)
 	_loop.button_pressed = data.get("loop", false)
-	_ref.text = str(a.ref) if anim_id > 0 else ""
+	_set_ref(str(a.ref) if anim_id > 0 else "")
 	_time = 0.0
 	_refresh()

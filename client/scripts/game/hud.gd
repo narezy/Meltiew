@@ -7,12 +7,16 @@ signal chat_submitted(text: String)
 signal emote_picked(emote: String)
 ## A tool picked in the hotbar or inventory (the one in hand again = put it away).
 signal tool_picked(id: String)
+## ~ on a keyboard, for the platform owner's admin panel.
+signal admin_requested
 
 var player: LocalPlayer
 var joystick: Joystick
 var jump_btn: TouchButton
 var emote_btn: TouchButton
 var sprint_btn: TouchButton
+## Phones: shift lock on a button (Ctrl does it on a computer).
+var lock_btn: TouchButton
 var _stamina_bg: Panel
 var _stamina_fill: Panel
 var wheel: EmoteWheel
@@ -226,12 +230,18 @@ func _ready() -> void:
 	jump_btn = TouchButton.make("jump", 120)
 	emote_btn = TouchButton.make("smile", 78)
 	sprint_btn = TouchButton.make("run", 78)
-	for b in [jump_btn, emote_btn, sprint_btn]:
+	lock_btn = TouchButton.make("lock", 64)
+	for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
 		b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		_root.add_child(b)
 	_place(jump_btn, Vector2(-165, -175))
 	_place(emote_btn, Vector2(-265, -110))
 	_place(sprint_btn, Vector2(-144, -272))
+	_place(lock_btn, Vector2(-238, -250))
+	lock_btn.pressed_down.connect(func():
+		if player:
+			player.shift_locked = not player.shift_locked
+			lock_btn.latched = player.shift_locked)
 	# Tap to run, tap again to walk (holding a button while steering is awkward on a phone).
 	sprint_btn.pressed_down.connect(func():
 		if player:
@@ -246,6 +256,7 @@ func _ready() -> void:
 	if not DisplayServer.is_touchscreen_available():
 		jump_btn.visible = false
 		sprint_btn.visible = false
+		lock_btn.visible = false
 
 	wheel = EmoteWheel.new()
 	wheel.theme = UI.theme
@@ -837,7 +848,7 @@ func mouse_look() -> bool:
 
 
 func release_touches() -> void:
-	for b in [jump_btn, emote_btn, sprint_btn]:
+	for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
 		b.force_release()
 	joystick.reset()
 	_pinch.clear()
@@ -858,7 +869,7 @@ func _blocked(pos: Vector2) -> bool:
 func tap_allowed(pos: Vector2) -> bool:
 	if _blocked(pos) or _overlay.visible or wheel.visible:
 		return false
-	for b in [jump_btn, emote_btn, sprint_btn]:
+	for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
 		if b.visible and b.get_global_rect().has_point(pos):
 			return false
 	return pos.x >= get_viewport().get_visible_rect().size.x * 0.42
@@ -891,7 +902,7 @@ func _input(event: InputEvent) -> void:
 
 func _touch(e: InputEventScreenTouch) -> void:
 	if e.pressed:
-		for b in [jump_btn, emote_btn, sprint_btn]:
+		for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
 			if b.touch_press(e.index, e.position):
 				return
 		if _blocked(e.position):
@@ -904,7 +915,7 @@ func _touch(e: InputEventScreenTouch) -> void:
 			if _cam_finger < 0:
 				_cam_finger = e.index
 	else:
-		for b in [jump_btn, emote_btn, sprint_btn]:
+		for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
 			b.touch_release(e.index)
 		joystick.end(e.index)
 		_pinch.erase(e.index)
@@ -946,6 +957,9 @@ func _desktop(event: InputEvent) -> void:
 			if event.keycode == KEY_ESCAPE:
 				toggle_chat()
 			return
+		# Typing in some other field (the admin panel's announcement): keys are text.
+		if get_viewport().gui_get_focus_owner() is LineEdit:
+			return
 		match event.keycode:
 			KEY_ENTER, KEY_KP_ENTER, KEY_T, KEY_SLASH:
 				# Open chat that lost focus: jump back into typing instead of closing it.
@@ -967,6 +981,12 @@ func _desktop(event: InputEvent) -> void:
 			KEY_1, KEY_2, KEY_3:
 				_pick_slot(event.keycode - KEY_1)
 			KEY_QUOTELEFT:
+				# The platform owner's admin panel; everyone else gets the inventory.
+				if str(Session.user.get("role", "")) == "owner":
+					admin_requested.emit()
+				else:
+					toggle_inventory()
+			KEY_I:
 				toggle_inventory()
 			KEY_R:
 				player.die()
@@ -979,10 +999,16 @@ func _desktop(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if player:
 		player.move_input = joystick.value
-		player.keyboard_blocked = chat_open()
+		player.keyboard_blocked = chat_open() or get_viewport().gui_get_focus_owner() is LineEdit
 		player.sprint = Input.is_key_pressed(KEY_SHIFT) and not player.keyboard_blocked
 		player.jump_held = (Input.is_key_pressed(KEY_SPACE) and not player.keyboard_blocked) or jump_btn.is_down()
-		if player.shift_locked and not Session.settings.get("shift_lock", false):
+		if DisplayServer.is_touchscreen_available():
+			lock_btn.visible = not player.dead and player.camera_mode != "LockFirstPerson" and not player.first_person
+			if not lock_btn.visible and player.shift_locked:
+				player.shift_locked = false
+			if lock_btn.latched != player.shift_locked:
+				lock_btn.latched = player.shift_locked
+		elif player.shift_locked and not Session.settings.get("shift_lock", false):
 			player.shift_locked = false
 		# Arrow keys turn the camera (left/right) and tilt it (up/down).
 		if not player.keyboard_blocked and not DisplayServer.is_touchscreen_available():

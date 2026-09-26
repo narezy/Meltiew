@@ -116,9 +116,6 @@ static func _sheet(parent: Node, title: String, width := 560.0) -> Array:
 	dim.color = Color(0, 0, 0, 0.65)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(dim)
-	dim.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
-			layer.queue_free())
 	var vp := parent.get_viewport().get_visible_rect().size
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -127,6 +124,7 @@ static func _sheet(parent: Node, title: String, width := 560.0) -> Array:
 	var card := UI.card(22, UI.CARD, 22)
 	card.custom_minimum_size = Vector2(minf(width, vp.x - 32.0), 0)
 	center.add_child(card)
+	UI.close_outside(dim, card, layer.queue_free)
 	var outer := UI.vbox(12)
 	card.add_child(outer)
 	var head := UI.hbox(8)

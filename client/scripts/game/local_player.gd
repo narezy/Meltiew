@@ -106,6 +106,12 @@ var _emote := ""
 var _since_hurt := 10.0
 var _shake := 0.0
 var _shake_power := 1.0
+## Where Melly is drawn relative to the body right after a step up (glides back to zero).
+var _step_offset := Vector3.ZERO
+var _step_cooldown := 0.0
+## The owner's admin panel: fly where the camera looks, and a walk speed override (0 = off).
+var flying := false
+var admin_speed := 0.0
 
 
 func _ready() -> void:
@@ -215,16 +221,27 @@ func zoom_camera(amount: float) -> void:
 	_set_first_person(cam_distance < 1.2)
 
 
-## Walks onto a ledge up to STEP_HEIGHT without jumping: if the way ahead is blocked
-## but clear a step higher, and there's ground to stand on there, lift up onto it.
-func _step_up(step: Vector3) -> void:
-	if step.length() < 0.0005 or not test_move(global_transform, step):
+## Walks onto a ledge up to STEP_HEIGHT without jumping, only while walking into it
+## on purpose: the way ahead is blocked by a wall-like edge (never a slope), it's clear
+## a step higher, and there's flat ground to stand on up there. The body goes up at
+## once but Melly and the camera glide after it, so it reads as a quick step.
+func _step_up(step: Vector3, wants: Vector3) -> void:
+	if _step_cooldown > 0.0 or step.length() < 0.0005:
+		return
+	var along := Vector3(step.x, 0, step.z).normalized()
+	if wants.length() < 0.2 or wants.normalized().dot(along) < 0.5:
+		return
+	var hit := KinematicCollision3D.new()
+	if not test_move(global_transform, step, hit):
+		return
+	var n := hit.get_normal()
+	if n.y > 0.35 or Vector3(n.x, 0, n.z).normalized().dot(-along) < 0.5:
 		return
 	var up := Vector3(0, STEP_HEIGHT, 0)
 	if test_move(global_transform, up):
 		return
 	var raised := global_transform.translated(up)
-	var ahead := step.normalized() * maxf(step.length(), 0.3)
+	var ahead := along * 0.45
 	if test_move(raised, ahead):
 		return
 	var col := KinematicCollision3D.new()
@@ -232,17 +249,13 @@ func _step_up(step: Vector3) -> void:
 	if not test_move(probe, -up, col):
 		return
 	var rise := STEP_HEIGHT - col.get_travel().length()
-	if rise < 0.03 or col.get_normal().y < 0.7:
+	if rise < 0.08 or col.get_normal().y < 0.85:
 		return
-	# Stand on the ledge itself (a little in from its edge, or the round feet slide back off).
+	var from := global_position
 	global_position = probe.origin - up + Vector3(0, rise + 0.02, 0)
+	_step_offset += from - global_position
+	_step_cooldown = 0.2
 	velocity.y = maxf(velocity.y, 0.0)
-	# The step pushed the walk speed to zero against the edge: give it back.
-	var hv := Vector3(velocity.x, 0, velocity.z)
-	if hv.length() < walk_speed * 0.5:
-		var keep := step.normalized() * walk_speed * 0.5
-		velocity.x = keep.x
-		velocity.z = keep.z
 
 
 ## Starts climbing when walking into a Climbable part; at the top, hops up onto it.
@@ -453,6 +466,13 @@ func _physics_process(delta: float) -> void:
 	_jump_buffer -= delta
 
 	_climb_cooldown -= delta
+	_step_cooldown -= delta
+	if _step_offset != Vector3.ZERO:
+		_step_offset = _step_offset.move_toward(Vector3.ZERO, delta * (2.0 + _step_offset.length() * 9.0))
+		avatar.position = _step_offset
+	if flying:
+		_fly(delta)
+		return
 	if not on_floor and not climbing:
 		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
@@ -497,6 +517,8 @@ func _physics_process(delta: float) -> void:
 	var sprinting := (sprint or sprint_toggle) and can_sprint and not winded and input.length() > 0.1 and not seated
 	_update_stamina(delta, sprinting)
 	var top := sprint_speed if sprinting else walk_speed
+	if admin_speed > 0.0:
+		top = admin_speed * (1.4 if sprinting else 1.0)
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
 	var rate := ((ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL) * traction
@@ -515,7 +537,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = hv.x + external_push.x
 	velocity.z = hv.z + external_push.z
 	if (on_floor or _was_on_floor) and not climbing:
-		_step_up(Vector3(velocity.x, 0, velocity.z) * delta)
+		_step_up(Vector3(velocity.x, 0, velocity.z) * delta, dir)
 	move_and_slide()
 	_update_climb(dir)
 	velocity.x -= external_push.x
@@ -579,7 +601,7 @@ func _update_camera(delta: float) -> void:
 		camera.top_level = false
 		camera.transform = Transform3D()
 	var body := get_global_transform_interpolated().origin
-	var target := body + Vector3(0, EYE_HEIGHT if first_person else 1.5, 0)
+	var target := body + _step_offset + Vector3(0, EYE_HEIGHT if first_person else 1.5, 0)
 	# Over the shoulder while shift-locked (eased in and out).
 	_shoulder = lerpf(_shoulder, 1.4 if shift_locked and not first_person else 0.0, minf(delta * 10.0, 1.0))
 	target += Basis(Vector3.UP, cam_yaw) * Vector3(_shoulder, 0, 0)
@@ -593,3 +615,35 @@ func _update_camera(delta: float) -> void:
 	_camera_pivot.rotation = Vector3(cam_pitch, cam_yaw, 0) + shake
 	var want := 0.0 if first_person else cam_distance
 	_spring.spring_length = lerpf(_spring.spring_length, want, minf(delta * 12.0, 1.0))
+
+
+## Admin flight: the stick or WASD go where the camera looks, jump / Space / E rise, Q sinks.
+func _fly(delta: float) -> void:
+	_fall_speed = 0.0
+	_jump_buffer = 0.0
+	climbing = false
+	var input := move_input
+	var rise := 1.0 if jump_held else 0.0
+	if not keyboard_blocked:
+		var kb := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		if kb.length() > input.length():
+			input = kb
+		rise += float(Input.is_physical_key_pressed(KEY_E)) - float(Input.is_physical_key_pressed(KEY_Q))
+	if input.length() > 1.0:
+		input = input.normalized()
+	var look := Basis(Vector3.UP, cam_yaw) * Basis(Vector3.RIGHT, cam_pitch)
+	var dir := look * Vector3(input.x, 0, input.y) + Vector3.UP * clampf(rise, -1.0, 1.0)
+	var speed := maxf(admin_speed, 24.0) * (1.6 if sprint or sprint_toggle else 1.0)
+	velocity = velocity.lerp(dir.limit_length(1.0) * speed, minf(delta * 6.0, 1.0))
+	move_and_slide()
+	var flat := Vector3(velocity.x, 0, velocity.z)
+	if first_person or shift_locked:
+		_facing = cam_yaw
+	elif flat.length() > 0.5:
+		_facing = lerp_angle(_facing, atan2(-flat.x, -flat.z), minf(delta * TURN_SPEED, 1.0))
+	avatar.rotation.y = _facing
+	_anim_state = "jump" if velocity.length() > 1.0 else "idle"
+	if _emote != "":
+		avatar.play(_emote)
+	else:
+		avatar.play(_anim_state)
