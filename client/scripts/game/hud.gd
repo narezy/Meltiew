@@ -874,6 +874,13 @@ func _input(event: InputEvent) -> void:
 		return
 	if _overlay.visible or wheel.visible:
 		return
+	# Tapping or clicking anywhere outside the chat stops typing (and drops the keyboard).
+	if _chat_input.has_focus() and ((event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed)):
+		var at: Vector2 = event.position
+		if not _chat_panel.get_global_rect().has_point(at) and not _chat_input_row.get_global_rect().has_point(at):
+			_chat_input.release_focus()
+			if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+				DisplayServer.virtual_keyboard_hide()
 	if event is InputEventScreenTouch:
 		_touch(event)
 	elif event is InputEventScreenDrag:
@@ -974,6 +981,7 @@ func _process(delta: float) -> void:
 		player.move_input = joystick.value
 		player.keyboard_blocked = chat_open()
 		player.sprint = Input.is_key_pressed(KEY_SHIFT) and not player.keyboard_blocked
+		player.jump_held = (Input.is_key_pressed(KEY_SPACE) and not player.keyboard_blocked) or jump_btn.is_down()
 		if player.shift_locked and not Session.settings.get("shift_lock", false):
 			player.shift_locked = false
 		# Arrow keys turn the camera (left/right) and tilt it (up/down).

@@ -2742,7 +2742,7 @@ local function loadCharacter(player)
 	table.insert(D[model].children, root)
 	local hum = create("Humanoid")
 	local hp = D[hum].props
-	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen", "Traction" } do
+	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen", "Traction", "Bhop", "BhopMaxSpeed" } do
 		local v = starterValue(k)
 		if v ~= nil then
 			hp[k] = v
@@ -3796,7 +3796,7 @@ G.__limits = function()
 		local hp = hum and D[hum] and D[hum].props
 		out[tostring(uid)] = {
 			walk = hp and hp.WalkSpeed or 5,
-			sprint = hp and (hp.CanSprint ~= false and math.max(hp.SprintSpeed, hp.WalkSpeed) or hp.WalkSpeed) or 7,
+			sprint = hp and math.max(hp.CanSprint ~= false and math.max(hp.SprintSpeed, hp.WalkSpeed) or hp.WalkSpeed, hp.Bhop and hp.BhopMaxSpeed or 0) or 7,
 			jump = hp and (hp.CanJump and hp.JumpPower or 0) or 8.2,
 			gravity = ws.Gravity or 22,
 			check = starterValue("AntiCheat") ~= false,

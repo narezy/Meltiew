@@ -7,6 +7,8 @@ signal open_script(id: String)
 signal pick_asset(done: Callable)
 ## Like pick_asset, for the uploaded sounds.
 signal pick_sound(done: Callable)
+## The animation picker's "make one" button.
+signal open_animator
 
 var doc: EditDoc
 var _box: VBoxContainer
@@ -216,6 +218,35 @@ func _editor(key: String, type: String, p: Dictionary, value: Variant) -> Contro
 			h.add_child(b)
 			_updaters[key] = func(v): fill.call(str(v))
 			return h
+		"accessories":
+			# A Rig's accessories: how many, and a sheet with all of them to tap on and off.
+			var list := func(v) -> Array:
+				var out: Array = []
+				for a in str(v).split(",", false):
+					out.append(a.strip_edges())
+				return out
+			var b := UI.button("", "ghost", 32)
+			b.add_theme_font_size_override("font_size", 14)
+			var show := func(v): b.text = L.t("st_acc_count", [list.call(v).size()])
+			show.call(value)
+			b.pressed.connect(func():
+				StudioPickers.accessories(self, list.call(doc.tree.prop(doc.primary(), key)), func(worn: Array):
+					_apply(key, ",".join(worn))))
+			_updaters[key] = show
+			return b
+		"animation":
+			var b := UI.button("", "ghost", 32)
+			b.add_theme_font_size_override("font_size", 14)
+			b.clip_text = true
+			var show := func(v):
+				var ref := str(v)
+				b.text = "—" if ref == "" else (ref if ref.begins_with("anim://") else L.t("anim_" + ref))
+			show.call(value)
+			var allow_none: bool = StudioSchema.default_of(doc.tree.cls(doc.primary()), key) == ""
+			b.pressed.connect(func():
+				StudioPickers.animation(self, allow_none, func(ref: String): _apply(key, ref), func(): open_animator.emit()))
+			_updaters[key] = show
+			return b
 		"Instance":
 			var shown := "—"
 			if value is Dictionary and value.has("$i"):

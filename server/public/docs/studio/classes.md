@@ -52,6 +52,8 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | WalkSpeed | number | 5 | min 0 |
 | SprintSpeed | number | 7 | min 0 |
 | Traction | number | 1 | min 0.1, max 50 |
+| Bhop | bool | false |  |
+| BhopMaxSpeed | number | 24 | min 1, max 200 |
 | CanSprint | bool | true |  |
 | MaxStamina | number | 100 | min 0 |
 | StaminaDrain | number | 20 | min 0 |
@@ -187,6 +189,8 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | WalkSpeed | number | 5 | min 0, max 60 |
 | SprintSpeed | number | 7 | min 0, max 80 |
 | Traction | number | 1 | min 0.1, max 50 |
+| Bhop | bool | false |  |
+| BhopMaxSpeed | number | 24 | min 1, max 200 |
 | CanSprint | bool | true |  |
 | MaxStamina | number | 100 | min 0 |
 | StaminaDrain | number | 20 | min 0 |

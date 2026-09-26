@@ -118,6 +118,13 @@ humanoid.CanSprint = false  -- a stealth level: walking only
 ```lua
 humanoid.WalkSpeed = 40
 humanoid.Traction = 12      -- fast, but turns on the spot
+```
+
+`Bhop = true` turns on bunny hopping: holding jump hops again the moment you land, every hop keeps your speed and adds a little, and you can steer in the air, up to `BhopMaxSpeed` (studs per second, 24 by default). Give it to everyone on StarterPlayer, or as a reward:
+
+```lua
+humanoid.Bhop = true
+humanoid.BhopMaxSpeed = 40
 ``` `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
 
 Defaults for every new character come from **StarterPlayer**: the same humanoid settings plus `RespawnTime`, `ChatEnabled`, `CameraMode` (`Classic` or `LockFirstPerson`) and `CameraMaxZoom`.

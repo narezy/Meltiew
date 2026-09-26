@@ -12,6 +12,9 @@ var _name_tag: Label3D
 var _role_tag: Label3D
 var _bubble: GameBubble
 var _dead := false
+## When this player died (ms). Snapshots are played a little late, so older ones
+## (still alive) must not bring them back and then kill them a second time.
+var _dead_at := 0
 
 
 func _ready() -> void:
@@ -74,6 +77,7 @@ func shatter() -> void:
 	if _dead:
 		return
 	_dead = true
+	_dead_at = Time.get_ticks_msec()
 	Ragdoll.spawn(get_parent(), avatar.global_transform, avatar.get_colors())
 	avatar.visible = false
 	_name_tag.visible = false
@@ -106,7 +110,7 @@ func _process(delta: float) -> void:
 		var anim: String = a[3]
 		if anim == "dead":
 			shatter()
-		else:
+		elif not _dead or a[0] > _dead_at:
 			if _dead:
 				_dead = false
 				avatar.visible = true

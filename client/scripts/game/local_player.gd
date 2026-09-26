@@ -56,6 +56,13 @@ var can_sprint := true
 ## How hard the feet grip: 1 = Melly's usual (fast characters slide a bit when they
 ## turn or stop), higher = sharper starts, stops and turns (10+ is no drift at all).
 var traction := 1.0
+## Bunny hop (Humanoid.Bhop): holding jump hops again the moment you land, a hop
+## keeps your speed and adds a little, and you can steer in the air, up to bhop_max.
+var bhop := false
+var bhop_max := 24.0
+## Jump is being held (space or the jump button): the HUD sets it every frame.
+var jump_held := false
+var _hopping := false  # landed from a bhop jump this frame and jumped straight on
 ## Stamina: sprinting spends it, resting brings it back. max_stamina 0 = endless.
 var max_stamina := 100.0
 var stamina_drain := 20.0
@@ -385,12 +392,23 @@ func _physics_process(delta: float) -> void:
 		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
 
+	_hopping = false
+	if bhop and jump_held and on_floor and can_jump:
+		_jump_buffer = 0.2  # holding jump with bhop: hop again right on landing
+		_hopping = true
 	if _jump_buffer > 0.0 and _coyote > 0.0 and can_jump:
 		velocity.y = jump_velocity
 		_jump_buffer = 0.0
 		_coyote = 0.0
 		_emote = ""
 		jumped.emit()
+		if bhop:
+			# Each hop keeps the run going and adds a bit, up to the place's limit.
+			var hv0 := Vector2(velocity.x, velocity.z)
+			if hv0.length() > 0.5:
+				hv0 = hv0.normalized() * minf(hv0.length() * 1.06 + 0.4, bhop_max)
+				velocity.x = hv0.x
+				velocity.z = hv0.y
 
 	var input := move_input
 	if not keyboard_blocked:
@@ -408,7 +426,12 @@ func _physics_process(delta: float) -> void:
 	var target := dir * top * clampf(input.length(), 0.0, 1.0)
 	var hv := Vector3(velocity.x, 0, velocity.z)
 	var rate := ((ACCEL if target.length() > 0.01 else DECEL) if on_floor else AIR_ACCEL) * traction
-	hv = hv.move_toward(target, rate * delta)
+	if bhop and (not on_floor or _hopping) and hv.length() > top and dir.length() > 0.05:
+		# Hopping faster than you can run: steer without losing speed (air strafing).
+		var want := Vector3(dir.x, 0, dir.z).normalized() * hv.length()
+		hv = hv.slerp(want, minf(delta * 4.0, 1.0)) if hv.length() > 0.01 else want
+	else:
+		hv = hv.move_toward(target, rate * delta)
 	velocity.x = hv.x + external_push.x
 	velocity.z = hv.z + external_push.z
 	move_and_slide()

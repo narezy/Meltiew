@@ -16,6 +16,7 @@ var view: StudioViewport
 var scripts: StudioScriptEditor
 var gui_layer: GuiEditLayer
 var assets: StudioAssets
+var animator: StudioAnimator
 var strings_ed: StudioStrings
 var settings: StudioSettings
 var output: RichTextLabel
@@ -117,6 +118,7 @@ func _ready() -> void:
 	props.open_script.connect(open_script)
 	props.pick_asset.connect(func(done): assets.open(done))
 	props.pick_sound.connect(func(done): assets.open(done, "sound"))
+	props.open_animator.connect(_open_animator)
 	right_split.add_child(_panel(props))
 	explorer.open_script.connect(open_script)
 	explorer.insert_requested.connect(func(c, parent): insert(c, parent))
@@ -235,6 +237,7 @@ func _build_top_bar() -> Control:
 	left.add_child(_insert_menu())
 	left.add_child(_menu("place", L.t("st_place"), [
 		[L.t("st_images"), func(): assets.open()],
+		[L.t("an_title"), _open_animator],
 		[L.t("st_strings"), func(): strings_ed.open()],
 		[L.t("st_settings"), _open_settings],
 	]))
@@ -425,6 +428,18 @@ func _import() -> void:
 			return
 		Session.studio_place_id = str(r.data.place.id)
 		UI.goto("res://scenes/studio.tscn"))
+
+
+## The Animator covers the whole Studio while it's open.
+func _open_animator() -> void:
+	if animator == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 40
+		add_child(layer)
+		animator = StudioAnimator.new()
+		animator.theme = UI.theme
+		layer.add_child(animator)
+	animator.open()
 
 
 func _open_settings() -> void:
