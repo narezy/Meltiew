@@ -2,9 +2,9 @@
 // used as "anim://<id>" by scripts (Humanoid:PlayAnimation, Rig.Animation) and by
 // a place's emote wheel. Anyone may play any animation; only its maker edits it.
 //
-// Data: { length, loop, keys: { Bone: [[t, rx, ry, rz], ...] }, pos: [[t, x, y, z], ...] }
+// Data: { length, loop, keys: { Bone: [[t, rx, ry, rz], ...] }, moves: { Bone: [[t, x, y, z], ...] } }
 // Bones are Melly's: Torso, Head, ArmL, ArmR, LegL, LegR. Rotations in degrees,
-// the torso's offset (pos) in studs from where it rests.
+// moves in studs from where the part rests. (Older data has the torso's moves as `pos`.)
 
 export const BONES = ['Torso', 'Head', 'ArmL', 'ArmR', 'LegL', 'LegR'];
 export const MAX_ANIMATIONS = 200;
@@ -58,9 +58,14 @@ export function cleanAnimation(data, bad) {
     if (!BONES.includes(bone)) throw bad('bad_animation');
     keys[bone] = track(list, -720, 720);
   }
-  const pos = data.pos ? track(data.pos, -6, 6) : [];
+  const moves = {};
+  for (const [bone, list] of Object.entries(data.moves || {})) {
+    if (!BONES.includes(bone)) throw bad('bad_animation');
+    moves[bone] = track(list, -6, 6);
+  }
+  if (Array.isArray(data.pos) && data.pos.length && !moves.Torso) moves.Torso = track(data.pos, -6, 6);
   if (total === 0) throw bad('empty_animation');
-  return { length, loop: data.loop === true, keys, pos };
+  return { length, loop: data.loop === true, keys, moves };
 }
 
 export function createAnimations({ db, HttpError, bad, cleanText, requireAuth, writeLimiter }) {

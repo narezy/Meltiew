@@ -4,18 +4,20 @@ extends Control
 ## result to the server, where it gets a number ("anim://12") that scripts, Rigs
 ## and a place's emote wheel can play.
 ##
-## Moving a slider sets a key for the chosen bone at the playhead. Between keys
-## Melly moves smoothly from one pose to the next.
+## Click a body part on Melly, then drag the gizmo: rings turn it (R), arrows move
+## it (W). A key is set for that part at the playhead; between keys Melly moves
+## smoothly from one pose to the next. The sliders are there for exact values.
 
 const BONES := ["Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]
 const ROW_H := 26.0
 
-var data := {"length": 2.0, "loop": true, "keys": {}, "pos": []}
+var data := {"length": 2.0, "loop": true, "keys": {}, "moves": {}}
 var anim_id := 0
 var _bone := "ArmR"
 var _time := 0.0
 var _playing := false
-var _stage: AvatarStage
+var _stage: AnimatorView
+var _mode_buttons := {}
 var _name: LineEdit
 var _length: SpinBox
 var _loop: CheckBox
@@ -32,14 +34,14 @@ var _pos_title: Label
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var bg := ColorRect.new()
 	bg.color = UI.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 14)
 	add_child(margin)
@@ -50,7 +52,8 @@ func _ready() -> void:
 	var top := UI.hbox(8)
 	top.add_child(UI.label(L.t("an_title"), 24, UI.TEXT, "black"))
 	_name = UI.input(L.t("an_name"))
-	_name.custom_minimum_size = Vector2(220, 40)
+	_name.custom_minimum_size = Vector2(190, 40)
+	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name.max_length = 50
 	top.add_child(_name)
 	top.add_child(UI.label(L.t("an_length"), 15, UI.MUTED))
@@ -72,12 +75,17 @@ func _ready() -> void:
 		data.loop = on
 		_refresh())
 	top.add_child(_loop)
-	top.add_child(UI.spacer())
+	# The saved id: click it to copy.
 	_ref = UI.label("", 15, UI.MINT, "bold")
+	_ref.mouse_filter = Control.MOUSE_FILTER_STOP
+	_ref.tooltip_text = L.t("an_copy")
+	_ref.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			_copy_ref())
 	top.add_child(_ref)
-	for it in [["an_copy", _copy_ref, "ghost"], ["an_new", _new, "ghost"], ["an_open", _open_list, "ghost"], ["an_save", _save, "primary"], ["an_close", func(): visible = false, "ghost"]]:
+	for it in [["an_new", _new, "ghost"], ["an_open", _open_list, "ghost"], ["an_save", _save, "primary"], ["an_close", func(): visible = false, "ghost"]]:
 		var b := UI.button(L.t(it[0]), it[2], 40)
-		b.add_theme_font_size_override("font_size", 15)
+		b.add_theme_font_size_override("font_size", 14)
 		b.pressed.connect(it[1])
 		top.add_child(b)
 	root.add_child(top)
@@ -86,15 +94,31 @@ func _ready() -> void:
 	var mid := UI.hbox(12)
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(mid)
+	var stage_col := UI.vbox(6)
+	stage_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(stage_col)
+	var tools := UI.hbox(6)
+	for m in [["rotate", "an_tool_rotate"], ["move", "an_tool_move"]]:
+		var tb := UI.button(L.t(m[1]), "flat", 36)
+		tb.theme_type_variation = "ChipButton"
+		tb.toggle_mode = true
+		tb.add_theme_font_size_override("font_size", 14)
+		tb.pressed.connect(func(): _set_mode(m[0]))
+		tools.add_child(tb)
+		_mode_buttons[m[0]] = tb
+	var th := UI.label(L.t("an_view_hint"), 13, UI.MUTED)
+	tools.add_child(th)
+	stage_col.add_child(tools)
 	var stage_card := UI.card(0, Color(UI.CARD, 0.6), 18)
-	stage_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.add_child(stage_card)
-	_stage = AvatarStage.new()
-	_stage.auto_spin = 0.0
-	_stage.zoom = 1.0
+	stage_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage_col.add_child(stage_card)
+	_stage = AnimatorView.new()
 	stage_card.add_child(_stage)
+	_stage.bone_picked.connect(func(b): _select_bone(b))
+	_stage.rotated.connect(_on_gizmo_rotate)
+	_stage.moved.connect(_on_gizmo_move)
 	var side := UI.card(14, UI.CARD, 18)
-	side.custom_minimum_size.x = 360
+	side.custom_minimum_size.x = 330
 	mid.add_child(side)
 	var sv := UI.vbox(8)
 	side.add_child(sv)
@@ -114,7 +138,7 @@ func _ready() -> void:
 	sv.add_child(UI.label(L.t("an_rotation"), 15, UI.MUTED, "bold"))
 	for axis in [["rx", "X"], ["ry", "Y"], ["rz", "Z"]]:
 		sv.add_child(_slider_row(axis[0], axis[1], -180.0, 180.0, 1.0))
-	_pos_title = UI.label(L.t("an_offset"), 15, UI.MUTED, "bold")
+	_pos_title = UI.label(L.t("an_move"), 15, UI.MUTED, "bold")
 	sv.add_child(_pos_title)
 	for axis in [["px", "X"], ["py", "Y"], ["pz", "Z"]]:
 		sv.add_child(_slider_row(axis[0], axis[1], -3.0, 3.0, 0.05))
@@ -168,6 +192,7 @@ func _ready() -> void:
 	_timeline.gui_input.connect(_timeline_input)
 	bv.add_child(_timeline)
 	_select_bone("ArmR")
+	_set_mode("rotate")
 	_refresh.call_deferred()
 
 
@@ -204,11 +229,54 @@ func _select_bone(b: String) -> void:
 	_bone = b
 	for k in _bone_buttons:
 		_bone_buttons[k].button_pressed = k == b
-	var torso := b == "Torso"
-	for k in ["px", "py", "pz"]:
-		_sliders[k].get_parent().visible = torso
-	_pos_title.visible = torso
+	if _stage:
+		_stage.bone = b
 	_sync_sliders()
+	if _timeline:
+		_timeline.queue_redraw()
+
+
+func _set_mode(m: String) -> void:
+	_stage.mode = m
+	for k in _mode_buttons:
+		_mode_buttons[k].button_pressed = k == m
+
+
+func _unhandled_key_input(e: InputEvent) -> void:
+	if not visible or not (e is InputEventKey and e.pressed and not e.echo):
+		return
+	if get_viewport().gui_get_focus_owner() is LineEdit:
+		return
+	match e.keycode:
+		KEY_R:
+			_set_mode("rotate")
+		KEY_W:
+			_set_mode("move")
+		KEY_SPACE:
+			_toggle_play()
+
+
+func _moves(bone: String) -> Array:
+	if not data.has("moves"):
+		data.moves = {}
+	if not data.moves.has(bone):
+		data.moves[bone] = []
+	return data.moves[bone]
+
+
+## Dragging a gizmo ring / arrow: nudge that part's pose and key it at the playhead.
+func _on_gizmo_rotate(b: String, axis: int, degrees: float) -> void:
+	var r := _sample(data.keys.get(b, []), _time)
+	r[axis] = wrapf(r[axis] + degrees, -180.0, 180.0)
+	_put(_keys(b), _time, r)
+	_refresh()
+
+
+func _on_gizmo_move(b: String, axis: int, studs: float) -> void:
+	var m := _sample(data.moves.get(b, []), _time)
+	m[axis] = clampf(m[axis] + studs, -5.0, 5.0)
+	_put(_moves(b), _time, m, 0.01)
+	_refresh()
 
 
 # --- keys --------------------------------------------------------------------------
@@ -235,28 +303,27 @@ static func _sample(list: Array, t: float) -> Vector3:
 	return Vector3(z[1], z[2], z[3])
 
 
-static func _put(list: Array, t: float, v: Vector3) -> void:
+static func _put(list: Array, t: float, v: Vector3, step := 0.1) -> void:
 	for k in list:
 		if absf(float(k[0]) - t) < 0.015:
-			k[1] = snappedf(v.x, 0.1)
-			k[2] = snappedf(v.y, 0.1)
-			k[3] = snappedf(v.z, 0.1)
+			k[1] = snappedf(v.x, step)
+			k[2] = snappedf(v.y, step)
+			k[3] = snappedf(v.z, step)
 			return
-	list.append([snappedf(t, 0.01), snappedf(v.x, 0.1), snappedf(v.y, 0.1), snappedf(v.z, 0.1)])
+	list.append([snappedf(t, 0.01), snappedf(v.x, step), snappedf(v.y, step), snappedf(v.z, step)])
 	list.sort_custom(func(a, b): return a[0] < b[0])
 
 
 func _set_key_from_sliders() -> void:
 	_put(_keys(_bone), _time, Vector3(_sliders.rx.value, _sliders.ry.value, _sliders.rz.value))
-	if _bone == "Torso":
-		var p := Vector3(_sliders.px.value, _sliders.py.value, _sliders.pz.value)
-		if p != Vector3.ZERO or not data.pos.is_empty():
-			_put(data.pos, _time, p)
+	var p := Vector3(_sliders.px.value, _sliders.py.value, _sliders.pz.value)
+	if p != Vector3.ZERO or not data.moves.get(_bone, []).is_empty():
+		_put(_moves(_bone), _time, p, 0.01)
 	_refresh()
 
 
 func _delete_key() -> void:
-	for list in [_keys(_bone), data.pos if _bone == "Torso" else []]:
+	for list in [_keys(_bone), _moves(_bone)]:
 		for i in range(list.size() - 1, -1, -1):
 			if absf(float(list[i][0]) - _time) < 0.015:
 				list.remove_at(i)
@@ -266,7 +333,8 @@ func _delete_key() -> void:
 func _trim_keys() -> void:
 	for b in data.keys:
 		data.keys[b] = data.keys[b].filter(func(k): return float(k[0]) <= data.length + 0.001)
-	data.pos = data.pos.filter(func(k): return float(k[0]) <= data.length + 0.001)
+	for b in data.moves:
+		data.moves[b] = data.moves[b].filter(func(k): return float(k[0]) <= data.length + 0.001)
 
 
 # --- preview -----------------------------------------------------------------------
@@ -290,7 +358,7 @@ func _sync_sliders() -> void:
 	_sliders.rx.value = r.x
 	_sliders.ry.value = r.y
 	_sliders.rz.value = r.z
-	var p := _sample(data.pos, _time) if _bone == "Torso" else Vector3.ZERO
+	var p := _sample(data.moves.get(_bone, []), _time)
 	_sliders.px.value = p.x
 	_sliders.py.value = p.y
 	_sliders.pz.value = p.z
@@ -331,9 +399,8 @@ func _draw_timeline() -> void:
 		_timeline.draw_line(Vector2(120, y + ROW_H * 0.5), Vector2(w - 8, y + ROW_H * 0.5), Color(1, 1, 1, 0.08), 2.0)
 		for k in data.keys.get(b, []):
 			_timeline.draw_circle(Vector2(_x_of(float(k[0])), y + ROW_H * 0.5), 6.0, UI.ACCENT)
-		if b == "Torso":
-			for k in data.pos:
-				_timeline.draw_circle(Vector2(_x_of(float(k[0])), y + ROW_H * 0.5), 3.5, UI.MINT)
+		for k in data.moves.get(b, []):
+			_timeline.draw_circle(Vector2(_x_of(float(k[0])), y + ROW_H * 0.5), 3.5, UI.MINT)
 	var px := _x_of(_time)
 	_timeline.draw_line(Vector2(px, 0), Vector2(px, _timeline.size.y), UI.PINK, 2.0)
 
@@ -364,7 +431,7 @@ func _timeline_input(e: InputEvent) -> void:
 # --- files -------------------------------------------------------------------------
 
 func _new() -> void:
-	data = {"length": 2.0, "loop": true, "keys": {}, "pos": []}
+	data = {"length": 2.0, "loop": true, "keys": {}, "moves": {}}
 	anim_id = 0
 	_name.text = ""
 	_length.value = 2.0
@@ -412,8 +479,8 @@ func _load(id: int) -> void:
 	data = a.data
 	if not data.has("keys"):
 		data.keys = {}
-	if not data.has("pos"):
-		data.pos = []
+	data.moves = CustomAnims.moves_of(data).duplicate(true)
+	data.erase("pos")
 	anim_id = int(a.id) if str(a.get("by", "")) == str(Session.user.get("username", "")) else 0
 	_name.text = str(a.name)
 	_length.value = float(data.length)

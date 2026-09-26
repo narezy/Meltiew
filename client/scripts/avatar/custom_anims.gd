@@ -3,11 +3,14 @@ extends RefCounted
 ## Animations made in Studio's animator ("anim://<id>"): downloaded once, turned
 ## into Godot Animations for Melly's skeleton and shared by every avatar.
 ##
-## Data: {length, loop, keys: {Bone: [[t, rx, ry, rz], ...]}, pos: [[t, x, y, z], ...]}
-## with rotations in degrees and the torso's offset in studs.
+## Data: {length, loop, keys: {Bone: [[t, rx, ry, rz], ...]}, moves: {Bone: [[t, x, y, z], ...]}}
+## with rotations in degrees and moves in studs (older data: the torso's moves as `pos`).
 
 const BONES := ["Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]
 const TORSO_REST := Vector3(0, 2, 0)
+## Where each bone rests in its parent (the torso; the torso in the skeleton), model units.
+const REST := {"Torso": Vector3(0, 2, 0), "Head": Vector3(0, 2, 0), "ArmL": Vector3(1, 1.88, 0),
+	"ArmR": Vector3(-1, 1.88, 0), "LegL": Vector3(0.5, 0, 0), "LegR": Vector3(-0.5, 0, 0)}
 
 static var _anims := {}  # id -> Animation
 static var _data := {}  # id -> data
@@ -68,15 +71,27 @@ static func build(data: Dictionary) -> Animation:
 			a.rotation_track_insert_key(t, 0.0, Quaternion.IDENTITY)
 		for k in list:
 			a.rotation_track_insert_key(t, float(k[0]), rot(Vector3(float(k[1]), float(k[2]), float(k[3]))))
-	var tp := a.add_track(Animation.TYPE_POSITION_3D)
-	a.track_set_path(tp, NodePath("Melly/Skeleton3D:Torso"))
-	a.track_set_interpolation_type(tp, Animation.INTERPOLATION_CUBIC)
-	var pos: Array = data.get("pos", [])
-	if pos.is_empty():
-		a.position_track_insert_key(tp, 0.0, TORSO_REST)
-	for k in pos:
-		a.position_track_insert_key(tp, float(k[0]), TORSO_REST + Vector3(float(k[1]), float(k[2]), float(k[3])) / MellyAvatar.MODEL_SCALE)
+	var moves := moves_of(data)
+	for bone in BONES:
+		var list: Array = moves.get(bone, [])
+		if list.is_empty() and bone != "Torso":
+			continue
+		var tp := a.add_track(Animation.TYPE_POSITION_3D)
+		a.track_set_path(tp, NodePath("Melly/Skeleton3D:" + bone))
+		a.track_set_interpolation_type(tp, Animation.INTERPOLATION_CUBIC)
+		if list.is_empty():
+			a.position_track_insert_key(tp, 0.0, REST[bone])
+		for k in list:
+			a.position_track_insert_key(tp, float(k[0]), REST[bone] + Vector3(float(k[1]), float(k[2]), float(k[3])) / MellyAvatar.MODEL_SCALE)
 	return a
+
+
+## Moves per bone, reading old data's torso-only `pos` too.
+static func moves_of(data: Dictionary) -> Dictionary:
+	var moves: Dictionary = data.get("moves", {})
+	if moves.is_empty() and data.get("pos") is Array and not data.pos.is_empty():
+		return {"Torso": data.pos}
+	return moves
 
 
 ## Degrees (x, y, z) to the bone's rotation.
