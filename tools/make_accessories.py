@@ -140,8 +140,11 @@ items.append({"id": "sunglasses", "name": {"en": "Sunglasses", "ru": "Солне
     part("box", [-0.3, 0.78, 0.7], "#15131c", size=[0.46, 0.26, 0.05], rough=0.15, metal=0.4),
     part("box", [0.3, 0.78, 0.7], "#15131c", size=[0.46, 0.26, 0.05], rough=0.15, metal=0.4),
     part("box", [0, 0.84, 0.7], "#15131c", size=[0.2, 0.05, 0.05]),
-    part("box", [-0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.7]),
-    part("box", [0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.7]),
+    # hinges: from each lens's outer edge round to the arm, so the arms are joined on
+    part("box", [-0.61, 0.84, 0.7], "#15131c", size=[0.18, 0.05, 0.05]),
+    part("box", [0.61, 0.84, 0.7], "#15131c", size=[0.18, 0.05, 0.05]),
+    part("box", [-0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.72]),
+    part("box", [0.68, 0.84, 0.35], "#15131c", size=[0.04, 0.05, 0.72]),
 ]})
 
 hearts = []
@@ -151,32 +154,38 @@ for side in (-1, 1):
     hearts.append(ext(heart(0.5), [cx, 0.79, 0.69], "#c2185b", depth=0.05, bevel=0.02, rough=0.35))
     hearts.append(ext(heart(0.42), [cx, 0.8, 0.715], "#ff5c95", depth=0.04, bevel=0.018, rough=0.12, glow=0.25))
     hearts.append(ext(ellipse(0.055, 0.035), [cx - 0.07, 0.88, 0.735], "#ffe3ee", rot=[0, 0, 30], depth=0.012, bevel=0.005, rough=0.1, glow=0.4))
-    hearts.append(part("box", [side * 0.66, 0.86, 0.36], "#c2185b", size=[0.035, 0.045, 0.66], rough=0.35))
+    hearts.append(part("box", [side * 0.61, 0.86, 0.69], "#c2185b", size=[0.12, 0.045, 0.045], rough=0.35))
+    hearts.append(part("box", [side * 0.66, 0.86, 0.35], "#c2185b", size=[0.035, 0.045, 0.7], rough=0.35))
 hearts.append(ext(chaikin([(-0.09, 0.0), (0.0, 0.035), (0.09, 0.0), (0.09, -0.03), (0.0, 0.005), (-0.09, -0.03)], 2), [0, 0.87, 0.705], "#c2185b", depth=0.04, bevel=0.012, rough=0.35))
 items.append({"id": "heartglasses", "name": {"en": "Heart glasses", "ru": "Очки-сердечки"}, "slot": "face", "bone": "Head", "parts": hearts})
 
 
-def neck_loop(y, rx, rz, tilt):
-    """A ring of points round the neck (a little overlap hides the tube's ends)."""
+def neck_loop(y, rx, rz, tilt, n=4.0):
+    """A ring round the neck shaped like Melly (a rounded rectangle, not an oval: her
+    torso is wide and flat, the head nearly square). A little overlap hides the ends."""
     pts = []
-    for i in range(15):
-        a = math.tau * i / 14 + 0.3
-        pts.append([round(rx * math.sin(a), 3), round(y + tilt * math.cos(a), 3), round(rz * math.cos(a), 3)])
+    for i in range(25):
+        a = math.tau * i / 24 + 0.2
+        c, s_ = math.cos(a), math.sin(a)
+        x = rx * math.copysign(abs(s_) ** (2 / n), s_)
+        z = rz * math.copysign(abs(c) ** (2 / n), c)
+        pts.append([round(x, 3), round(y + tilt * c, 3), round(z, 3)])
     return pts
 
+# Melly (torso bone space): torso x ±0.83, z ±0.39, top at y 2.0; head x ±0.69, z ±0.67 from y 1.97.
 scarf = [
-    # two soft knitted rolls wrapped round the neck
-    part("tube", [0, 0, 0], "#3fb6e8", points=neck_loop(1.93, 0.6, 0.5, 0.05), r=0.15, rough=0.95),
-    part("tube", [0, 0, 0], "#4cc9f0", points=neck_loop(1.79, 0.64, 0.53, -0.04), r=0.14, rough=0.95),
+    # a soft roll hugging the bottom of the head, and one lying on the shoulders
+    part("tube", [0, 0, 0], "#3fb6e8", points=neck_loop(2.07, 0.8, 0.78, 0.03), r=0.14, rough=0.95),
+    part("tube", [0, 0, 0], "#4cc9f0", points=neck_loop(1.93, 0.9, 0.5, -0.02), r=0.12, rough=0.95),
 ]
-for x, top, length, tilt, z in ((0.2, 1.72, 0.8, 7, 0.52), (0.38, 1.7, 0.64, -5, 0.46)):
-    # Hanging ends: a strip with two white stripes and a fringe, in its own group so it tilts as one.
-    end = [ext(rounded_rect(0.26, length, 0.06), [0, -length / 2, 0], "#4cc9f0", depth=0.07, bevel=0.03, rough=0.95)]
+for x, top, length, tilt, z in ((0.2, 1.9, 1.1, 6, 0.47), (0.44, 1.88, 0.88, -5, 0.45)):
+    # Hanging ends down the chest: a strip with two white stripes and a fringe.
+    end = [ext(rounded_rect(0.3, length, 0.07), [0, -length / 2, 0], "#4cc9f0", depth=0.07, bevel=0.03, rough=0.95)]
     for k in (0.62, 0.76):
-        end.append(ext(rounded_rect(0.272, 0.05, 0.02), [0, -length * k, 0], "#f4f1ec", depth=0.078, bevel=0.03, rough=0.95))
+        end.append(ext(rounded_rect(0.312, 0.06, 0.02), [0, -length * k, 0], "#f4f1ec", depth=0.078, bevel=0.03, rough=0.95))
     for f in range(5):
-        end.append(part("capsule", [-0.1 + f * 0.05, -length - 0.04, 0], "#f4f1ec", r=0.018, h=0.12, rough=0.95))
-    scarf.append({"shape": "group", "pos": [x, top, z], "rot": [-10, 0, tilt], "parts": end})
+        end.append(part("capsule", [-0.12 + f * 0.06, -length - 0.04, 0], "#f4f1ec", r=0.018, h=0.12, rough=0.95))
+    scarf.append({"shape": "group", "pos": [x, top, z], "rot": [-4, 0, tilt], "parts": end})
 items.append({"id": "scarf", "name": {"en": "Scarf", "ru": "Шарф"}, "slot": "neck", "bone": "Torso", "parts": scarf})
 
 

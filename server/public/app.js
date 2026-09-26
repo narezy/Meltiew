@@ -848,7 +848,8 @@ function tubeGeometry(THREE, points, r0, r1) {
   const all = rings.map(ring);
   for (let i = 0; i < all.length - 1; i++) {
     for (let s = 0; s < sides; s++) {
-      for (const v of [all[i][s], all[i + 1][s], all[i][s + 1], all[i][s + 1], all[i + 1][s], all[i + 1][s + 1]]) pos.push(v.x, v.y, v.z);
+      // Counter-clockwise seen from outside (three.js front faces), so the tube isn't inside out.
+      for (const v of [all[i][s], all[i][s + 1], all[i + 1][s], all[i][s + 1], all[i + 1][s + 1], all[i + 1][s]]) pos.push(v.x, v.y, v.z);
     }
   }
   const g = new THREE.BufferGeometry();
