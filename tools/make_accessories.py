@@ -47,7 +47,7 @@ items.append({"id": "halo", "name": {"en": "Halo", "ru": "Нимб"}, "slot": "h
 ears = []
 for side in (-1, 1):
     x = side * 0.42
-    ears.append(part("prism", [x, TOP + 0.2, -0.05], "#302d38", rot=[0, 0, -side * 14], size=[0.5, 0.55, 0.2]))
+    ears.append(part("prism", [x, TOP + 0.2, -0.05], "#433d4f", rot=[0, 0, -side * 14], size=[0.5, 0.55, 0.2]))
     ears.append(part("prism", [x + side * 0.02, TOP + 0.16, 0.06], "#ff8fb1", rot=[0, 0, -side * 14], size=[0.3, 0.34, 0.06]))
 items.append({"id": "catears", "name": {"en": "Cat ears", "ru": "Кошачьи ушки"}, "slot": "ears", "bone": "Head", "parts": ears})
 
@@ -69,7 +69,7 @@ items.append({"id": "flower", "name": {"en": "Flower", "ru": "Цветочек"}
 # "tube": a curve through `points` with `r` at the base narrowing to `r_end`.
 items.append({"id": "cattail", "name": {"en": "Cat tail", "ru": "Кошачий хвост"}, "slot": "back", "bone": "Torso", "parts": [
     {"shape": "group", "pos": [0, 0.3, -0.36], "anim": {"type": "sway", "axis": "y", "deg": 12, "period": 2.2}, "parts": [
-        part("tube", [0, 0, 0], "#302d38", r=0.1, r_end=0.065, points=[
+        part("tube", [0, 0, 0], "#433d4f", r=0.1, r_end=0.065, points=[
             [0, 0, 0], [0, -0.12, -0.35], [0, -0.1, -0.75], [0, 0.2, -1.05],
             [0, 0.65, -1.15], [0, 1.05, -1.02], [0, 1.25, -0.8],
         ]),

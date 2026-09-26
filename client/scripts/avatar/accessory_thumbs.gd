@@ -11,6 +11,7 @@ static var _cache := {}  # "id@version" -> Texture2D
 var _vp: SubViewport
 var _cam: Camera3D
 var _holder: Node3D
+var _rim: DirectionalLight3D
 var _queue: Array = []  # [id, Callable]
 var _busy := false
 
@@ -41,7 +42,7 @@ func _ready() -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#e6e0ff")
-	env.ambient_light_energy = 0.6
+	env.ambient_light_energy = 0.9
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -55,6 +56,12 @@ func _ready() -> void:
 	fill.light_energy = 0.4
 	fill.light_color = Color("#b89cff")
 	_vp.add_child(fill)
+	# Rim light from behind the object: dark things (a black tail) would vanish on the
+	# app's dark cards without a bright edge.
+	_rim = DirectionalLight3D.new()
+	_rim.light_energy = 6.0
+	_rim.light_color = Color("#e9e2ff")
+	_vp.add_child(_rim)
 	_cam = Camera3D.new()
 	_cam.fov = 30
 	_vp.add_child(_cam)
@@ -97,6 +104,8 @@ func _render(id: String) -> Texture2D:
 	var dir := Vector3(0.55, 0.35, -1.0 if Accessories.slot_of(id) == "back" else 1.0).normalized()
 	var dist := radius / tan(deg_to_rad(_cam.fov * 0.5)) * 1.08
 	_cam.global_transform = Transform3D(Basis.looking_at(-dir), center + dir * dist)
+	# Shine from behind and above, towards the camera.
+	_rim.global_transform = Transform3D(Basis.looking_at(dir + Vector3(0, -0.6, 0)), center)
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw

@@ -16,6 +16,9 @@ var _submit: Button
 var _error: Label
 var _hint: Label
 var _stage: AvatarStage
+var _left: Control
+var _card: PanelContainer
+var _pairs: Array[BoxContainer] = []
 
 
 func _ready() -> void:
@@ -30,17 +33,12 @@ func _ready() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 36)
 	content.add_child(margin)
-	var fit := func():
-		var short := get_viewport_rect().size.y < 760.0
-		for side in ["top", "bottom"]:
-			margin.add_theme_constant_override("margin_" + side, 14 if short else 36)
-	get_viewport().size_changed.connect(fit)
-	fit.call()
 	var row := UI.hbox(32)
 	margin.add_child(row)
 
 	# Left: brand + live Melly.
 	var left := UI.vbox(0)
+	_left = left
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_stretch_ratio = 1.1
 	row.add_child(left)
@@ -81,6 +79,7 @@ func _ready() -> void:
 	var card := UI.card(28, UI.CARD, 28)
 	card.custom_minimum_size.x = 470
 	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_card = card
 	center.add_child(card)
 	var form := UI.vbox(14)
 	card.add_child(form)
@@ -94,20 +93,29 @@ func _ready() -> void:
 	tabs.add_child(_tab_login)
 	tabs.add_child(_tab_register)
 
+	# Fields come in pairs: stacked normally, side by side on short (phone) screens.
+	var pair1 := BoxContainer.new()
+	var pair2 := BoxContainer.new()
+	for pr in [pair1, pair2]:
+		pr.add_theme_constant_override("separation", 14)
+		form.add_child(pr)
+		_pairs.append(pr)
 	_username = UI.input(L.t("username"))
 	_username.max_length = 20
-	form.add_child(_username)
+	pair1.add_child(_username)
 	_display = UI.input(L.t("display_name_hint"))
 	_display.max_length = 24
 	_display_row = _display
-	form.add_child(_display)
+	pair1.add_child(_display)
 	_password = UI.input(L.t("password"), true)
 	_password.max_length = 128
-	form.add_child(_password)
+	pair2.add_child(_password)
 	_password2 = UI.input(L.t("password_repeat"), true)
 	_password2.max_length = 128
 	_password2_row = _password2
-	form.add_child(_password2)
+	pair2.add_child(_password2)
+	for e in [_username, _display, _password, _password2]:
+		e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var bd := UI.vbox(6)
 	bd.add_child(UI.label(L.t("bd_label"), 15, UI.MUTED, "bold"))
 	_birthday = BirthdayInput.new()
@@ -126,6 +134,22 @@ func _ready() -> void:
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	form.add_child(_hint)
+
+	var fit := func():
+		# Phones in landscape are ~530 px tall at their UI size: drop Melly, put
+		# fields side by side, tighten the margins.
+		var vp := get_viewport_rect().size
+		var short := vp.y < 640.0
+		for side in ["top", "bottom"]:
+			margin.add_theme_constant_override("margin_" + side, 10 if short else (14 if vp.y < 760.0 else 36))
+		_left.visible = not short
+		_card.custom_minimum_size.x = minf(720.0, vp.x - 60.0) if short else 470.0
+		for pr in _pairs:
+			pr.vertical = not short
+		form.add_theme_constant_override("separation", 10 if short else 14)
+		_hint.visible = not short
+	get_viewport().size_changed.connect(fit)
+	fit.call()
 
 	_submit.pressed.connect(_on_submit)
 	for e in [_username, _display, _password, _password2]:

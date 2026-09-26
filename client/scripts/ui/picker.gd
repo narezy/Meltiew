@@ -74,6 +74,10 @@ func _refresh() -> void:
 
 func _open() -> void:
 	Sfx.click()
+	# A text field still holding focus keeps the phone keyboard up over the sheet.
+	get_viewport().gui_release_focus()
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		DisplayServer.virtual_keyboard_hide()
 	var layer := CanvasLayer.new()
 	layer.layer = 80
 	get_tree().root.add_child(layer)
@@ -133,6 +137,9 @@ func _open() -> void:
 				_refresh()
 				picked.emit(id))
 		list.add_child(b)
+	# Long lists (years) open a little way in when nothing is chosen yet.
+	if current == null and _items.size() > 40 and list.get_child_count() > 12:
+		current = list.get_child(12)
 	if current:
 		# Open with the current choice in view.
 		await get_tree().process_frame
