@@ -4,6 +4,8 @@ extends ScrollContainer
 ## import a .melt file, open, play, see stats or delete.
 
 var _list: VBoxContainer
+## Communities where you may build: new places can be theirs, and yours can be handed over.
+var _communities: Array = []
 
 
 func _ready() -> void:
@@ -57,6 +59,7 @@ func refresh() -> void:
 	if not r.ok:
 		_list.add_child(Loading.error_block(r.message, refresh))
 		return
+	_communities = r.data.get("communities", [])
 	if r.data.places.is_empty():
 		var empty := UI.card(26, Color(UI.CARD, 0.6), 20)
 		var l := UI.label(L.t("st_no_places"), 18, UI.MUTED)
@@ -94,6 +97,11 @@ func _row(p: Dictionary) -> Control:
 	name_row.add_child(badge)
 	info.add_child(name_row)
 	info.add_child(UI.label(L.t("st_place_line", [int(p.visits), int(p.playing), UI.relative_time(float(p.get("updated_at", 0)))]), 14, UI.MUTED))
+	if p.get("community") is Dictionary:
+		var who := L.t("st_of_community", [str(p.community.name)])
+		if str(p.get("edited_by", "")) != "":
+			who += " · " + L.t("st_saved_by", [str(p.edited_by)])
+		info.add_child(UI.label(who, 14, UI.ACCENT, "bold"))
 	h.add_child(info)
 	var edit := UI.button(L.t("st_open"), "primary", 44)
 	edit.pressed.connect(func():
@@ -118,20 +126,51 @@ func _row(p: Dictionary) -> Control:
 	pm.add_theme_font_size_override("font_size", 16)
 	pm.add_item(L.t("st_stats"), 0)
 	pm.add_item(L.t("st_delete"), 1)
+	# Your own place can go to a community you build for.
+	if p.has("edit") and not (p.get("community") is Dictionary) and not _communities.is_empty():
+		pm.add_item(L.t("st_give_community"), 2)
 	pm.id_pressed.connect(func(i):
 		if i == 0:
 			_stats(p)
+		elif i == 1:
+			_delete(p)
 		else:
-			_delete(p))
+			_give(p))
 	h.add_child(more)
 	return c
 
 
+func _give(p: Dictionary) -> void:
+	var picker := Picker.new(L.t("st_give_community"))
+	for c in _communities:
+		picker.add_item(str(c.name), int(c.id))
+	add_child(picker)
+	picker.visible = false
+	picker.picked.connect(func(cid):
+		picker.queue_free()
+		var name := ""
+		for c in _communities:
+			if int(c.id) == int(cid):
+				name = str(c.name)
+		if not await UI.confirm(self, L.t("st_give_q", [L.field(p, "name"), name]), L.t("st_give_text"), L.t("st_give")):
+			return
+		var r := await Api.request("PATCH", "/api/studio/places/" + str(p.id), {"community_id": int(cid)})
+		if r.ok:
+			refresh()
+		else:
+			UI.toast(r.message, "error"))
+	picker._open()
+
+
 func _create() -> void:
-	var name := await _ask_name()
+	var ask := await _ask_name()
+	var name := str(ask.get("name", ""))
 	if name == "":
 		return
-	var r := await Api.request("POST", "/api/studio/places", {"name": name})
+	var body := {"name": name}
+	if int(ask.get("community", 0)) > 0:
+		body.community_id = int(ask.community)
+	var r := await Api.request("POST", "/api/studio/places", body)
 	if not r.ok:
 		UI.toast(r.message, "error")
 		return
@@ -140,7 +179,8 @@ func _create() -> void:
 	UI.goto("res://scenes/studio.tscn")
 
 
-func _ask_name() -> String:
+## Name for a new place, and whose it is (you or one of your communities).
+func _ask_name() -> Dictionary:
 	var layer := CanvasLayer.new()
 	layer.layer = 60
 	add_child(layer)
@@ -161,6 +201,13 @@ func _ask_name() -> String:
 	var input := UI.input(L.t("st_place_name"))
 	input.max_length = 60
 	v.add_child(input)
+	var owner := Picker.new(L.t("st_owner"))
+	owner.add_item(L.t("st_owner_me"), 0)
+	for c in _communities:
+		owner.add_item(L.t("st_of_community", [str(c.name)]), int(c.id))
+	owner.select_id(0)
+	owner.visible = not _communities.is_empty()
+	v.add_child(owner)
 	var row := UI.hbox(10)
 	var cancel := UI.button(L.t("cancel"), "ghost", 48)
 	cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -177,7 +224,7 @@ func _ask_name() -> String:
 	while result[0] == null:
 		await get_tree().process_frame
 	layer.queue_free()
-	return result[0]
+	return {"name": result[0], "community": int(owner.get_selected_id())}
 
 
 func _import() -> void:

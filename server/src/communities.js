@@ -9,6 +9,7 @@
 //   post     - write in channels (each channel can also ask for a minimum rank)
 import { chatRules } from './age.js';
 import { filterText } from './filter.js';
+import { pickLang } from './i18n.js';
 
 export const COMMUNITY_PRICE = { pieces: 10, orbs: 100 };
 export const PERMS = ['manage', 'moderate', 'places', 'post'];
@@ -72,7 +73,7 @@ export function migrateCommunities(db) {
   if (!cols.has('edited_by')) db.exec('ALTER TABLE places ADD COLUMN edited_by INTEGER');
 }
 
-export function createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard }) {
+export function createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard, placeView, canSee }) {
   const q = {
     one: db.prepare('SELECT * FROM communities WHERE id = ? AND deleted = 0'),
     byName: db.prepare('SELECT id FROM communities WHERE name_lc = ? AND deleted = 0'),
@@ -420,6 +421,14 @@ export function createCommunities({ db, economy, HttpError, bad, cleanText, requ
       return { message: messageView(row, { id: auth.user.id, rules }) };
     },
 
+    // The community's places this viewer may see (members see private ones too).
+    'GET /api/communities/:id/places': (req, _b, _u, params) => {
+      const { user } = requireAuth(req);
+      const c = communityOr404(params.id);
+      const lang = pickLang(req);
+      return { places: q.places.all(c.id).filter((p) => canSee(p, user)).map((p) => placeView(p, user.id, lang)) };
+    },
+
     'DELETE /api/communities/:id/messages/:mid': (req, _b, _u, params) => {
       const { user } = requireAuth(req);
       const c = communityOr404(params.id);
@@ -448,6 +457,8 @@ export function createCommunities({ db, economy, HttpError, bad, cleanText, requ
       return c ? card(c) : null;
     },
     placesOf: (communityId) => q.places.all(communityId),
+    /** Someone's communities with their role there (profiles). */
+    of: (userId) => q.mine.all(userId).map((c) => ({ ...card(c), role_name: c.role_name, rank: c.role_rank })),
     /** Communities where this user may make places (for Studio's "publish as"). */
     buildable: (userId) => q.mine.all(userId).filter((c) => can(c.id, userId, 'places')).map(card),
   };

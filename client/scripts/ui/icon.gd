@@ -116,6 +116,14 @@ func _draw() -> void:
 		"users":
 			_circle(Vector2(12, 8), 4.0)
 			_arc(Vector2(12, 21), 7.5, PI, TAU)
+		"group":
+			# Three heads: a community.
+			_circle(Vector2(12, 7.5), 3.4)
+			_arc(Vector2(12, 19), 6.2, PI, TAU)
+			_circle(Vector2(5, 10), 2.6)
+			_arc(Vector2(5, 20), 4.4, PI * 1.05, PI * 1.6)
+			_circle(Vector2(19, 10), 2.6)
+			_arc(Vector2(19, 20), 4.4, PI * 1.4, PI * 1.95)
 		"user_add":
 			_circle(Vector2(9, 8), 3.8)
 			_arc(Vector2(9, 21), 7.0, PI, TAU)

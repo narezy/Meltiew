@@ -31,6 +31,10 @@ var _modal_layer: Control
 var _checker: RefCounted
 var _autosave := AUTOSAVE_SEC
 var _saving := false
+## The place version this editor started from. Community places are edited by
+## several people: saving over a newer save by someone else asks first.
+var _version := -1
+var _conflict := false
 var _menus := {}
 
 
@@ -345,6 +349,7 @@ func _open_place() -> void:
 	# Back from a play test: continue with the unsaved state.
 	if not Session.studio_melt.is_empty():
 		_load(Session.studio_melt)
+		_version = int(Session.get_meta("studio_version", -1))
 		doc._set_dirty(Session.get_meta("studio_dirty", false))
 		Session.studio_melt = {}
 		for line in Session.get_meta("test_output", []):
@@ -357,6 +362,7 @@ func _open_place() -> void:
 		log_line({"level": "error", "msg": r.message})
 		return
 	_load(r.data.melt if r.data.melt is Dictionary else {})
+	_set_version(int(r.data.get("place", {}).get("version", -1)))
 	_status.text = ""
 
 
@@ -380,10 +386,25 @@ func save() -> bool:
 	scripts._commit()
 	_saving = true
 	_status.text = L.t("saving")
-	var r := await Api.request("PUT", "/api/studio/places/" + place_id, {"melt": doc.to_melt()})
+	var body := {"melt": doc.to_melt()}
+	if _version >= 0:
+		body.base_version = _version
+	var r := await Api.request("PUT", "/api/studio/places/" + place_id, body)
+	if r.status == 409:
+		# Someone else saved a newer version since we opened it.
+		_status.text = L.t("st_conflict_status")
+		if await UI.confirm(self, r.message, L.t("st_conflict_text"), L.t("st_save_over"), true):
+			body.force = true
+			r = await Api.request("PUT", "/api/studio/places/" + place_id, body)
+		else:
+			_saving = false
+			_conflict = true
+			return false
 	_saving = false
 	_autosave = AUTOSAVE_SEC
 	if r.ok:
+		_conflict = false
+		_set_version(int(r.data.get("place", {}).get("version", -1)))
 		doc.mark_saved()
 		_status.text = L.t("st_saved_at", [Time.get_time_string_from_system().substr(0, 5)])
 		return true
@@ -392,8 +413,14 @@ func save() -> bool:
 	return false
 
 
+func _set_version(v: int) -> void:
+	_version = v
+	Session.set_meta("studio_version", v)
+
+
 func _process(delta: float) -> void:
-	if doc.dirty and not _saving:
+	# After "don't save over theirs", only a manual save tries again.
+	if doc.dirty and not _saving and not _conflict:
 		_autosave -= delta
 		if _autosave <= 0.0:
 			save()
@@ -472,6 +499,7 @@ func _switch_place(id: String, meta: Dictionary) -> void:
 	place_id = id
 	settings.place_id = id
 	Session.studio_place_id = id
+	_set_version(-1)
 	if not meta.is_empty():
 		doc.meta = meta
 	doc.mark_saved()

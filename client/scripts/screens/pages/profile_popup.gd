@@ -35,9 +35,18 @@ func _ready() -> void:
 	_stage = AvatarStage.new()
 	stage_bg.add_child(_stage)
 	_stage.clicked.connect(func(): _stage.avatar.play("wave"))
+	# The details scroll when there's more than fits (badges, communities, places).
+	var vp := get_viewport().get_visible_rect().size
+	var h := clampf(vp.y - 80.0, 380.0, 560.0)
+	stage_bg.custom_minimum_size.y = h
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, h)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(scroll)
 	_box = UI.vbox(12)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_box)
+	scroll.add_child(_box)
 	_box.add_child(Loading.block(L.t("loading_profile")))
 	_card.scale = Vector2(0.94, 0.94)
 	_card.pivot_offset = _card.custom_minimum_size / 2.0
@@ -109,6 +118,12 @@ func _render(u: Dictionary) -> void:
 	var badges_row := UI.hbox(6)
 	_box.add_child(badges_row)
 	_load_badges(str(u.username), badges_row)
+	var comm_row := UI.hbox(6)
+	_box.add_child(comm_row)
+	_show_communities(u.get("communities", []), comm_row)
+	var places_row := UI.hbox(10)
+	_box.add_child(places_row)
+	_load_places(str(u.username), places_row)
 	_box.add_child(UI.spacer(false))
 
 	var actions := UI.hbox(10)
@@ -211,6 +226,59 @@ func _load_friends(username: String, row: HBoxContainer) -> void:
 
 
 ## Badges from places: a strip of the newest ones; tap for all of them.
+## Their communities: little emblems; tapping one opens it.
+func _show_communities(list: Array, row: HBoxContainer) -> void:
+	if list.is_empty():
+		return
+	row.add_child(UI.label(L.t("pf_communities", [list.size()]), 15, UI.MUTED, "bold"))
+	for c in list.slice(0, 6):
+		var e := CommunitiesPage.emblem(c, 38)
+		e.mouse_filter = Control.MOUSE_FILTER_STOP
+		e.tooltip_text = "%s · %s" % [str(c.name), CommunitiesPage.role_name(c.get("role_name", ""))]
+		var cid := int(c.id)
+		UI.on_tap(e, func():
+			_close()
+			if menu and menu.has_method("open_community"):
+				menu.open_community(cid))
+		row.add_child(e)
+
+
+## Their places (the ones you may see): small covers with names; tapping opens the place.
+func _load_places(username: String, row: HBoxContainer) -> void:
+	var r := await Api.request("GET", "/api/users/%s/places" % username.uri_encode())
+	if not r.ok or not is_instance_valid(row) or r.data.places.is_empty():
+		return
+	var all: Array = r.data.places
+	var col := UI.vbox(6)
+	col.add_child(UI.label(L.t("pf_places", [all.size()]), 15, UI.MUTED, "bold"))
+	var tiles := UI.hbox(10)
+	col.add_child(tiles)
+	row.add_child(col)
+	for p in all.slice(0, 4):
+		var tile := UI.vbox(4)
+		tile.custom_minimum_size.x = 112
+		tile.mouse_filter = Control.MOUSE_FILTER_STOP
+		var cover := RoundedImage.new(null, 10)
+		cover.custom_minimum_size = Vector2(112, 63)
+		cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(cover)
+		AssetCache.fetch(str(p.get("cover", "")), func(t):
+			if is_instance_valid(cover):
+				cover.texture = t)
+		var n := UI.label(L.field(p, "name"), 14, UI.TEXT, "bold")
+		n.clip_text = true
+		n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		n.custom_minimum_size.x = 112
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.add_child(n)
+		var pid := str(p.id)
+		UI.on_tap(tile, func():
+			_close()
+			if menu and menu.has_method("open_place"):
+				menu.open_place(pid))
+		tiles.add_child(tile)
+
+
 func _load_badges(username: String, row: HBoxContainer) -> void:
 	var r := await Api.request("GET", "/api/users/%s/badges" % username.uri_encode())
 	if not r.ok or not is_instance_valid(row) or r.data.badges.is_empty():

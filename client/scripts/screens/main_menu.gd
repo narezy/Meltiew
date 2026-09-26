@@ -5,6 +5,7 @@ const PAGES := [
 	{"id": "home", "title": "nav_home", "icon": "home"},
 	{"id": "friends", "title": "nav_friends", "icon": "friends"},
 	{"id": "messages", "title": "messages", "icon": "chat"},
+	{"id": "communities", "title": "nav_communities", "icon": "group"},
 	{"id": "avatar", "title": "nav_avatar", "icon": "avatar"},
 	{"id": "shop", "title": "nav_shop", "icon": "shop"},
 	{"id": "studio", "title": "nav_studio", "icon": "code"},
@@ -222,6 +223,9 @@ func _build_sidebar() -> Control:
 	var me_card := UI.card(12, UI.CARD, 18)
 	_me_box = UI.hbox(12)
 	me_card.add_child(_me_box)
+	# Your own card opens your profile.
+	me_card.tooltip_text = L.t("my_profile")
+	UI.on_tap(me_card, func(): show_profile(str(Session.user.get("username", ""))))
 	v.add_child(me_card)
 	return side
 
@@ -343,6 +347,8 @@ func open_page(id: String) -> void:
 			_page = SettingsPage.new()
 		"studio":
 			_page = StudioPage.new()
+		"communities":
+			_page = CommunitiesPage.new()
 		"messages":
 			_page = MessagesPage.new()
 			_page.open_user = _dm_user
@@ -402,6 +408,13 @@ func play(server := "auto", game := "playground") -> void:
 	Session.pending_server = server
 	Session.pending_game = game
 	UI.goto("res://scenes/game.tscn")
+
+
+## Opens the communities page right on one community (from a profile).
+func open_community(id: int) -> void:
+	await open_page("communities")
+	if _page is CommunitiesPage:
+		_page.open_community(id)
 
 
 func show_profile(username: String) -> void:

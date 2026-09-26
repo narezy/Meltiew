@@ -359,7 +359,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
 
   const badges = createBadges({ db, hub, mediaDir: store.mediaDir, HttpError, bad, cleanText, requireAuth, authenticate });
   const animations = createAnimations({ db, HttpError, bad, cleanText, requireAuth, writeLimiter });
-  const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard });
+  const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard, placeView, canSee: (p, u) => store.canSee(p, u, isFriend) });
   // Community places: editable by members whose role has "places"; private ones visible to members.
   hub.canEditPlace = (user, row) => communities.canEditPlace(row, user);
   store.isCommunityMember = (communityId, userId) => communities.isMember(communityId, userId);
@@ -521,7 +521,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       const { user } = requireAuth(req);
       const target = q.userByName.get(params.name);
       if (!target) throw new HttpError(404, 'no_user');
-      return { user: publicProfile(target, user.id) };
+      return { user: { ...publicProfile(target, user.id), communities: communities.of(target.id) } };
     },
 
     'GET /api/friends': (req) => {
