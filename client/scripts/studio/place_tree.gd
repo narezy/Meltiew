@@ -112,10 +112,11 @@ func apply(op: Dictionary) -> void:
 			create(str(op.id), str(op.c), str(op.get("n", op.c)), str(op.get("parent", "")), op.get("p", {}))
 		"set":
 			var key := str(op.k)
+			# A property set to nil (Occupant, CameraSubject...) arrives without "v".
 			if key == "Name":
-				rename(str(op.id), str(op.v))
+				rename(str(op.id), str(op.get("v", "")))
 			else:
-				set_prop(str(op.id), key, SValue.decode(op.v))
+				set_prop(str(op.id), key, SValue.decode(op.get("v")))
 		"del":
 			remove(str(op.id))
 		"parent":

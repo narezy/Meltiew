@@ -59,6 +59,8 @@ func send(m: Dictionary) -> void:
 			_events.append({"e": "touch", "userId": int(_me.id), "id": m.id, "ended": m.get("ended", false)})
 		"click":
 			_events.append({"e": "click", "userId": int(_me.id), "id": m.id})
+		"seat":
+			_events.append({"e": "seat", "userId": int(_me.id), "id": m.get("id")})
 		"tool":
 			_events.append({"e": "tool", "userId": int(_me.id), "id": m.get("id"), "ev": str(m.get("ev", "")), "p": m.get("p")})
 		"dead":
@@ -154,6 +156,8 @@ func _route(ops: Array) -> void:
 				_mine.append({"o": "prompt_pass", "id": op.id})
 			"anim":
 				_mine.append({"o": "anim", "anim": op.get("anim", "")})
+			"sit":
+				_mine.append({"o": "sit", "id": op.get("id", "")})
 			"badge":
 				# Shown like the real thing, but a test doesn't hand out badges for keeps.
 				for b in _badge_info:

@@ -1887,6 +1887,44 @@
    "category": "Logic",
    "creatable": true,
    "doc": "Put it in StarterPlayer to swap one of the emote wheel's moves for your own animation in this place. **Slot** is the move it replaces (wave, dance, cheer, sit, clap, laugh), **Animation** the one to play instead (made in the Animator, `anim://12`), **Title** the name shown on the wheel."
+  },
+  "Seat": {
+   "base": "BasePart",
+   "props": {
+    "Disabled": {
+     "type": "bool",
+     "default": false
+    },
+    "Occupant": {
+     "type": "Instance",
+     "default": null,
+     "readonly": true
+    }
+   },
+   "events": [],
+   "icon": "chair",
+   "category": "3D",
+   "creatable": true,
+   "overrides": {
+    "Size": {
+     "$v3": [
+      2,
+      0.4,
+      2
+     ]
+    },
+    "Color": {
+     "$c3": "#b07852"
+    },
+    "Position": {
+     "$v3": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   },
+   "doc": "A seat: touch it and you sit down, jump to get up. Paint it like any part, or set Transparency to 1 to hide it inside a chair you built. It faces its front (−Z). `Occupant` is the Humanoid sitting on it (or nil): `seat:GetPropertyChangedSignal(\"Occupant\"):Connect(...)`. `seat:Sit(humanoid)` sits a player down from a script; Disabled = true stops anyone sitting."
   }
  },
  "services": [

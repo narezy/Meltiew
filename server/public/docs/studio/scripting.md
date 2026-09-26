@@ -253,6 +253,21 @@ Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV
 
 Players walk up ledges up to about 0.65 studs high without jumping (stairs, kerbs). Turn on **Climbable** on any part to make it a wall they can climb: walking into it climbs up, walking away climbs down, sideways moves along it, jump lets go, and at the top they step onto it. From scripts: `part.Climbable = true`.
 
+## Seats
+
+Insert a **Seat**: touching it sits the player down, jumping gets them up. It's a part, so paint it, resize it, or set `Transparency = 1` and hide it inside a chair or a car you built; players sit facing its front (−Z). Scripts see who's sitting:
+
+```lua
+local seat = workspace.Throne
+seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+	if seat.Occupant then
+		print(seat.Occupant.Parent.Name .. " sat on the throne")
+	end
+end)
+seat:Sit(player.Character.Humanoid) -- sit someone down from a script
+seat.Disabled = true                -- nobody can sit
+```
+
 ## Animations, Rigs and the emote wheel
 
 **Place → Animator** opens the Animator. Pick a body part, move the time slider and turn the part with the sliders: a key is set right there, and Melly moves smoothly from key to key. Set the length and whether it loops, then **Save**: the animation gets an id like `anim://12` (copied for you). Any place can play it.

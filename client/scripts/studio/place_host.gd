@@ -17,6 +17,8 @@ signal pass_prompt(pass_id: int)
 signal camera_control(op: Dictionary)
 ## Humanoid:PlayAnimation on this player's character ("" stops it).
 signal animation_requested(anim: String)
+## Seat:Sit from a script: sit this player on that seat.
+signal sit_requested(seat_id: String)
 ## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
 signal core_gui_changed(kind: String, on: bool)
 
@@ -129,6 +131,8 @@ func server_ops(ops: Array) -> void:
 				camera_control.emit(op)
 			"anim":
 				animation_requested.emit(str(op.get("anim", "")))
+			"sit":
+				sit_requested.emit(str(op.get("id", "")))
 	if not events.is_empty() and _vm:
 		_call("__dispatch", events)
 
@@ -262,6 +266,8 @@ func _apply(ops: Array) -> void:
 				camera_control.emit(op)
 			"anim":
 				animation_requested.emit(str(op.get("anim", "")))
+			"sit":
+				sit_requested.emit(str(op.get("id", "")))
 			"coregui":
 				core_gui[str(op.k)] = op.get("on", true) == true
 				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])

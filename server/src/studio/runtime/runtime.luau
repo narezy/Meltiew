@@ -2852,6 +2852,22 @@ Methods.Humanoid = {
 	end,
 }
 
+Methods.Seat = {
+	-- Sits that player down on this seat (server: tells their app; they can jump off).
+	Sit = function(self, humanoid)
+		local model = isInstance(humanoid) and D[humanoid].parent
+		local player = model and Methods.Players.GetPlayerFromCharacter(nil, model)
+		if not player then
+			error("Seat:Sit needs a player's Humanoid", 2)
+		end
+		if role == "server" then
+			emit({ o = "sit", to = D[player].props.UserId, id = D[self].id })
+		elseif D[player].props.UserId == localUserId then
+			emit({ o = "sit", id = D[self].id })
+		end
+	end,
+}
+
 Methods.Rig = {
 	-- Plays an animation on this Rig: "anim://12" (or 12) from the animator, or a built-in move.
 	PlayAnimation = function(self, anim)
@@ -3428,6 +3444,24 @@ function handlers.ret(e)
 		resume(co, e.ok, e.values)
 	end
 end
+-- a player sat down on a Seat (id) or got up (no id)
+function handlers.seat(e)
+	local player = playersByUser[tonumber(e.userId)]
+	local hum = player and humanoidOf(player)
+	if not hum then
+		return
+	end
+	for _, s in descendants(services.Workspace, {}) do
+		if D[s].class.name == "Seat" and D[s].props.Occupant == hum then
+			setProp(s, "Occupant", nil)
+		end
+	end
+	local seat = e.id and byId[e.id]
+	if seat and D[seat].class.name == "Seat" and not D[seat].props.Disabled then
+		setProp(seat, "Occupant", hum)
+	end
+end
+
 function handlers.touch(e)
 	local part = byId[e.id]
 	local player = role == "server" and playersByUser[tonumber(e.userId)] or (localUserId and playersByUser[localUserId])

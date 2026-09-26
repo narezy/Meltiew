@@ -395,6 +395,19 @@ A Melly that stands in your place: shopkeepers, guards, dancers. Paint it like i
 
 **Methods:** `PlayAnimation(anim)`, `StopAnimation()`
 
+### Seat
+
+*inherits [BasePart](#basepart) · can be created with `Instance.new`*
+
+A seat: touch it and you sit down, jump to get up. Paint it like any part, or set Transparency to 1 to hide it inside a chair you built. It faces its front (−Z). `Occupant` is the Humanoid sitting on it (or nil): `seat:GetPropertyChangedSignal("Occupant"):Connect(...)`. `seat:Sit(humanoid)` sits a player down from a script; Disabled = true stops anyone sitting.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Disabled | bool | false |  |
+| Occupant | Instance |  | read-only |
+
+**Methods:** `Sit(humanoid)`
+
 ## User interface
 
 ### ScreenGui

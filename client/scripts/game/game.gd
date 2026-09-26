@@ -363,6 +363,11 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.camera_control.connect(_camera_control)
+	place_host.sit_requested.connect(func(id: String):
+		if place_host.tree.has(id) and not player.dead:
+			if player.seated:
+				player.stand_up()
+			_sit(id))
 	player.climb_check = func(collider: Object) -> bool:
 		var id := PlaceScene.id_of(collider)
 		return id != "" and place_host.tree.has(id) and place_host.tree.prop(id, "Climbable") == true
@@ -437,6 +442,7 @@ func _sync_place(delta: float) -> void:
 	player.set_camera_rules(str(h.player_prop("CameraMode")), float(h.player_prop("CameraMinZoom")), float(h.player_prop("CameraMaxZoom")))
 	hud.set_view_toggle(player.can_toggle_view())
 	_sync_emote_overrides()
+	_check_seats()
 	_sync_tools()
 	if not player.dead:
 		for i in player.get_slide_collision_count():
@@ -842,6 +848,43 @@ func _emote(e: String) -> void:
 
 
 var _emote_sig := ""
+var _seat_id := ""
+## The seat just jumped off: not sat on again until you've stopped touching it.
+var _seat_left := ""
+
+
+## Touching a Seat sits you on it (jump gets you up); the server learns who sits where.
+func _check_seats() -> void:
+	if _seat_id != "" and not player.seated:
+		_seat_left = _seat_id
+		_seat_id = ""
+		net.send({"t": "seat"})
+	if player.seated:
+		return
+	var t := place_host.tree
+	var touching_left := false
+	for i in player.get_slide_collision_count():
+		var id := PlaceScene.id_of(player.get_slide_collision(i).get_collider())
+		if id == _seat_left:
+			touching_left = true
+			continue
+		if id != "" and player.can_sit() and t.cls(id) == "Seat" and t.prop(id, "Disabled") != true:
+			_sit(id)
+			return
+	if not touching_left and player.is_on_floor():
+		_seat_left = ""
+
+
+func _sit(id: String) -> void:
+	var t := place_host.tree
+	var pos: Vector3 = t.prop(id, "Position")
+	var rot: Vector3 = t.prop(id, "Rotation")
+	var size: Vector3 = t.prop(id, "Size")
+	var b := Basis.from_euler(Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z)))
+	# Sit on the top face, looking out of the seat's front (-Z).
+	player.sit_on(pos + b.y * size.y * 0.5, Basis(-b.x, b.y, -b.z))
+	_seat_id = id
+	net.send({"t": "seat", "id": id})
 
 
 ## EmoteOverride objects in StarterPlayer swap wheel moves for the place's own animations.
