@@ -9,6 +9,7 @@ import { filterText } from './filter.js';
 import { createStudioRoutes } from './studio/routes.js';
 import { createEconomy, priceOf } from './economy.js';
 import { createBadges } from './badges.js';
+import { createAnimations } from './animations.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -354,6 +355,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   });
 
   const badges = createBadges({ db, hub, mediaDir: store.mediaDir, HttpError, bad, cleanText, requireAuth, authenticate });
+  const animations = createAnimations({ db, HttpError, bad, cleanText, requireAuth, writeLimiter });
 
   const routes = {
     // The accessory catalog (public, same for everyone).
@@ -975,6 +977,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     routes,
     economy.routes,
     badges.routes,
+    animations.routes,
     createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 

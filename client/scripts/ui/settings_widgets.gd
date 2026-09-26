@@ -73,3 +73,5 @@ static func game_block(parent: Control) -> void:
 	slider(parent, L.t("volume"), "volume", 0.0, 1.0, 0.05, true)
 	chips(parent, L.t("graphics"), "quality", [["low", L.t("quality_low")], ["medium", L.t("quality_medium")], ["high", L.t("quality_high")]])
 	toggle(parent, L.t("show_fps"), "show_fps")
+	if not DisplayServer.is_touchscreen_available():
+		toggle(parent, L.t("shift_lock"), "shift_lock")

@@ -953,6 +953,10 @@ func _desktop(event: InputEvent) -> void:
 					wheel.open()
 			KEY_V:
 				player.toggle_first_person()
+			KEY_CTRL:
+				# Shift lock (turned on in the menu's settings): Ctrl flips it.
+				if Session.settings.get("shift_lock", false):
+					player.shift_locked = not player.shift_locked
 			KEY_1, KEY_2, KEY_3:
 				_pick_slot(event.keycode - KEY_1)
 			KEY_QUOTELEFT:
@@ -965,9 +969,17 @@ func _desktop(event: InputEvent) -> void:
 				menu_requested.emit()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if player:
 		player.move_input = joystick.value
 		player.keyboard_blocked = chat_open()
 		player.sprint = Input.is_key_pressed(KEY_SHIFT) and not player.keyboard_blocked
+		if player.shift_locked and not Session.settings.get("shift_lock", false):
+			player.shift_locked = false
+		# Arrow keys turn the camera (left/right) and tilt it (up/down).
+		if not player.keyboard_blocked and not DisplayServer.is_touchscreen_available():
+			var turn := float(Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_LEFT))
+			var tilt := float(Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_DOWN))
+			if turn != 0.0 or tilt != 0.0:
+				player.rotate_camera(Vector2(turn, -tilt) * 380.0 * delta)
 		_update_stamina()

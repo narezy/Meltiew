@@ -41,6 +41,9 @@ var spawn_point := Vector3(0, 1, 10)
 var hp := 100.0
 var dead := false
 var first_person := false
+## Shift lock: the camera sits over the right shoulder and the character faces where it looks.
+var shift_locked := false
+var _shoulder := 0.0
 var seated := false
 
 # Tunables a studio place can change (Humanoid / Workspace properties).
@@ -397,7 +400,7 @@ func _physics_process(delta: float) -> void:
 		_fall_speed = 0.0
 	_was_on_floor = now_floor
 
-	if first_person:
+	if first_person or shift_locked:
 		_facing = cam_yaw
 	elif dir.length() > 0.05:
 		_facing = lerp_angle(_facing, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
@@ -445,6 +448,9 @@ func _update_camera(delta: float) -> void:
 		camera.transform = Transform3D()
 	var body := get_global_transform_interpolated().origin
 	var target := body + Vector3(0, EYE_HEIGHT if first_person else 1.5, 0)
+	# Over the shoulder while shift-locked (eased in and out).
+	_shoulder = lerpf(_shoulder, 1.4 if shift_locked and not first_person else 0.0, minf(delta * 10.0, 1.0))
+	target += Basis(Vector3.UP, cam_yaw) * Vector3(_shoulder, 0, 0)
 	_camera_pivot.global_position = _camera_pivot.global_position.lerp(target, minf(delta * 22.0, 1.0))
 	var shake := Vector3.ZERO
 	if _shake > 0.0:

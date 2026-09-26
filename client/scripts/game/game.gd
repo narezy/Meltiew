@@ -165,7 +165,11 @@ func _notification(what: int) -> void:
 			get_tree().reload_current_scene()
 
 
+## Escape / the menu button: opens the menu, or closes it when it's already open.
 func _open_menu() -> void:
+	if menu.visible:
+		menu.close()
+		return
 	hud.release_touches()
 	menu.open()
 
@@ -702,7 +706,7 @@ func _apply_mouse_mode() -> void:
 		return
 	var ms: Dictionary = place_host.mouse_settings if place_host else {"enabled": true, "behavior": "Default"}
 	var orbit := hud.mouse_look()
-	var lock: bool = ms.behavior != "Default" or player.first_person or orbit
+	var lock: bool = ms.behavior != "Default" or player.first_person or orbit or player.shift_locked
 	var busy := menu.visible or hud.chat_open() or hud.inventory_open() or not get_window().has_focus() or not _joined
 	var want := Input.MOUSE_MODE_VISIBLE
 	if lock and not busy:
@@ -720,7 +724,7 @@ func _apply_mouse_mode() -> void:
 		if want != Input.MOUSE_MODE_CAPTURED:
 			_mouse_rest = Vector2.INF
 	# A crosshair in the middle when aiming (first person, LockCenter); nothing while orbiting.
-	hud.set_crosshair(_cursor_tex, want == Input.MOUSE_MODE_CAPTURED and ms.enabled and not (orbit and not player.first_person and ms.behavior == "Default"))
+	hud.set_crosshair(_cursor_tex, want == Input.MOUSE_MODE_CAPTURED and ms.enabled and not (orbit and not player.first_person and not player.shift_locked and ms.behavior == "Default"))
 
 
 ## UserInputService.MouseIcon: any uploaded image as the cursor.

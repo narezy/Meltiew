@@ -180,7 +180,12 @@ func show_tab(id: String) -> void:
 			_body.add_child(log)
 		"help":
 			_body.add_child(UI.label(L.t("controls"), 26, UI.TEXT, "black"))
-			for line in ["help_move", "help_camera", "help_zoom", "help_jump", "help_emotes", "help_chat", "help_reset"]:
+			var lines := ["help_move", "help_camera", "help_zoom", "help_jump", "help_emotes", "help_chat", "help_reset"]
+			if not DisplayServer.is_touchscreen_available():
+				lines.insert(2, "help_arrows")
+				lines.insert(3, "help_sprint")
+				lines.insert(4, "help_shiftlock")
+			for line in lines:
 				var l := UI.label(L.t(line), 18, UI.TEXT)
 				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				_body.add_child(l)

@@ -526,7 +526,8 @@ export class GameHub {
     if (bad) return this.caught(conn, pl, bad);
     pl.p = pos;
     pl.r = finite(m.r, 100);
-    pl.a = ANIMS.has(m.a) ? m.a : 'idle';
+    // Built-in states, or a custom animation from the animator (anim://<id>).
+    pl.a = ANIMS.has(m.a) || /^anim:\/\/\d{1,10}$/.test(String(m.a)) ? m.a : 'idle';
     pl.dirty = true;
     pl.posDirty = true;
   }

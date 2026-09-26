@@ -21,6 +21,8 @@ var settings := {
 	"music": 0.5,
 	"quality": "high",
 	"show_fps": false,
+	# PC: Ctrl locks the camera behind the shoulder (the character faces where you look).
+	"shift_lock": false,
 	# Empty until the first run picks the phone's language.
 	"lang": "",
 	# 0 = automatic (bigger on phones).
