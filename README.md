@@ -8,7 +8,7 @@
 
 [![Website](https://img.shields.io/badge/meltiew.narez.xyz-play-b79cff?style=for-the-badge&logo=googlechrome&logoColor=white)](https://meltiew.narez.xyz)
 [![Telegram](https://img.shields.io/badge/Telegram-@meltiew-26a5e4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/meltiew)
-[![Download](https://img.shields.io/badge/Download-1.5.0-7ee0c3?style=for-the-badge&logo=godotengine&logoColor=white)](https://github.com/narezy/Meltiew/tree/download)
+[![Download](https://img.shields.io/badge/Download-1.6.0-7ee0c3?style=for-the-badge&logo=godotengine&logoColor=white)](https://github.com/narezy/Meltiew/tree/download)
 
 ![Android](https://img.shields.io/badge/Android-3ddc84?logo=android&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078d4?logo=windows&logoColor=white)
