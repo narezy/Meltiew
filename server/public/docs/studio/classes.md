@@ -238,6 +238,25 @@ Something a player carries and holds in their right hand. Put a Part named **Han
 
 **Events:** `Equipped`, `Unequipped`, `Activated`, `Deactivated`
 
+### ProceduralMesh
+
+*can be created with `Instance.new`*
+
+A shape scripts build out of triangles: terrain, hills, rocks, a whole Minecraft chunk, a waving flag. However many triangles it has, it's one object and one draw. Points are in studs around Position (turned by Rotation). Add boxes, spheres, cylinders, quads or single triangles; change points later to animate. Up to 60,000 points and 60,000 triangles. Smooth shades it rounded instead of faceted.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Position | Vector3 | Vector3.new(0, 0, 0) |  |
+| Rotation | Vector3 | Vector3.new(0, 0, 0) |  |
+| Color | Color3 | Color3.fromHex("#b7b3c9") |  |
+| Material | [Material](#material) | "Plastic" |  |
+| Transparency | number | 0 | min 0, max 1 |
+| CanCollide | bool | true |  |
+| CastShadow | bool | true |  |
+| Smooth | bool | false |  |
+
+**Methods:** `AddVertex(position, color)`, `AddTriangle(a, b, c)`, `AddQuad(a, b, c, d, color)`, `AddBox(center, size, color)`, `AddSphere(center, radius, color, segments)`, `AddCylinder(center, radius, height, color, segments)`, `GetVertexPosition(id)`, `SetVertexPosition(id, position)`, `SetVertexColor(id, color)`, `GetVertexCount()`, `GetTriangleCount()`, `Clear()`
+
 ### Part
 
 *inherits [BasePart](#basepart) · can be created with `Instance.new`*

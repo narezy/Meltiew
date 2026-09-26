@@ -575,6 +575,64 @@
    "creatable": true,
    "doc": "Something a player carries and holds in their right hand. Put a Part named **Handle** inside: that's where the hand grabs it, and every other part moves with it. Build it facing forward (−Z), the way it should point when held. Tools live in StarterPack (everyone gets one), in a player's Backpack, or lying in the Workspace (touching the Handle picks it up)."
   },
+  "ProceduralMesh": {
+   "base": "Instance",
+   "props": {
+    "Position": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "Rotation": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#b7b3c9"
+     }
+    },
+    "Material": {
+     "type": "enum:Material",
+     "default": "Plastic"
+    },
+    "Transparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "CanCollide": {
+     "type": "bool",
+     "default": true
+    },
+    "CastShadow": {
+     "type": "bool",
+     "default": true
+    },
+    "Smooth": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [],
+   "icon": "cube",
+   "category": "3D",
+   "creatable": true,
+   "doc": "A shape scripts build out of triangles: terrain, hills, rocks, a whole Minecraft chunk, a waving flag. However many triangles it has, it's one object and one draw. Points are in studs around Position (turned by Rotation). Add boxes, spheres, cylinders, quads or single triangles; change points later to animate. Up to 60,000 points and 60,000 triangles. Smooth shades it rounded instead of faceted."
+  },
   "BasePart": {
    "base": "Instance",
    "props": {

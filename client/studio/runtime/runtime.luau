@@ -498,7 +498,13 @@ local function emit(op)
 	ops[#ops + 1] = op
 end
 
+local flushMeshes -- forward: ProceduralMesh changes go out once per call
+local meshFullOp -- forward
+
 local function flush()
+	if flushMeshes then
+		flushMeshes()
+	end
 	local out = ops
 	ops = {}
 	setIndex = {}
@@ -981,6 +987,9 @@ end
 local function emitNew(inst)
 	local d = D[inst]
 	emit({ o = "new", id = d.id, parent = d.parent and D[d.parent].id or nil, c = d.class.name, n = d.name, p = wireProps(inst) })
+	if d.mesh and #d.mesh.t > 0 then
+		emit(meshFullOp(inst))
+	end
 	for _, ch in d.children do
 		if inScope(ch) then
 			emitNew(ch)
@@ -1150,6 +1159,9 @@ local function clone(inst)
 	cd.name = d.name
 	for k, v in d.props do
 		cd.props[k] = v
+	end
+	if d.mesh then
+		cd.mesh = { v = table.clone(d.mesh.v), c = table.clone(d.mesh.c), t = table.clone(d.mesh.t) }
 	end
 	for _, ch in d.children do
 		local c = clone(ch)
@@ -1949,6 +1961,378 @@ local function rayPart(part, o, dir)
 	return tmin, v3(m[axis] * sign, m[3 + axis] * sign, m[6 + axis] * sign)
 end
 
+---------------------------------------------------------------------------
+-- ProceduralMesh: shapes scripts build from triangles, drawn as one object
+---------------------------------------------------------------------------
+local MESH_MAX = 60000
+local meshDirty = {} -- instance -> true (everything) or { [vertex] = true }
+
+local function meshOf(inst)
+	local d = D[inst]
+	d.mesh = d.mesh or { v = {}, c = {}, t = {} }
+	return d.mesh
+end
+
+local function markMesh(inst, vertex)
+	if vertex == nil or meshDirty[inst] == true then
+		meshDirty[inst] = true
+		D[inst].mesh.bounds = nil
+		return
+	end
+	local set = meshDirty[inst] or {}
+	set[vertex] = true
+	meshDirty[inst] = set
+	D[inst].mesh.bounds = nil
+end
+
+local function r3(x)
+	return math.floor(x * 1000 + 0.5) / 1000
+end
+
+function meshFullOp(inst)
+	local m = D[inst].mesh
+	local v = table.create(#m.v)
+	for i, x in m.v do
+		v[i] = r3(x)
+	end
+	local c = table.create(#m.c)
+	for i, x in m.c do
+		c[i] = r3(x)
+	end
+	return { o = "mesh", id = D[inst].id, v = v, c = c, t = table.clone(m.t) }
+end
+
+function flushMeshes()
+	if next(meshDirty) == nil then
+		return
+	end
+	for inst, what in meshDirty do
+		local d = D[inst]
+		if d and not d.destroyed and d.mesh and inScope(inst) then
+			if what == true then
+				emit(meshFullOp(inst))
+			else
+				local idx, v, c = {}, {}, {}
+				for i in what do
+					idx[#idx + 1] = i
+					v[#v + 1] = r3(d.mesh.v[i * 3 + 1])
+					v[#v + 1] = r3(d.mesh.v[i * 3 + 2])
+					v[#v + 1] = r3(d.mesh.v[i * 3 + 3])
+					c[#c + 1] = r3(d.mesh.c[i * 3 + 1])
+					c[#c + 1] = r3(d.mesh.c[i * 3 + 2])
+					c[#c + 1] = r3(d.mesh.c[i * 3 + 3])
+				end
+				emit({ o = "meshv", id = d.id, i = idx, v = v, c = c })
+			end
+		end
+	end
+	table.clear(meshDirty)
+end
+
+local function meshColor(self, color, level)
+	if color == nil then
+		return D[self].props.Color
+	end
+	if typeOf(color) ~= "Color3" then
+		error("expected a Color3", level)
+	end
+	return color
+end
+
+local function expectV3(v, what, level)
+	if typeOf(v) ~= "Vector3" then
+		error(what .. " must be a Vector3", level)
+	end
+end
+
+-- Adds a point; returns its 0-based index.
+local function meshVertex(self, p, color)
+	local m = meshOf(self)
+	local n = #m.v // 3
+	if n >= MESH_MAX then
+		error("a ProceduralMesh holds at most " .. MESH_MAX .. " points", 4)
+	end
+	local v, c = m.v, m.c
+	v[#v + 1] = p.X
+	v[#v + 1] = p.Y
+	v[#v + 1] = p.Z
+	c[#c + 1] = color.R
+	c[#c + 1] = color.G
+	c[#c + 1] = color.B
+	return n
+end
+
+local function meshTriangle(self, a, b, c)
+	local m = meshOf(self)
+	if #m.t // 3 >= MESH_MAX then
+		error("a ProceduralMesh holds at most " .. MESH_MAX .. " triangles", 4)
+	end
+	local t = m.t
+	t[#t + 1] = a
+	t[#t + 1] = b
+	t[#t + 1] = c
+end
+
+local function vertexIndex(self, id, level)
+	local n = #meshOf(self).v // 3
+	local i = tonumber(id)
+	if not i or i ~= math.floor(i) or i < 1 or i > n then
+		error("no point #" .. tostring(id) .. " (this mesh has " .. n .. ")", level)
+	end
+	return i - 1
+end
+
+-- Four corners counter-clockwise (seen from the side that faces out).
+local function meshQuad(self, a, b, c, d, color)
+	local ia = meshVertex(self, a, color)
+	local ib = meshVertex(self, b, color)
+	local ic = meshVertex(self, c, color)
+	local id = meshVertex(self, d, color)
+	meshTriangle(self, ia, ib, ic)
+	meshTriangle(self, ia, ic, id)
+	return ia
+end
+
+Methods.ProceduralMesh = {
+	-- A point (studs, around Position); returns its number for AddTriangle.
+	AddVertex = function(self, position, color)
+		expectV3(position, "position", 3)
+		local i = meshVertex(self, position, meshColor(self, color, 3))
+		markMesh(self)
+		return i + 1
+	end,
+	-- A triangle through three points (numbers from AddVertex).
+	AddTriangle = function(self, a, b, c)
+		meshTriangle(self, vertexIndex(self, a, 3), vertexIndex(self, b, 3), vertexIndex(self, c, 3))
+		markMesh(self)
+	end,
+	-- A flat four-cornered face (corners in order around it).
+	AddQuad = function(self, a, b, c, d, color)
+		for _, p in { a, b, c, d } do
+			expectV3(p, "corners", 3)
+		end
+		local first = meshQuad(self, a, b, c, d, meshColor(self, color, 3))
+		markMesh(self)
+		return first + 1
+	end,
+	AddBox = function(self, center, size, color)
+		expectV3(center, "center", 3)
+		expectV3(size, "size", 3)
+		color = meshColor(self, color, 3)
+		local h = size / 2
+		local X, Y, Z = v3(h.X, 0, 0), v3(0, h.Y, 0), v3(0, 0, h.Z)
+		-- Each face: normal n, and u, w with u x w = n.
+		local first
+		for _, f in { { X, Y, Z }, { -X, Z, Y }, { Y, Z, X }, { -Y, X, Z }, { Z, X, Y }, { -Z, Y, X } } do
+			local n, u, w = f[1], f[2], f[3]
+			local i = meshQuad(self, center + n - u - w, center + n + u - w, center + n + u + w, center + n - u + w, color)
+			first = first or i
+		end
+		markMesh(self)
+		return first + 1
+	end,
+	AddSphere = function(self, center, radius, color, segments)
+		expectV3(center, "center", 3)
+		radius = tonumber(radius) or 1
+		color = meshColor(self, color, 3)
+		local segs = math.clamp(math.floor(tonumber(segments) or 16), 4, 48)
+		local rings = math.max(2, segs // 2)
+		local first = #meshOf(self).v // 3
+		for i = 0, rings do
+			local phi = math.pi * i / rings
+			for j = 0, segs do
+				local th = 2 * math.pi * j / segs
+				meshVertex(self, center + v3(math.sin(phi) * math.cos(th), math.cos(phi), math.sin(phi) * math.sin(th)) * radius, color)
+			end
+		end
+		for i = 0, rings - 1 do
+			for j = 0, segs - 1 do
+				local a = first + i * (segs + 1) + j
+				local b = a + segs + 1
+				meshTriangle(self, a, a + 1, b)
+				meshTriangle(self, a + 1, b + 1, b)
+			end
+		end
+		markMesh(self)
+		return first + 1
+	end,
+	AddCylinder = function(self, center, radius, height, color, segments)
+		expectV3(center, "center", 3)
+		radius = tonumber(radius) or 1
+		height = tonumber(height) or 1
+		color = meshColor(self, color, 3)
+		local segs = math.clamp(math.floor(tonumber(segments) or 16), 3, 64)
+		local first = #meshOf(self).v // 3
+		local h = height / 2
+		local top = meshVertex(self, center + v3(0, h, 0), color)
+		local bottom = meshVertex(self, center - v3(0, h, 0), color)
+		local ring = first + 2
+		for j = 0, segs do
+			local th = 2 * math.pi * j / segs
+			local o = v3(math.cos(th) * radius, 0, math.sin(th) * radius)
+			meshVertex(self, center + o + v3(0, h, 0), color)
+			meshVertex(self, center + o - v3(0, h, 0), color)
+		end
+		for j = 0, segs - 1 do
+			local a = ring + j * 2
+			local b = a + 2
+			meshTriangle(self, a, b, a + 1)
+			meshTriangle(self, b, b + 1, a + 1)
+			meshTriangle(self, top, b, a)
+			meshTriangle(self, bottom, a + 1, b + 1)
+		end
+		markMesh(self)
+		return first + 1
+	end,
+	GetVertexPosition = function(self, id)
+		local i = vertexIndex(self, id, 3)
+		local v = meshOf(self).v
+		return v3(v[i * 3 + 1], v[i * 3 + 2], v[i * 3 + 3])
+	end,
+	-- Moves one point (animate waves, flags, jelly...).
+	SetVertexPosition = function(self, id, position)
+		expectV3(position, "position", 3)
+		local i = vertexIndex(self, id, 3)
+		local v = meshOf(self).v
+		v[i * 3 + 1], v[i * 3 + 2], v[i * 3 + 3] = position.X, position.Y, position.Z
+		markMesh(self, i)
+	end,
+	SetVertexColor = function(self, id, color)
+		local i = vertexIndex(self, id, 3)
+		color = meshColor(self, color, 3)
+		local c = meshOf(self).c
+		c[i * 3 + 1], c[i * 3 + 2], c[i * 3 + 3] = color.R, color.G, color.B
+		markMesh(self, i)
+	end,
+	GetVertexCount = function(self)
+		return #meshOf(self).v // 3
+	end,
+	GetTriangleCount = function(self)
+		return #meshOf(self).t // 3
+	end,
+	Clear = function(self)
+		local m = meshOf(self)
+		table.clear(m.v)
+		table.clear(m.c)
+		table.clear(m.t)
+		markMesh(self)
+	end,
+}
+
+-- Where a ray first crosses a ProceduralMesh: t (0..1 along dir) and the normal.
+local function rayMesh(inst, o, dir)
+	local d = D[inst]
+	local m = d.mesh
+	if not m or #m.t == 0 then
+		return nil
+	end
+	local p = d.props
+	local rot = rotMatrix(p.Rotation)
+	local rx, ry, rz = o.X - p.Position.X, o.Y - p.Position.Y, o.Z - p.Position.Z
+	local ox = rot[1] * rx + rot[4] * ry + rot[7] * rz
+	local oy = rot[2] * rx + rot[5] * ry + rot[8] * rz
+	local oz = rot[3] * rx + rot[6] * ry + rot[9] * rz
+	local dx = rot[1] * dir.X + rot[4] * dir.Y + rot[7] * dir.Z
+	local dy = rot[2] * dir.X + rot[5] * dir.Y + rot[8] * dir.Z
+	local dz = rot[3] * dir.X + rot[6] * dir.Y + rot[9] * dir.Z
+	-- Bounding box first.
+	if not m.bounds then
+		local lo, hi = { math.huge, math.huge, math.huge }, { -math.huge, -math.huge, -math.huge }
+		local v = m.v
+		for i = 1, #v, 3 do
+			for k = 0, 2 do
+				lo[k + 1] = math.min(lo[k + 1], v[i + k])
+				hi[k + 1] = math.max(hi[k + 1], v[i + k])
+			end
+		end
+		m.bounds = { lo, hi }
+	end
+	local lo, hi = m.bounds[1], m.bounds[2]
+	local tmin, tmax = 0, 1
+	for k, oo in { ox, oy, oz } do
+		local dd = ({ dx, dy, dz })[k]
+		if math.abs(dd) < 1e-12 then
+			if oo < lo[k] or oo > hi[k] then
+				return nil
+			end
+		else
+			local t1, t2 = (lo[k] - oo) / dd, (hi[k] - oo) / dd
+			tmin = math.max(tmin, math.min(t1, t2))
+			tmax = math.min(tmax, math.max(t1, t2))
+			if tmin > tmax then
+				return nil
+			end
+		end
+	end
+	-- Then every triangle (both sides count).
+	local v, t = m.v, m.t
+	local best, bn = math.huge, nil
+	for i = 1, #t, 3 do
+		local a, b, c = t[i] * 3, t[i + 1] * 3, t[i + 2] * 3
+		local ax, ay, az = v[a + 1], v[a + 2], v[a + 3]
+		local e1x, e1y, e1z = v[b + 1] - ax, v[b + 2] - ay, v[b + 3] - az
+		local e2x, e2y, e2z = v[c + 1] - ax, v[c + 2] - ay, v[c + 3] - az
+		local px, py, pz = dy * e2z - dz * e2y, dz * e2x - dx * e2z, dx * e2y - dy * e2x
+		local det = e1x * px + e1y * py + e1z * pz
+		if math.abs(det) > 1e-12 then
+			local inv = 1 / det
+			local sx, sy, sz = ox - ax, oy - ay, oz - az
+			local u = (sx * px + sy * py + sz * pz) * inv
+			if u >= 0 and u <= 1 then
+				local qx, qy, qz = sy * e1z - sz * e1y, sz * e1x - sx * e1z, sx * e1y - sy * e1x
+				local w = (dx * qx + dy * qy + dz * qz) * inv
+				if w >= 0 and u + w <= 1 then
+					local tt = (e2x * qx + e2y * qy + e2z * qz) * inv
+					if tt >= 0 and tt <= 1 and tt < best then
+						best = tt
+						bn = { e1y * e2z - e1z * e2y, e1z * e2x - e1x * e2z, e1x * e2y - e1y * e2x }
+					end
+				end
+			end
+		end
+	end
+	if not bn then
+		return nil
+	end
+	-- Normal back to world space, facing the ray.
+	local nx = rot[1] * bn[1] + rot[2] * bn[2] + rot[3] * bn[3]
+	local ny = rot[4] * bn[1] + rot[5] * bn[2] + rot[6] * bn[3]
+	local nz = rot[7] * bn[1] + rot[8] * bn[2] + rot[9] * bn[3]
+	local n = v3(nx, ny, nz).Unit
+	if n:Dot(dir) > 0 then
+		n = -n
+	end
+	return best, n
+end
+
+local function meshesIn(params)
+	local out = {}
+	local filter, include = {}, false
+	if params ~= nil then
+		for _, v in params.FilterDescendantsInstances or {} do
+			if isInstance(v) then
+				filter[v] = true
+			end
+		end
+		include = params.FilterType == "Include"
+	end
+	local respect = params and params.RespectCanCollide == true
+	local function walk(inst, inFilter)
+		for _, ch in D[inst].children do
+			local f = inFilter or filter[ch] == true
+			local cd = D[ch]
+			if cd.class.name == "ProceduralMesh" and (f == include) and (not respect or cd.props.CanCollide) then
+				out[#out + 1] = ch
+			end
+			walk(ch, f)
+		end
+	end
+	if services.Workspace then
+		walk(services.Workspace, false)
+	end
+	return out
+end
+
 local function raycast(origin, direction, params)
 	if typeOf(origin) ~= "Vector3" or typeOf(direction) ~= "Vector3" then
 		error("Raycast needs an origin and a direction (Vector3)", 3)
@@ -1961,6 +2345,12 @@ local function raycast(origin, direction, params)
 		local t, n = rayPart(part, origin, direction)
 		if t and t < bestT then
 			best, bestT, bestN = part, t, n
+		end
+	end
+	for _, mesh in meshesIn(params) do
+		local t, n = rayMesh(mesh, origin, direction)
+		if t and t < bestT then
+			best, bestT, bestN = mesh, t, n
 		end
 	end
 	if not best then
@@ -2945,6 +3335,39 @@ function handlers.tool(e)
 		end
 		D[tool].droppedAt = simTime
 		setParent(tool, services.Workspace)
+	end
+end
+
+-- client: a ProceduralMesh's shape from the server (whole, or some points)
+function handlers.mesh(e)
+	local inst = byId[e.id]
+	if not inst or D[inst].class.name ~= "ProceduralMesh" then
+		return
+	end
+	local function nums(a)
+		local o = {}
+		for i, x in a or {} do
+			if type(i) == "number" then
+				o[i] = x
+			end
+		end
+		return o
+	end
+	D[inst].mesh = { v = nums(e.v), c = nums(e.c), t = nums(e.t) }
+	markMesh(inst)
+end
+function handlers.meshv(e)
+	local inst = byId[e.id]
+	local m = inst and D[inst].mesh
+	if not m then
+		return
+	end
+	for k, i in e.i or {} do
+		for a = 1, 3 do
+			m.v[i * 3 + a] = e.v[(k - 1) * 3 + a]
+			m.c[i * 3 + a] = e.c[(k - 1) * 3 + a]
+		end
+		markMesh(inst, i)
 	end
 end
 

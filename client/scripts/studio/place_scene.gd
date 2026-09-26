@@ -29,6 +29,13 @@ var _texts := {}  # id -> Label3D
 var _lights := {}  # id -> OmniLight3D
 var _targets := {}  # id -> Transform3D (smoothed replicated movement)
 var _held := {}  # part id -> tool id, for parts of a Tool someone is holding
+## Still parts are drawn merged (see PartBatcher); the game only, not Studio.
+var _batcher: PartBatcher
+var _moves := {}  # part id -> [count, since] (parts that keep moving stay separate)
+var _pmeshes := {}  # ProceduralMesh id -> {body, mi, shape}
+var _pmesh_data := {}  # ProceduralMesh id -> {v, c, t} (flat arrays from the runtime)
+var _pmesh_dirty := {}  # ids to rebuild this frame
+var _dynamic := {}  # part id -> true
 var _holding: Array = []  # avatars that held something last frame
 ## Game: the avatar drawn for a character Model id (null if none), so held tools
 ## can follow its hand.
@@ -117,6 +124,7 @@ func _on_added(id: String) -> void:
 
 func _on_removed(id: String, _parent: String) -> void:
 	_destroy(id)
+	_pmesh_data.erase(id)
 	if tree.cls(id) == "" and (_is_sky_class(id)):
 		pass
 	_apply_lighting()
@@ -142,6 +150,11 @@ func _on_changed(id: String, key: String) -> void:
 			_build(id)
 		else:
 			_style_part(id)
+	elif _pmeshes.has(id):
+		if key == "Position" or key == "Rotation":
+			_pmeshes[id].body.global_transform = _transform_of(id)
+		else:
+			_pmesh_dirty[id] = true
 	elif _texts.has(id):
 		_style_text(id)
 	elif _lights.has(id):
@@ -168,7 +181,9 @@ func _build(id: String) -> void:
 	# A character's root is only a hitbox for scripts; players are drawn as Mellys.
 	if not editing and c == "Part" and tree.name_of(id) == "HumanoidRootPart" and _is_character(tree.parent_of(id)):
 		return
-	if StudioSchema.is_a(c, "BasePart"):
+	if c == "ProceduralMesh":
+		_build_pmesh(id)
+	elif StudioSchema.is_a(c, "BasePart"):
 		_build_part(id)
 	elif c == "Text3D":
 		_build_text(id)
@@ -191,6 +206,11 @@ func _destroy(id: String) -> void:
 		_parts.erase(id)
 		_targets.erase(id)
 		_held.erase(id)
+		if _batcher:
+			_batcher.remove(id)
+	if _pmeshes.has(id):
+		_pmeshes[id].body.queue_free()
+		_pmeshes.erase(id)
 	if _texts.has(id):
 		_texts[id].queue_free()
 		_texts.erase(id)
@@ -259,6 +279,23 @@ func _build_part(id: String) -> void:
 func _move_part(id: String) -> void:
 	if _held.has(id):
 		return  # follows the hand
+	if _batcher and _batcher.has(id):
+		# A part that keeps moving (a door, a platform) stops being merged.
+		var now := Time.get_ticks_msec()
+		var m: Array = _moves.get(id, [0, now])
+		if now - int(m[1]) > 3000:
+			m = [0, now]
+		m[0] += 1
+		_moves[id] = m
+		if int(m[0]) >= 3:
+			_dynamic[id] = true
+			_batcher.remove(id)
+			_parts[id].mesh.visible = true
+		else:
+			var e: Dictionary = _parts[id]
+			e.body.global_transform = _transform_of(id)
+			_batcher.put(id, e.mesh.mesh, _transform_of(id), tree.prop(id, "Color"), str(tree.prop(id, "Material")), e.mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+			return
 	var body: Node3D = _parts[id].body
 	var t := _transform_of(id)
 	if editing or body is RigidBody3D or body.global_position.distance_to(t.origin) > 12.0:
@@ -272,6 +309,110 @@ func _move_part(id: String) -> void:
 func _process(_delta: float) -> void:
 	if not _held.is_empty() or not _holding.is_empty():
 		_follow_hands()
+	if not _pmesh_dirty.is_empty():
+		for id in _pmesh_dirty:
+			if _pmeshes.has(id):
+				_style_pmesh(id)
+		_pmesh_dirty.clear()
+
+
+# --- ProceduralMesh --------------------------------------------------------------
+
+## New shape data for a ProceduralMesh (all of it, or some points).
+func mesh_op(op: Dictionary) -> void:
+	var id := str(op.get("id", ""))
+	if str(op.get("o", "")) == "mesh":
+		_pmesh_data[id] = {"v": op.get("v", []), "c": op.get("c", []), "t": op.get("t", [])}
+	else:
+		var d: Dictionary = _pmesh_data.get(id, {})
+		if d.is_empty():
+			return
+		var idx: Array = op.get("i", [])
+		var v: Array = op.get("v", [])
+		var c: Array = op.get("c", [])
+		for k in idx.size():
+			var i := int(idx[k])
+			for a in 3:
+				d.v[i * 3 + a] = v[k * 3 + a]
+				d.c[i * 3 + a] = c[k * 3 + a]
+	_pmesh_dirty[id] = true
+
+
+func _build_pmesh(id: String) -> void:
+	var body := StaticBody3D.new()
+	body.set_meta("place_id", id)
+	var mi := MeshInstance3D.new()
+	body.add_child(mi)
+	var shape := CollisionShape3D.new()
+	body.add_child(shape)
+	add_child(body)
+	body.global_transform = _transform_of(id)
+	_pmeshes[id] = {"body": body, "mi": mi, "shape": shape}
+	_style_pmesh(id)
+
+
+func _style_pmesh(id: String) -> void:
+	var e: Dictionary = _pmeshes[id]
+	var mi: MeshInstance3D = e.mi
+	var body: StaticBody3D = e.body
+	var d: Dictionary = _pmesh_data.get(id, {})
+	var t: Array = d.get("t", [])
+	var v: Array = d.get("v", [])
+	var c: Array = d.get("c", [])
+	var faces := PackedVector3Array()
+	if t.size() < 3:
+		mi.mesh = null
+		e.shape.shape = null
+		return
+	var smooth: bool = tree.prop(id, "Smooth")
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pt := func(i: int) -> Vector3: return Vector3(float(v[i * 3]), float(v[i * 3 + 1]), float(v[i * 3 + 2]))
+	var col := func(i: int) -> Color: return Color(float(c[i * 3]), float(c[i * 3 + 1]), float(c[i * 3 + 2])) if i * 3 + 2 < c.size() else Color.WHITE
+	faces.resize(t.size())
+	if smooth:
+		for i in v.size() / 3:
+			st.set_color(col.call(i))
+			st.add_vertex(pt.call(i))
+		# Godot draws clockwise triangles as the front; scripts give them counter-clockwise.
+		for k in range(0, t.size() - 2, 3):
+			st.add_index(int(t[k]))
+			st.add_index(int(t[k + 2]))
+			st.add_index(int(t[k + 1]))
+		st.generate_normals()
+	for k in range(0, t.size() - 2, 3):
+		var a := int(t[k])
+		var b := int(t[k + 1])
+		var cc := int(t[k + 2])
+		var pa: Vector3 = pt.call(a)
+		var pb: Vector3 = pt.call(b)
+		var pc: Vector3 = pt.call(cc)
+		faces[k] = pa
+		faces[k + 1] = pc
+		faces[k + 2] = pb
+		if not smooth:
+			var n := (pb - pa).cross(pc - pa).normalized()
+			for q in [[pa, a], [pc, cc], [pb, b]]:
+				st.set_normal(n)
+				st.set_color(col.call(q[1]))
+				st.add_vertex(q[0])
+	mi.mesh = st.commit()
+	var transparency: float = tree.prop(id, "Transparency")
+	var m := _kind_material(str(tree.prop(id, "Material")))
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if transparency > 0.001:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color.a = 1.0 - transparency
+	mi.material_override = m
+	mi.visible = transparency < 0.999 or editing
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tree.prop(id, "CastShadow") and transparency < 0.5 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var cs := ConcavePolygonShape3D.new()
+	cs.backface_collision = true
+	cs.set_faces(faces)
+	e.shape.shape = cs
+	body.collision_layer = LAYER_WORLD if tree.prop(id, "CanCollide") else LAYER_GHOST
 
 
 ## Held tools: every part keeps its place relative to the Handle, and the Handle
@@ -380,6 +521,49 @@ func _style_part(id: String) -> void:
 	mesh.material_override = _material(id, transparency)
 	if c == "SpawnLocation":
 		_spawn_decal(id, mesh, size)
+	_batch(id)
+
+
+## Merged drawing for still, solid, plain parts; everything else draws itself.
+func _batch(id: String) -> void:
+	if editing:
+		return
+	var e: Dictionary = _parts[id]
+	var mesh: MeshInstance3D = e.mesh
+	var kind := str(tree.prop(id, "Material"))
+	var ok: bool = e.body is AnimatableBody3D and not _held.has(id) and not _dynamic.has(id) \
+		and float(tree.prop(id, "Transparency")) < 0.001 and str(tree.prop(id, "Texture")) == "" \
+		and PartBatcher.batchable_kind(kind) and tree.cls(id) != "SpawnLocation"
+	if not ok:
+		if _batcher and _batcher.has(id):
+			_batcher.remove(id)
+			mesh.visible = float(tree.prop(id, "Transparency")) < 0.999
+		return
+	if _batcher == null:
+		_batcher = PartBatcher.new()
+		_batcher.material_for = _kind_material
+		add_child(_batcher)
+	mesh.visible = false
+	_batcher.put(id, mesh.mesh, _transform_of(id), tree.prop(id, "Color"), kind, mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+
+## The look of a material with a white color (merged parts bring their own colors).
+func _kind_material(kind: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.roughness = 0.65
+	match kind:
+		"SmoothPlastic":
+			m.roughness = 0.3
+		"Metal":
+			m.metallic = 0.75
+			m.roughness = 0.35
+		"Wood", "Grass", "Brick", "Concrete", "Fabric", "Sand":
+			m.roughness = 0.9
+			m.albedo_texture = _noise_texture(kind)
+			m.uv1_triplanar = true
+			m.uv1_world_triplanar = true
+			m.uv1_scale = Vector3.ONE * 0.5
+	return m
 
 
 func _wedge_points(s: Vector3) -> Array:

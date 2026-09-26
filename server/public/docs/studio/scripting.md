@@ -226,6 +226,153 @@ s.Parent = workspace.Chest
 s:Play()
 ```
 
+## Tools
+
+A **Tool** in StarterPack (or put into a player's Backpack) shows up in the backpack bar. Picking it moves it into the character; the part named `Handle` goes into the right hand.
+
+```lua
+local tool = script.Parent -- a Script inside the Tool
+tool.Activated:Connect(function()
+	local character = tool.Parent
+	print(character.Name .. " swung the sword")
+end)
+tool.Equipped:Connect(function(mouse) end) -- mouse only in LocalScripts
+tool.Unequipped:Connect(function() end)
+```
+
+`Activated` fires on the server too, so damage and the like go into a Script. `RequiresHandle = false` makes a tool without a Handle (spells, build tools). `GripOffset` and `GripRotation` move it in the hand, `ToolTip` and `TextureId` change how it looks in the bar, `CanBeDropped` lets players drop it with Backspace. `Humanoid:EquipTool(tool)` and `Humanoid:UnequipTools()` do it from a script.
+
+## Mouse and cursor (LocalScripts)
+
+```lua
+local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+mouse.Button1Down:Connect(function()
+	print(mouse.Target, mouse.Hit) -- part under the pointer, the point it hits
+end)
+mouse.Icon = "rbxassetid://..." -- or "" for the normal cursor
+```
+
+Also `Button1Up`, `Button2Down/Up`, `Move`, `WheelForward/Backward`, `X`, `Y`, `Origin` and `UnitRay`. `UserInputService.MouseBehavior = "LockCenter"` locks the pointer in the middle of the screen (shooters), `"Default"` gives it back; `MouseIconEnabled = false` hides it. On phones `Hit` and `Target` follow the last tap.
+
+## Camera (LocalScripts)
+
+`workspace.CurrentCamera` is this device's camera. It has `Position`, `Focus`, `LookVector` and `FieldOfView`. Set `CameraType = "Scriptable"` and the game stops moving it: it stays at `Position` looking at `Focus` until you set `"Custom"` again.
+
+```lua
+local cam = workspace.CurrentCamera
+cam.CameraType = "Scriptable"
+cam.Position = Vector3.new(0, 40, 30)
+cam.Focus = Vector3.new(0, 0, 0)
+```
+
+StarterPlayer's `CameraMode` (`Classic`, `LockFirstPerson`, `LockThirdPerson`), `CameraMinZoom` and `CameraMaxZoom` set the camera rules for everyone.
+
+## Finding parts
+
+```lua
+local params = RaycastParams.new()
+params.FilterDescendantsInstances = { player.Character }
+params.FilterType = "Exclude" -- or "Include"
+local hit = workspace:Raycast(origin, direction * 100, params)
+if hit then
+	print(hit.Instance, hit.Position, hit.Normal, hit.Distance, hit.Material)
+end
+for _, part in workspace:GetPartBoundsInRadius(position, 10) do
+	print(part.Name)
+end
+```
+
+Rays go up to 5000 studs and also hit ProceduralMeshes. `params.RespectCanCollide = true` skips parts with CanCollide off.
+
+## Small helpers
+
+- `Debris:AddItem(part, 5)` destroys `part` in 5 seconds.
+- `HttpService:JSONEncode(t)`, `HttpService:JSONDecode(text)`, `HttpService:GenerateGUID()`.
+- `StarterGui:SetCoreGuiEnabled("Backpack", false)` hides a part of the game's own UI: `Backpack`, `Health`, `Chat`, `Emotes` or `All`.
+
+## Gamepasses
+
+Create passes in the place's settings in Studio (name, picture, price in pieces). Each pass gets a number; use it in scripts. The creator gets 95% of the price.
+
+```lua
+local MarketplaceService = game:GetService("MarketplaceService")
+local VIP = 12
+
+local function giveVip(player)
+	player.Character.Humanoid.WalkSpeed = 24
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		if MarketplaceService:UserOwnsGamePassAsync(player.UserId, VIP) then
+			giveVip(player)
+		end
+	end)
+end)
+
+-- a shop button: from the server, or from a LocalScript for the LocalPlayer
+MarketplaceService:PromptGamePassPurchase(player, VIP)
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, bought)
+	if bought and passId == VIP then
+		giveVip(player)
+	end
+end)
+```
+
+`MarketplaceService:GetGamePassInfo(id)` returns `{ Id, Name, Price }`. Always check ownership on the server: a LocalScript can be changed by its player.
+
+## Saving data (DataStores)
+
+Server Scripts can save data that outlives the server: coins, levels, a built house.
+
+```lua
+local store = game:GetService("DataStoreService"):GetDataStore("Coins")
+
+game.Players.PlayerAdded:Connect(function(player)
+	local coins = store:GetAsync("u" .. player.UserId) or 0
+	player:SetAttribute("Coins", coins)
+end)
+
+game.Players.PlayerRemoving:Connect(function(player)
+	store:SetAsync("u" .. player.UserId, player:GetAttribute("Coins"))
+end)
+```
+
+- `GetAsync(key)`, `SetAsync(key, value)`, `RemoveAsync(key)`.
+- `IncrementAsync(key, 5)` adds to a number in one step and returns the result.
+- `UpdateAsync(key, function(old) return new end)` changes a value based on the old one; return `nil` to leave it.
+- `ListKeysAsync(after, limit)` lists up to 100 keys after `after`.
+
+Values can be numbers, strings, booleans, tables and Vector3/Color3. Each call waits for the answer. Limits: keys and store names up to 50 characters, a value up to 64 KB, a place up to 4 MB and 20 000 keys in all, 20 requests per second per server. Studio's Play mode keeps the data only until you stop.
+
+## Procedural meshes
+
+A **ProceduralMesh** is one object whose shape a script builds from triangles: terrain, rocks, ropes, water, whatever. Ten thousand triangles are still one object and one draw, unlike ten thousand parts.
+
+```lua
+local mesh = Instance.new("ProceduralMesh")
+mesh.Position = Vector3.new(0, 5, 0)
+mesh.Smooth = true
+local a = mesh:AddVertex(Vector3.new(0, 0, 0), Color3.new(1, 0, 0))
+local b = mesh:AddVertex(Vector3.new(4, 0, 0), Color3.new(0, 1, 0))
+local c = mesh:AddVertex(Vector3.new(0, 4, 0), Color3.new(0, 0, 1))
+mesh:AddTriangle(a, b, c)
+mesh:AddBox(Vector3.new(6, 0, 0), Vector3.new(2, 2, 2))
+mesh:AddSphere(Vector3.new(-6, 0, 0), 2, nil, 24)
+mesh:AddCylinder(Vector3.new(0, 0, 6), 1, 4)
+mesh.Parent = workspace
+```
+
+- Points are in studs around `Position` and turn with `Rotation`. Colors are optional; without one a point takes the mesh's `Color`.
+- `AddQuad(p1, p2, p3, p4, color)` adds a flat four-cornered face; `AddBox`, `AddSphere` and `AddCylinder` add whole shapes. Each returns the number of its first point.
+- `SetVertexPosition(i, pos)`, `GetVertexPosition(i)` and `SetVertexColor(i, color)` change points later: move them every frame for waves or a flag. Only the changed points are sent.
+- `GetVertexCount()`, `GetTriangleCount()`, `Clear()`. Up to 60 000 points per mesh.
+- `Smooth = true` blends the light between faces (hills), `false` keeps them flat (crystals, low-poly). `CanCollide`, `Transparency`, `Material` and `CastShadow` work like on parts; players walk on the mesh's real shape.
+
+## Making big places fast
+
+Anchored, opaque, untextured parts that don't move are drawn together in 32×32-stud areas, so a thousand blocks cost a handful of draws. Moving a part often, or making it see-through, Neon, Glass or Ice, takes it out of that and it costs a draw of its own again. For worlds of blocks, create only the faces players can see and merge neighbours into bigger parts; for smooth ground, use one ProceduralMesh.
+
 ## Errors and limits
 
 Errors show up in Output with the script name and line. While playing, the Console tab of the game menu shows them too, and `F9` mirrors the console into the chat. One broken script doesn't stop the others.

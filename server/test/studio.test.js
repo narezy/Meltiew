@@ -307,3 +307,36 @@ test('tools: StarterPack fills the Backpack, equip, click, raycast', async () =>
   assert.deepEqual(prints, ['ray SpawnLocation', 'swing nrz']);
   vm.close();
 });
+
+test('ProceduralMesh: shapes, one replicated object, raycasts, point edits', async () => {
+  const { PlaceVM } = await import('../src/studio/vm.js');
+  const melt = templatePlace('Mesh');
+  melt.tree.k.find((n) => n.c === 'Workspace').k = [];
+  melt.tree.k.find((n) => n.c === 'ServerScriptService').k[0].p.Source = `
+local m = Instance.new("ProceduralMesh")
+m.Name = "Rock"
+m.Position = Vector3.new(0, 5, 0)
+m:AddBox(Vector3.new(0, 0, 0), Vector3.new(4, 2, 4))
+local s = m:AddSphere(Vector3.new(10, 0, 0), 1, Color3.new(1, 0, 0), 8)
+m.Parent = workspace
+local r = workspace:Raycast(Vector3.new(0, 20, 0), Vector3.new(0, -40, 0))
+print(r.Instance.Name, math.round(r.Position.Y * 100) / 100, r.Normal.Y, m:GetVertexCount(), m:GetTriangleCount())
+task.wait(0.1)
+m:SetVertexPosition(s, Vector3.new(10, 3, 0))`;
+  const vm = await PlaceVM.create();
+  const all = [];
+  const run = (ops) => all.push(...ops);
+  run(vm.init({ role: 'server', place: melt, seed: 1 }));
+  run(vm.start());
+  const prints = all.filter((o) => o.o === 'print').map((o) => o.msg);
+  assert.deepEqual(prints, ['Rock 6 1 69 76']);
+  const full = all.find((o) => o.o === 'mesh');
+  assert.equal(full.t.length, 76 * 3);
+  run(vm.step(0.2));
+  const edit = all.find((o) => o.o === 'meshv');
+  assert.deepEqual(edit.v, [10, 3, 0]);
+  // A player joining later gets the shape with the object.
+  const snap = vm.snapshot();
+  assert.ok(snap.some((o) => o.o === 'mesh' && o.v.length === 69 * 3));
+  vm.close();
+});

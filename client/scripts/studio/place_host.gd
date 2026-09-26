@@ -97,6 +97,11 @@ func server_ops(ops: Array) -> void:
 					events.append(op)
 				else:
 					tree.apply(op)
+			"mesh", "meshv":
+				if _vm:
+					events.append(op)
+				else:
+					scene.mesh_op(op)
 			"sound":
 				scene.play_sound(str(op.id))
 			"fire":
@@ -217,6 +222,8 @@ func _apply(ops: Array) -> void:
 		match str(op.get("o", "")):
 			"new", "set", "del", "parent":
 				tree.apply(op)
+			"mesh", "meshv":
+				scene.mesh_op(op)
 			"sound":
 				scene.play_sound(str(op.id))
 			"fire":
