@@ -128,11 +128,16 @@ items.append({"id": "bowtie", "name": {"en": "Bow tie", "ru": "Бабочка"},
     part("box", [0, 1.82, 0.47], "#c9485d", size=[0.12, 0.14, 0.1]),
 ]})
 
-wing = lambda side: {"shape": "group", "pos": [side * 0.3, 1.3, -0.45], "rot": [0, side * 25, side * -15],
-                     "anim": {"type": "sway", "axis": "y", "deg": 8, "period": 1.6}, "parts": [
-    part("sphere", [side * 0.55, 0.25, 0], "#f7f4ff", r=0.55, h=0.12, rough=0.5, glow=0.15),
-    part("sphere", [side * 0.4, -0.25, 0], "#e9e2ff", r=0.4, h=0.1, rough=0.5, glow=0.15),
-]}
+def wing(side):
+    # Three long feathers fanning out from the shoulder blade, in the back's plane.
+    feathers = []
+    for ang, length, col in ((25, 1.35, "#f7f4ff"), (55, 1.2, "#efeaff"), (85, 0.95, "#e4dcff")):
+        a = math.radians(ang)
+        d = (side * math.sin(a), math.cos(a))
+        feathers.append(part("capsule", [d[0] * length / 2, d[1] * length / 2, 0], col, rot=[0, 0, -side * ang],
+                             r=0.17, h=length, rough=0.5, glow=0.12))
+    return {"shape": "group", "pos": [side * 0.28, 1.45, -0.5], "rot": [0, side * 18, 0],
+            "anim": {"type": "sway", "axis": "y", "deg": 7, "period": 1.6}, "parts": feathers}
 items.append({"id": "wings", "name": {"en": "Angel wings", "ru": "Крылья"}, "slot": "back", "bone": "Torso", "parts": [wing(-1), wing(1)]})
 
 items.append({"id": "backpack", "name": {"en": "Backpack", "ru": "Рюкзак"}, "slot": "back", "bone": "Torso", "parts": [

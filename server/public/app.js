@@ -197,7 +197,7 @@ const state = {
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const t = (key, ...args) => (T[state.lang]?.[key] ?? T.en[key] ?? key).replace(/\{(\d)\}/g, (_, i) => args[i]);
+const t = (key, ...args) => (T[state.lang]?.[key] ?? SHOP_T[state.lang]?.[key] ?? T.en[key] ?? SHOP_T.en[key] ?? key).replace(/\{(\d)\}/g, (_, i) => args[i]);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const field = (o, key) => (state.lang === 'ru' && o[key + '_ru']) || o[key] || '';
 const badge = (u) => (u && (u.role === 'owner' || u.role === 'admin') ? `<span class="badge ${u.role}">${t(u.role)}</span>` : '');
@@ -291,6 +291,7 @@ const ICONS = {
   send: '<path d="M4 12 20 4l-4.5 16-3.5-6.5z"/>',
   telegram: '<path d="M20.5 4.5 3.5 11l5.5 2 2 6 3-4 5 3.5z"/>',
   studio: '<path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/>',
+  shop: '<path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8zM9 8V6.5a3 3 0 0 1 6 0V8"/>',
 };
 const icon = (name, size = 22) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 const TELEGRAM = 'https://t.me/meltiew';
@@ -318,16 +319,18 @@ setInterval(pollCounts, 15000);
 
 function renderNav(path) {
   // Friends and chats share one tab; its badge counts requests and unread messages together.
-  const links = [['/', 'home'], ...(state.me ? [['/friends', 'friends'], ['/studio', 'studio']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
+  const links = [['/', 'home'], ['/shop', 'shop'], ...(state.me ? [['/friends', 'friends'], ['/studio', 'studio']] : []), ['/download', 'download'], ...(state.me ? [['/settings', 'settings']] : []), ...(isStaff() ? [['/admin', 'admin_panel']] : [])];
   const on = (href) => (href === '/' ? path === '/' || path.startsWith('/place/')
     : href === '/friends' ? path.startsWith('/friends') || path.startsWith('/messages')
-    : href === '/studio' ? path.startsWith('/studio') || path.startsWith('/docs') : path.startsWith(href));
+    : href === '/studio' ? path.startsWith('/studio') || path.startsWith('/docs')
+    : href === '/shop' ? path.startsWith('/shop') || path.startsWith('/wallet') || path.startsWith('/quests') : path.startsWith(href));
   const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>' : '');
   $('#nav').innerHTML = `
     <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
     <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${t(key)}${count(key)}</a>`).join('')}</div>
     <div class="nav-right">
       <select class="lang" id="langsel" aria-label="${t('language')}">${(window.LANGUAGES || [['en', 'English']]).map(([c, n]) => `<option value="${c}" ${state.lang === c ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      ${walletChip()}
       ${state.me
         ? `<a class="me-chip" href="/u/${encodeURIComponent(state.me.username)}" data-link>${bust(state.me)}<span>${nameHtml(state.me)}</span></a>`
         : `<a class="btn small" href="/login" data-link>${t('sign_in')}</a>`}
@@ -371,7 +374,7 @@ const onLeave = (fn) => cleanups.push(fn);
 const pages = {
   async '/'(root) {
     if (!state.me) return landing(root);
-    root.innerHTML = `<h1>${esc(t('hi', state.me.display_name))}</h1><div id="fo"></div>
+    root.innerHTML = `<h1>${esc(t('hi', state.me.display_name))}</h1>${balanceCards(state.me.wallet)}<div id="fo"></div>
       <div class="row section-head"><h2 class="grow">${t('places')}</h2>
         <input id="pq" class="search" type="search" placeholder="${t('search_everything')}" autocomplete="off"></div>
       <div id="people"></div>
@@ -476,8 +479,8 @@ const pages = {
         ${me.birthdate && me.birthdate_change?.can ? `<button class="btn small ghost" id="changebd">${t(me.birthdate_change.free ? 'bd_change_free' : 'bd_change')}</button>` : ''}
         ${me.birthdate && !me.birthdate_change?.can && me.birthdate_change?.next_at ? `<span class="muted" style="font-size:14px">${esc(t('bd_next_change', new Date(me.birthdate_change.next_at).toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US')))}</span>` : ''}
         <span class="muted">${t(rulesKey)}</span></div>
-      <div class="card stack" style="grid-column:1/-1"><h3>${t('face')}</h3><span class="muted">${t('face_hint')}</span>
-        <div class="faces">${Object.entries(FACE_SLUGS).map(([id, slug]) => `<button class="face ${me.face === id ? 'on' : ''}" data-face="${esc(id)}" title="${esc(id)}"><img src="/img/faces/${slug}.png" alt="${esc(id)}"></button>`).join('')}</div></div>
+      <div class="card stack" style="grid-column:1/-1"><h3>${t('face')}</h3><span class="muted">${t('face_hint')} <a href="/shop" data-link>${t('shop')} →</a></span>
+        <div class="faces">${Object.entries(FACE_SLUGS).filter(([id]) => (me.owned?.faces || [':D', ':)']).includes(id) || me.face === id).map(([id, slug]) => `<button class="face ${me.face === id ? 'on' : ''}" data-face="${esc(id)}" title="${esc(id)}"><img src="/img/faces/${slug}.png" alt="${esc(id)}"></button>`).join('')}</div></div>
       <form class="card stack" id="pw"><h3>${t('change_password')}</h3>
         <input type="password" name="old" placeholder="${t('current_password')}" required>
         <input type="password" name="new" placeholder="${t('new_password')}" minlength="6" required>
@@ -999,6 +1002,7 @@ async function placePage(root, id) {
           <div class="stack" style="gap:6px;align-items:flex-end"><b>${s.players} / ${s.max_players}</b><div class="meter"><i style="width:${(s.players / s.max_players) * 100}%"></i></div></div>
           <button class="btn mint" data-play="${esc(s.id)}" ${game} ${s.players >= s.max_players ? 'disabled' : ''}>${s.players >= s.max_players ? t('full') : t('join')}</button>
         </div>`).join('') : `<div class="empty">${t('no_servers')}</div>`}</div>
+      ${studio ? '<div id="passes" style="margin-top:30px"></div>' : ''}
       <div id="comments" style="margin-top:30px"></div>`;
     root.querySelectorAll('[data-vote]').forEach((b) => b.addEventListener('click', async () => {
       try { await api('POST', `/api/places/${encodeURIComponent(id)}/vote`, { value: Number(b.dataset.vote) }); draw(); }
@@ -1006,6 +1010,7 @@ async function placePage(root, id) {
     }));
     $('#report-place')?.addEventListener('click', () => reportDialog(p.author, { place_id: p.id }));
     if (studio && mine) ownerPanel($('#owner'), p, draw);
+    if (studio) passesBlock($('#passes'), p, mine).catch(() => {});
     commentsBlock($('#comments'), p);
   };
   await draw();
@@ -1392,7 +1397,7 @@ async function adminPage(root) {
   const owner = state.me.role === 'owner';
   let tab = sessionStorage.getItem('admin_tab') || 'overview';
   root.innerHTML = `<h1>${t('admin_panel')}</h1>
-    <div class="tabs">${['overview', 'reports', 'users', 'servers', 'places_admin'].map((k) => `<button data-tab="${k}">${t(k)}</button>`).join('')}</div>
+    <div class="tabs">${['overview', 'reports', 'users', 'servers', 'places_admin', 'adm_economy', 'adm_tickets'].map((k) => `<button data-tab="${k}">${t(k)}</button>`).join('')}</div>
     <div id="admin" class="stack" style="margin-top:18px"></div>`;
   const box = $('#admin');
   const tabs = root.querySelectorAll('[data-tab]');
@@ -1400,7 +1405,7 @@ async function adminPage(root) {
     sessionStorage.setItem('admin_tab', tab);
     tabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     box.innerHTML = '…';
-    try { await ({ overview, reports, users, servers, places_admin: placesAdmin })[tab](); }
+    try { await ({ overview, reports, users, servers, places_admin: placesAdmin, adm_economy: () => adminEconomy(box), adm_tickets: () => adminTickets(box) })[tab](); }
     catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
   };
   tabs.forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; show(); }));
@@ -1545,6 +1550,7 @@ async function render() {
     else if (path === '/admin') await adminPage(root);
     else if (path === '/studio') await studioPage(root);
     else if (path.startsWith('/docs/studio')) await docsPage(root, path.split('/')[3] || 'index');
+    else if (SHOP_ROUTES[path]) await SHOP_ROUTES[path](root);
     else await (pages[path] || pages['/'])(root);
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -1565,7 +1571,11 @@ window.addEventListener('popstate', render);
 
 (async () => {
   if (state.token) {
-    try { state.me = (await api('GET', '/api/me')).user; } catch { state.me = null; }
+    try {
+      const r = await api('GET', '/api/me');
+      state.me = r.user;
+      if (r.daily_bonus) setTimeout(() => toast(t('daily_bonus', r.daily_bonus)), 600);
+    } catch { state.me = null; }
   }
   await render();
   askBirthdate();
