@@ -2787,7 +2787,7 @@ end
 
 -- An animation for PlayAnimation / Rig.Animation: "anim://<id>" (or the bare id) from
 -- the animator, or one of Melly's own moves.
-local BUILTIN_ANIMS = { idle = true, walk = true, run = true, wave = true, dance = true, cheer = true, sit = true, clap = true, laugh = true }
+local BUILTIN_ANIMS = { idle = true, walk = true, run = true, wave = true, dance = true, cheer = true, sit = true, clap = true, laugh = true, punch = true, throw = true }
 local function animRef(anim, level)
 	if type(anim) == "number" and anim >= 1 and anim % 1 == 0 then
 		return "anim://" .. string.format("%d", anim)
@@ -2915,6 +2915,24 @@ local function appearanceLook(app)
 	return look
 end
 
+-- A look table ({colors, face, accessories}) as a new Appearance.
+local function lookToAppearance(look)
+	look = type(look) == "table" and look or {}
+	local colors = type(look.colors) == "table" and look.colors or {}
+	local app = create("Appearance")
+	local p = D[app].props
+	for key, part in LOOK_PARTS do
+		if type(colors[part]) == "string" then
+			p[key] = Color3.fromHex(colors[part])
+		end
+	end
+	if look.face then
+		p.Face = tostring(look.face)
+	end
+	p.Accessories = table.concat(type(look.accessories) == "table" and look.accessories or {}, ",")
+	return app
+end
+
 local function applyLook(player, look)
 	local d = D[player]
 	d.appliedLook = look
@@ -2985,32 +3003,35 @@ Methods.Players = {
 		end
 		local own = D[player].ownLook or {}
 		local applied = D[player].appliedLook
-		local colors = own.colors or {}
-		local face = own.face
-		local acc = own.accessories or {}
+		local look = { colors = own.colors or {}, face = own.face, accessories = own.accessories or {} }
 		if applied then
 			if not applied.keep.colors then
-				colors = applied.colors
+				look.colors = applied.colors
 			end
 			if not applied.keep.face then
-				face = applied.face
+				look.face = applied.face
 			end
 			if not applied.keep.accessories then
-				acc = applied.accessories
+				look.accessories = applied.accessories
 			end
 		end
-		local app = create("Appearance")
-		local p = D[app].props
-		for key, part in LOOK_PARTS do
-			if type(colors[part]) == "string" then
-				p[key] = Color3.fromHex(colors[part])
-			end
+		return lookToAppearance(look)
+	end,
+	-- Anyone's own look by their username, even if they aren't here (server Scripts).
+	GetUserAppearanceAsync = function(_, username)
+		if role ~= "server" then
+			error("GetUserAppearanceAsync works in server Scripts only", 2)
 		end
-		if face then
-			p.Face = tostring(face)
+		local co = coroutine.running()
+		local rid = nextDsRid
+		nextDsRid += 1
+		pendingDs[rid] = co
+		emit({ o = "ulook", rid = rid, name = tostring(username) })
+		local ok, value, err = coroutine.yield()
+		if not ok then
+			error("GetUserAppearanceAsync: " .. tostring(err), 2)
 		end
-		p.Accessories = table.concat(acc, ",")
-		return app
+		return lookToAppearance(value)
 	end,
 	GetPlayers = function(self)
 		local out = {}

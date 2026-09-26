@@ -37,7 +37,7 @@ const PHYS_MAX_BATCH = 64;
 const PHYS_CLAIM_RANGE = 12; // how close you must be to take a part over
 const PHYS_HANDOFF_MARGIN = 3; // someone must be this much closer to take it from its owner
 const PHYS_LIMIT = 5000;
-export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead', 'climb']);
+export const ANIMS = new Set(['idle', 'walk', 'run', 'jump', 'fall', 'wave', 'dance', 'cheer', 'sit', 'clap', 'laugh', 'dead', 'climb', 'punch', 'throw']);
 export const HEART_COOLDOWN_MS = 2500;
 export const EMOTE_COOLDOWN_MS = 800;
 export const EMOTES = new Set(['wave', 'heart', 'dance', 'cheer', 'sit', 'clap', 'laugh']);
@@ -249,6 +249,12 @@ export class GameHub {
           who.look = cleanLook(op.look);
           who.user = withLook(publicUser(who.conn.user), who.look);
           this.broadcast(server, { t: 'look', player: who.user });
+          break;
+        }
+        case 'ulook': {
+          // Players:GetUserAppearanceAsync: someone's own look by username (answered like a DataStore call).
+          const look = this.userLook?.(String(op.name || '').slice(0, 40));
+          server.inbox.push({ e: 'ds_ret', rid: op.rid, ok: !!look, value: look || null, err: look ? '' : 'no player with that name' });
           break;
         }
         case 'sit':

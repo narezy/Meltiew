@@ -3,7 +3,7 @@ extends RefCounted
 ## Sheets Studio's properties open: accessories for a Rig, animations for a Rig or
 ## an EmoteOverride.
 
-const BUILTIN_ANIMS := ["idle", "walk", "run", "wave", "dance", "cheer", "sit", "clap", "laugh"]
+const BUILTIN_ANIMS := ["idle", "walk", "run", "wave", "dance", "cheer", "sit", "clap", "laugh", "punch", "throw"]
 
 
 ## A centered card over a dim layer; returns [layer, content vbox].

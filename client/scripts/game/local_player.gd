@@ -133,7 +133,7 @@ func _ready() -> void:
 	add_child(avatar)
 	avatar.rotation.y = _facing
 	avatar.custom_finished.connect(func():
-		if _emote.begins_with("anim://"):
+		if _emote.begins_with("anim://") or _emote in MellyAvatar.ACTIONS:
 			_emote = "")
 
 	# The camera rig is moved every rendered frame, so it opts out of physics interpolation
@@ -380,9 +380,12 @@ func play_custom(anim: String) -> void:
 	if anim.begins_with("anim://"):
 		_emote = anim
 		avatar.play(anim)
-	elif anim in MellyAvatar.EMOTES:
+	elif anim in MellyAvatar.EMOTES or anim in MellyAvatar.ACTIONS:
 		_emote = anim
-		avatar.play(anim)
+		if anim in MellyAvatar.ACTIONS:
+			avatar.restart(anim)  # a punch right after a punch plays again
+		else:
+			avatar.play(anim)
 
 
 func current_anim() -> String:
@@ -516,7 +519,7 @@ func _physics_process(delta: float) -> void:
 			input = kb
 	if input.length() > 1.0:
 		input = input.normalized()
-	if input.length() > 0.1 and _emote != "":
+	if input.length() > 0.1 and _emote != "" and not (_emote in MellyAvatar.ACTIONS):
 		_emote = ""
 	var dir := Basis(Vector3.UP, cam_yaw) * Vector3(input.x, 0, input.y)
 	var sprinting := (sprint or sprint_toggle) and can_sprint and not winded and input.length() > 0.1 and not seated

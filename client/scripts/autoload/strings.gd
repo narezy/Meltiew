@@ -505,6 +505,8 @@ const TABLE := {
 	"anim_sit": ["Sit", "Сидеть"],
 	"anim_clap": ["Clap", "Хлопать"],
 	"anim_laugh": ["Laugh", "Смеяться"],
+	"anim_punch": ["Punch", "Удар"],
+	"anim_throw": ["Throw", "Бросок"],
 	"shift_lock": ["Shift lock (Ctrl)", "Шифт-лок (Ctrl)"],
 	"help_arrows": ["Arrow keys — turn and tilt the camera", "Стрелки — повернуть и наклонить камеру"],
 	"help_sprint": ["Shift — run (while you have stamina)", "Shift — бег (пока есть выносливость)"],

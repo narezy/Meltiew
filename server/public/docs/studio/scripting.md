@@ -316,6 +316,10 @@ player:ApplyAppearance(look)
 player:ResetAppearance()  -- their own look again
 ```
 
+`Players:GetUserAppearanceAsync("username")` returns anyone's own look as an Appearance, even
+if they aren't in your place: dress a boss as its creator, show a champion on a pedestal. It
+always matches what they wear now.
+
 `Accessories` is a list of accessory ids separated by commas (`"crown,halo"`, or `""` for none);
 pick them with the "…" button in Studio's properties. Only Scripts (on the server) change looks.
 
@@ -329,6 +333,9 @@ player.Character.Humanoid:PlayAnimation("anim://12")
 player.Character.Humanoid:PlayAnimation("dance")  -- Melly's own moves work too
 player.Character.Humanoid:StopAnimation()
 ```
+
+Besides the emote wheel's moves there are two quick one-shot moves for games: `"punch"` and
+`"throw"`. Melly goes back to idle when they finish, and they keep playing while running.
 
 Moving stops an animation, like an emote. A LocalScript can animate its own player's character.
 

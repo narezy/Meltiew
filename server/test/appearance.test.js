@@ -106,3 +106,33 @@ end)`;
   a.close();
   b.close();
 });
+
+test('GetUserAppearanceAsync and the public look endpoint', async () => {
+  const anon = await fetch(base + '/api/users/maker/look').then((r) => r.json());
+  assert.ok(anon.colors && anon.face, 'public look');
+  assert.equal((await fetch(base + '/api/users/nobody_here/look')).status, 404);
+  let r = await call('POST', '/api/studio/places', { name: 'Twins' }, users.maker);
+  const placeId = r.data.place.id;
+  const melt = templatePlace('Twins');
+  melt.tree.k.find((n) => n.c === 'ServerScriptService').k[0].p.Source = `
+game.Players.PlayerAdded:Connect(function(p)
+  if p.Name == "player" then
+    local look = game.Players:GetUserAppearanceAsync("maker")
+    look.Accessories = "crown"
+    p:ApplyAppearance(look)
+    local ok = pcall(function() return game.Players:GetUserAppearanceAsync("nobody_here") end)
+    if not ok then look.Face = "T_T"; p:ApplyAppearance(look) end
+  end
+end)`;
+  await call('PUT', `/api/studio/places/${placeId}`, { melt }, users.maker);
+  await call('PATCH', `/api/studio/places/${placeId}`, { visibility: 'public' }, users.maker);
+  const b = await connect(users.player);
+  b.send2({ t: 'join', game: placeId, server: 'auto' });
+  const wb = await b.next((m) => m.t === 'welcome');
+  let look = await b.next((m) => m.t === 'look' && m.player.id === wb.you);
+  assert.deepEqual(look.player.accessories, ['crown']);
+  assert.equal(look.player.face, anon.face);
+  look = await b.next((m) => m.t === 'look' && m.player.id === wb.you);
+  assert.equal(look.player.face, 'T_T');
+  b.close();
+});

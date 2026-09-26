@@ -362,6 +362,14 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard, placeView, canSee: (p, u) => store.canSee(p, u, isFriend) });
   // Community places: editable by members whose role has "places"; private ones visible to members.
   hub.canEditPlace = (user, row) => communities.canEditPlace(row, user);
+  // A player's own look by username (places read it with Players:GetUserAppearanceAsync).
+  const publicLook = (name) => {
+    const u = q.userByName.get(String(name));
+    if (!u || u.banned) return null;
+    const l = lookOf(u);
+    return { colors: l.colors, face: l.face, accessories: l.accessories };
+  };
+  hub.userLook = publicLook;
   store.isCommunityMember = (communityId, userId) => communities.isMember(communityId, userId);
 
   const routes = {
@@ -515,6 +523,14 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       if (term.length < 2) return { users: [] };
       const like = '%' + term.replace(/[\\%_]/g, (m) => '\\' + m) + '%';
       return { users: q.search.all(like, like, user.id).map((u) => publicProfile(u, user.id)) };
+    },
+
+    // Public: how someone looks (colors, face, accessories), for places and embeds.
+    'GET /api/users/:name/look': (_req, _body, _url, params) => {
+      const look = publicLook(params.name);
+      if (!look) throw new HttpError(404, 'no_user');
+      const u = q.userByName.get(String(params.name));
+      return { username: u.username, display_name: u.display_name, ...look };
     },
 
     'GET /api/users/:name': (req, _body, _url, params) => {

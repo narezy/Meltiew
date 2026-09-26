@@ -9,7 +9,7 @@ const TORSO_REST := Vector3(0, 2, 0)
 
 static func install(ap: AnimationPlayer) -> void:
 	var lib: AnimationLibrary = ap.get_animation_library(&"")
-	for spec in [_dance(), _cheer(), _sit(), _clap(), _laugh()]:
+	for spec in [_dance(), _cheer(), _sit(), _clap(), _laugh(), _punch(), _throw()]:
 		if not lib.has_animation(spec.name):
 			lib.add_animation(spec.name, _build(spec))
 	# The imported clips never key the torso position (and some skip bones), so after
@@ -219,4 +219,35 @@ static func _laugh() -> Dictionary:
 	return {
 		"name": "Laugh", "length": L,
 		"rot": {"Torso": torso, "Head": head, "ArmL": arm_l, "ArmR": arm_r},
+	}
+
+
+## A quick right hook (one shot): wind up, twist from the hips, jab forward.
+static func _punch() -> Dictionary:
+	var L := 0.42
+	return {
+		"name": "Punch", "length": L, "loop": false,
+		"rot": {
+			"ArmR": [[0.0, q(0.1, 0, 0)], [L * 0.3, q(0.55, 0.2, -0.25)], [L * 0.55, q(-1.65, -0.15, 0.05)], [L, q(-0.3, 0, 0)]],
+			"ArmL": [[0.0, q(-0.4, 0, 0.15)], [L * 0.55, q(-0.9, 0, 0.2)], [L, q(-0.2, 0, 0)]],
+			"Torso": [[0.0, q(0, 0, 0)], [L * 0.3, q(0.05, 0.35, 0)], [L * 0.55, q(0.12, -0.45, 0)], [L, q(0, 0, 0)]],
+			"Head": [[0.0, q(0, 0, 0)], [L * 0.55, q(0.1, 0.3, 0)], [L, q(0, 0, 0)]],
+			"LegL": [[0.0, q(0, 0, 0)], [L * 0.55, q(-0.45, 0, 0)], [L, q(0, 0, 0)]],
+			"LegR": [[0.0, q(0, 0, 0)], [L * 0.55, q(0.25, 0, 0)], [L, q(0, 0, 0)]],
+		},
+	}
+
+
+## Throwing overarm (one shot): reach back over the shoulder, lean, whip forward.
+static func _throw() -> Dictionary:
+	var L := 0.55
+	return {
+		"name": "Throw", "length": L, "loop": false,
+		"rot": {
+			"ArmR": [[0.0, q(-0.2, 0, 0)], [L * 0.35, q(-2.9, 0, -0.35)], [L * 0.6, q(-1.1, 0, 0.1)], [L, q(-0.2, 0, 0)]],
+			"ArmL": [[0.0, q(0, 0, 0)], [L * 0.35, q(-1.2, 0, 0.3)], [L * 0.6, q(-0.3, 0, 0.2)], [L, q(0, 0, 0)]],
+			"Torso": [[0.0, q(0, 0, 0)], [L * 0.35, q(-0.18, 0.3, 0)], [L * 0.6, q(0.22, -0.25, 0)], [L, q(0, 0, 0)]],
+			"LegL": [[0.0, q(0, 0, 0)], [L * 0.6, q(-0.5, 0, 0)], [L, q(0, 0, 0)]],
+			"LegR": [[0.0, q(0, 0, 0)], [L * 0.6, q(0.3, 0, 0)], [L, q(0, 0, 0)]],
+		},
 	}

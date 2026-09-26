@@ -22,9 +22,13 @@ const CLIPS := {
 	"sit": ["Sit", 1.0, 0.3],
 	"clap": ["Clap", 1.0, 0.15],
 	"laugh": ["Laugh", 1.0, 0.15],
+	"punch": ["Punch", 1.0, 0.06],
+	"throw": ["Throw", 1.0, 0.06],
 }
 const LAUGH_FACE := "xD"
 const EMOTES := ["wave", "dance", "cheer", "sit", "clap", "laugh"]
+## One-shot moves scripts play (not on the emote wheel); Melly goes back to idle after.
+const ACTIONS := ["punch", "throw"]
 
 var anim_player: AnimationPlayer
 var _model: Node3D
@@ -259,12 +263,16 @@ func current_state() -> String:
 
 
 func is_emoting() -> bool:
-	return _current in EMOTES or _current.begins_with("anim://")
+	return _current in EMOTES or _current in ACTIONS or _current.begins_with("anim://")
 
 
 func _on_anim_finished(anim_name: StringName) -> void:
 	if str(anim_name).begins_with("C") and _current.begins_with("anim://"):
 		custom_finished.emit()
+	if anim_name == &"Punch" or anim_name == &"Throw":
+		_current = ""
+		custom_finished.emit()
+		play("idle")
 	if anim_name == &"Wave":
 		_current = ""
 		play("idle")
