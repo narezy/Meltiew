@@ -2548,8 +2548,6 @@ local function buildEnv()
 	local safeDebug = table.freeze({ traceback = debug.traceback, info = debug.info })
 	local env = {
 		game = DataModel,
-		workspace = services.Workspace,
-		Workspace = services.Workspace,
 		Instance = table.freeze({ new = Instance.new }),
 		Vector3 = table.freeze(Vector3),
 		Vector2 = table.freeze(Vector2),
@@ -2598,6 +2596,15 @@ local function buildEnv()
 		end
 	end
 	env._G = env
+	-- On a client the Workspace arrives from the server after this runs, so look it up late.
+	setmetatable(env, {
+		__index = function(_, key)
+			if key == "workspace" or key == "Workspace" then
+				return services.Workspace
+			end
+			return nil
+		end,
+	})
 	return table.freeze(env)
 end
 

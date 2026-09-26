@@ -1,0 +1,759 @@
+{
+ "format": "melt",
+ "version": 1,
+ "meta": {
+  "name": "BlockCraft",
+  "description": "Dig, build and explore a world of blocks. Pickaxe digs, blocks build: pick them in the hotbar or the inventory.",
+  "i18n": {
+   "name": {
+    "ru": "Блоккрафт"
+   },
+   "description": {
+    "ru": "Копай, строй и исследуй мир из блоков. Кирка копает, блоки строят: выбирай их в хотбаре или в инвентаре."
+   }
+  }
+ },
+ "strings": {
+  "hint": {
+   "en": "Pickaxe digs, blocks build. More blocks in the bag",
+   "ru": "Кирка копает, блоки строят. Ещё блоки в рюкзаке"
+  }
+ },
+ "tree": {
+  "c": "DataModel",
+  "k": [
+   {
+    "c": "Workspace",
+    "n": "Workspace",
+    "p": {
+     "FallHeight": -20
+    },
+    "k": [
+     {
+      "c": "SpawnLocation",
+      "n": "SpawnLocation",
+      "p": {
+       "Position": {
+        "$v3": [
+         0.5,
+         20,
+         0.5
+        ]
+       },
+       "Size": {
+        "$v3": [
+         3,
+         0.4,
+         3
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "c": "Lighting",
+    "n": "Lighting",
+    "p": {
+     "FogEnabled": true,
+     "FogEnd": 70,
+     "FogColor": {
+      "$c3": "#d9ecff"
+     },
+     "ClockTime": 10
+    },
+    "k": [
+     {
+      "c": "Sky",
+      "n": "Sky"
+     }
+    ]
+   },
+   {
+    "c": "ReplicatedStorage",
+    "n": "ReplicatedStorage",
+    "k": [
+     {
+      "c": "ModuleScript",
+      "n": "World",
+      "p": {
+       "Source": "-- BlockCraft world: the same terrain on the server and on every player's device.\n-- Nothing is stored except what players changed: every other block comes from\n-- noise, so the server only keeps (and sends) the edits.\n\nlocal World = {}\n\nWorld.SIZE = 128 -- the world spans -SIZE .. SIZE-1 on X and Z\nWorld.HEIGHT = 48\nWorld.CHUNK = 16\nWorld.WATER = 13\nWorld.MAX_EDITS = 20000\n\nWorld.BLOCKS = {\n\tGrass = { color = Color3.fromHex(\"#6cbf49\"), material = \"Grass\" },\n\tDirt = { color = Color3.fromHex(\"#8a5a36\"), material = \"Sand\" },\n\tStone = { color = Color3.fromHex(\"#8d8d93\"), material = \"Concrete\" },\n\tCobblestone = { color = Color3.fromHex(\"#6f6f76\"), material = \"Brick\" },\n\tSand = { color = Color3.fromHex(\"#e6d59a\"), material = \"Sand\" },\n\tSnow = { color = Color3.fromHex(\"#f4f7fb\"), material = \"SmoothPlastic\" },\n\tWood = { color = Color3.fromHex(\"#6b4a2b\"), material = \"Wood\" },\n\tPlanks = { color = Color3.fromHex(\"#c08e55\"), material = \"Wood\" },\n\tLeaves = { color = Color3.fromHex(\"#3f8f3a\"), material = \"Grass\", see = true },\n\tGlass = { color = Color3.fromHex(\"#cfefff\"), material = \"Glass\", transparency = 0.55, see = true },\n\tBrick = { color = Color3.fromHex(\"#a4513a\"), material = \"Brick\" },\n\tWater = { color = Color3.fromHex(\"#3d7fd6\"), material = \"Glass\", transparency = 0.4, see = true, liquid = true },\n\tCoal = { color = Color3.fromHex(\"#3b3b40\"), material = \"Concrete\" },\n\tIron = { color = Color3.fromHex(\"#caa58c\"), material = \"Metal\" },\n\tGold = { color = Color3.fromHex(\"#f2c94c\"), material = \"Metal\" },\n\tDiamond = { color = Color3.fromHex(\"#5ce1e6\"), material = \"Neon\" },\n\tBedrock = { color = Color3.fromHex(\"#2c2c30\"), material = \"Concrete\" },\n\tPumpkin = { color = Color3.fromHex(\"#e8871e\"), material = \"Plastic\" },\n}\n\n-- What players can build with (the tools in StarterPack have these names).\nWorld.PLACEABLE = {\n\tGrass = true, Dirt = true, Stone = true, Cobblestone = true, Sand = true, Snow = true, Wood = true,\n\tPlanks = true, Leaves = true, Glass = true, Brick = true, Gold = true, Diamond = true, Pumpkin = true,\n}\n\n-- A number key per cell (much faster than strings in big loops).\nlocal function key(x, y, z)\n\treturn ((x + 1024) * 64 + y) * 2048 + (z + 1024)\nend\nWorld.key = key\n\nfunction World.unkey(k)\n\tlocal z = k % 2048\n\tlocal rest = (k - z) / 2048\n\tlocal y = rest % 64\n\tlocal x = (rest - y) / 64\n\treturn x - 1024, y, z - 1024\nend\n\n-- Deterministic \"random\" in 0..1 for a cell.\nlocal function hash(x, y, z)\n\tlocal h = bit32.bxor(x * 73856093, y * 19349663, z * 83492791)\n\th = bit32.bxor(h, bit32.rshift(h, 13))\n\th = (h * 1274126177) % 4294967296\n\th = bit32.bxor(h, bit32.rshift(h, 16))\n\treturn (h % 1000003) / 1000003\nend\nWorld.hash = hash\n\nfunction World.inside(x, z)\n\treturn x >= -World.SIZE and x < World.SIZE and z >= -World.SIZE and z < World.SIZE\nend\n\n-- Ground height of a column: rolling hills, a few mountains, some lakes.\nfunction World.height(x, z)\n\tlocal n = math.noise(x / 110 + 0.5, z / 110 + 0.2, 3.3) * 0.9\n\t\t+ math.noise(x / 42 + 0.31, z / 42 + 0.77, 1.3) * 0.55\n\t\t+ math.noise(x / 14 + 0.13, z / 14 + 0.41, 7.1) * 0.18\n\treturn math.clamp(math.floor(16 + n * 13), 3, World.HEIGHT - 12)\nend\n\nfunction World.isTree(x, z)\n\tif not World.inside(x, z) or hash(x, 0, z) > 0.011 then\n\t\treturn false\n\tend\n\tlocal h = World.height(x, z)\n\treturn h > World.WATER + 1 and h < 28\nend\n\n-- Trunks and leaves of every tree touching the area, as cell key -> block.\nfunction World.trees(x0, z0, x1, z1)\n\tlocal out = {}\n\tfor x = x0 - 2, x1 + 2 do\n\t\tfor z = z0 - 2, z1 + 2 do\n\t\t\tif World.isTree(x, z) then\n\t\t\t\tlocal h = World.height(x, z)\n\t\t\t\tlocal top = h + 5 + math.floor(hash(x, 1, z) * 3)\n\t\t\t\t-- Two wide layers, then a small cap: tidy shapes merge into few parts.\n\t\t\t\tfor dy = -2, 1 do\n\t\t\t\t\tlocal r = dy < 0 and 2 or 1\n\t\t\t\t\tfor dx = -r, r do\n\t\t\t\t\t\tfor dz = -r, r do\n\t\t\t\t\t\t\tlocal corner = math.abs(dx) == r and math.abs(dz) == r\n\t\t\t\t\t\t\tif not (corner and dy == 1) then\n\t\t\t\t\t\t\t\tlocal k = key(x + dx, top + dy, z + dz)\n\t\t\t\t\t\t\t\tif out[k] == nil then\n\t\t\t\t\t\t\t\t\tout[k] = \"Leaves\"\n\t\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\t\t-- The trunk holds the crown up from below.\n\t\t\t\tfor y = h + 1, top - 3 do\n\t\t\t\t\tout[key(x, y, z)] = \"Wood\"\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\n\treturn out\nend\n\n-- Blocks players placed or broke: cell key -> block (\"Air\" when broken).\nWorld.edits = {}\nWorld.editCount = 0\n-- The lowest edited cell in each chunk column, so chunks know how deep to look.\nWorld.editFloor = {}\n\nlocal function chunkKey(cx, cz)\n\treturn cx * 4096 + cz\nend\nWorld.chunkKey = chunkKey\n\nfunction World.setEdit(x, y, z, block)\n\tlocal k = key(x, y, z)\n\tif World.edits[k] == nil then\n\t\tWorld.editCount += 1\n\tend\n\tWorld.edits[k] = block\n\tlocal ck = chunkKey(x // World.CHUNK, z // World.CHUNK)\n\tWorld.editFloor[ck] = math.min(World.editFloor[ck] or y, y)\nend\n\n-- All edits as a flat list x, y, z, block, x, y, z, block... (for players who join).\nfunction World.editList()\n\tlocal out = {}\n\tfor k, block in World.edits do\n\t\tlocal x, y, z = World.unkey(k)\n\t\ttable.insert(out, x)\n\t\ttable.insert(out, y)\n\t\ttable.insert(out, z)\n\t\ttable.insert(out, block)\n\tend\n\treturn out\nend\n\nfunction World.applyEditList(list)\n\tfor i = 1, #list - 3, 4 do\n\t\tWorld.setEdit(list[i], list[i + 1], list[i + 2], list[i + 3])\n\tend\nend\n\n-- What the world has at a cell before anyone touched it.\nlocal function natural(x, y, z, h, trees)\n\tif y < 0 then\n\t\treturn \"Bedrock\"\n\tend\n\tif y >= World.HEIGHT or not World.inside(x, z) then\n\t\treturn \"Air\"\n\tend\n\tif y == 0 then\n\t\treturn \"Bedrock\"\n\tend\n\tif y > h then\n\t\tlocal t = trees and trees[key(x, y, z)]\n\t\tif t then\n\t\t\treturn t\n\t\tend\n\t\treturn y <= World.WATER and \"Water\" or \"Air\"\n\tend\n\tlocal beach = h <= World.WATER + 1\n\tif y == h then\n\t\tif beach then\n\t\t\treturn \"Sand\"\n\t\tend\n\t\treturn h >= 28 and \"Snow\" or \"Grass\"\n\tend\n\tif y > h - 3 then\n\t\treturn beach and \"Sand\" or \"Dirt\"\n\tend\n\tlocal r = hash(x, y, z)\n\tif r < 0.02 then\n\t\treturn \"Coal\"\n\telseif r < 0.03 and y < 14 then\n\t\treturn \"Iron\"\n\telseif r < 0.034 and y < 9 then\n\t\treturn \"Gold\"\n\telseif r < 0.036 and y < 6 then\n\t\treturn \"Diamond\"\n\tend\n\treturn \"Stone\"\nend\n\n-- A fast block lookup for one area: column heights and trees are worked out once.\nfunction World.reader(x0, z0, x1, z1)\n\tlocal heights = {}\n\tlocal trees = World.trees(x0, z0, x1, z1)\n\tlocal edits = World.edits\n\treturn function(x, y, z)\n\t\tlocal e = edits[key(x, y, z)]\n\t\tif e ~= nil then\n\t\t\treturn e\n\t\tend\n\t\tlocal hk = (x + 1024) * 2048 + (z + 1024)\n\t\tlocal h = heights[hk]\n\t\tif h == nil then\n\t\t\th = World.height(x, z)\n\t\t\theights[hk] = h\n\t\tend\n\t\treturn natural(x, y, z, h, trees)\n\tend, heights\nend\n\n-- One cell, anywhere (the server checks edits with this).\nfunction World.get(x, y, z)\n\tlocal read = World.reader(x, z, x, z)\n\treturn read(x, y, z)\nend\n\n-- Is a block visible: does any side face air or something see-through (not itself)?\nlocal SIDES = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } }\nfunction World.exposed(read, x, y, z, block)\n\tfor _, s in SIDES do\n\t\tlocal n = read(x + s[1], y + s[2], z + s[3])\n\t\tif n == \"Air\" then\n\t\t\treturn true\n\t\tend\n\t\tlocal info = World.BLOCKS[n]\n\t\tif info and info.see and n ~= block then\n\t\t\treturn true\n\t\tend\n\tend\n\treturn false\nend\n\nreturn World\n"
+      }
+     },
+     {
+      "c": "RemoteEvent",
+      "n": "BlockEvent"
+     },
+     {
+      "c": "RemoteFunction",
+      "n": "GetEdits"
+     }
+    ]
+   },
+   {
+    "c": "ServerScriptService",
+    "n": "ServerScriptService",
+    "k": [
+     {
+      "c": "Script",
+      "n": "Server",
+      "p": {
+       "Source": "-- BlockCraft server: puts the spawn on dry land, checks every dig and build,\n-- tells everyone about it, and turns the sun around every 10 minutes.\nlocal Players = game:GetService(\"Players\")\nlocal RS = game:GetService(\"ReplicatedStorage\")\nlocal World = require(RS.World)\nlocal BlockEvent = RS.BlockEvent\nlocal GetEdits = RS.GetEdits\n\n-- Spawn on the nearest dry, flat-ish ground to the middle of the world.\nlocal sx, sz = 0, 0\nfor r = 0, 60, 2 do\n\tlocal found = false\n\tfor _, d in { { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r }, { r, r }, { -r, -r } } do\n\t\tif World.height(d[1], d[2]) > World.WATER + 1 and not World.isTree(d[1], d[2]) then\n\t\t\tsx, sz = d[1], d[2]\n\t\t\tfound = true\n\t\t\tbreak\n\t\tend\n\tend\n\tif found then\n\t\tbreak\n\tend\nend\nlocal ground = World.height(sx, sz)\nworkspace.SpawnLocation.Position = Vector3.new(sx + 0.5, ground + 1.2, sz + 0.5)\n\nGetEdits.OnServerInvoke = function()\n\treturn World.editList()\nend\n\nlocal last = {} -- player -> time of the last action (no autoclicker floods)\n\nlocal function isCell(x, y, z)\n\treturn type(x) == \"number\" and type(y) == \"number\" and type(z) == \"number\"\n\t\tand x == math.floor(x) and y == math.floor(y) and z == math.floor(z)\n\t\tand World.inside(x, z) and y >= 1 and y < World.HEIGHT\nend\n\nBlockEvent.OnServerEvent:Connect(function(player, action, x, y, z, block)\n\tif not isCell(x, y, z) then\n\t\treturn\n\tend\n\tlocal now = time()\n\tif last[player] and now - last[player] < 0.12 then\n\t\treturn\n\tend\n\tlast[player] = now\n\tlocal root = player.Character and player.Character:FindFirstChild(\"HumanoidRootPart\")\n\tif not root or (Vector3.new(x + 0.5, y + 0.5, z + 0.5) - root.Position).Magnitude > 9 then\n\t\treturn\n\tend\n\tif World.editCount >= World.MAX_EDITS and World.edits[World.key(x, y, z)] == nil then\n\t\treturn\n\tend\n\tlocal current = World.get(x, y, z)\n\tlocal result\n\tif action == \"break\" then\n\t\tif current == \"Air\" or current == \"Water\" or current == \"Bedrock\" then\n\t\t\treturn\n\t\tend\n\t\t-- A hole next to water fills with water.\n\t\tresult = \"Air\"\n\t\tif y <= World.WATER then\n\t\t\tfor _, s in { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } } do\n\t\t\t\tif World.get(x + s[1], y + s[2], z + s[3]) == \"Water\" then\n\t\t\t\t\tresult = \"Water\"\n\t\t\t\t\tbreak\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\telseif action == \"place\" then\n\t\tif not World.PLACEABLE[block] or (current ~= \"Air\" and current ~= \"Water\") then\n\t\t\treturn\n\t\tend\n\t\t-- Not inside anyone.\n\t\tfor _, p in Players:GetPlayers() do\n\t\t\tlocal r = p.Character and p.Character:FindFirstChild(\"HumanoidRootPart\")\n\t\t\tif r then\n\t\t\t\tlocal rp = r.Position\n\t\t\t\tif x + 1 > rp.X - 0.4 and x < rp.X + 0.4 and z + 1 > rp.Z - 0.4 and z < rp.Z + 0.4 and y + 1 > rp.Y - 0.9 and y < rp.Y + 0.9 then\n\t\t\t\t\treturn\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\tresult = block\n\telse\n\t\treturn\n\tend\n\tWorld.setEdit(x, y, z, result)\n\tBlockEvent:FireAllClients(\"set\", x, y, z, result)\nend)\n\nPlayers.PlayerRemoving:Connect(function(p)\n\tlast[p] = nil\nend)\n\n-- Day and night.\nlocal Lighting = game:GetService(\"Lighting\")\nwhile true do\n\ttask.wait(1)\n\tLighting.ClockTime = (Lighting.ClockTime + 24 / 600) % 24\nend\n"
+      }
+     }
+    ]
+   },
+   {
+    "c": "ServerStorage",
+    "n": "ServerStorage"
+   },
+   {
+    "c": "StarterGui",
+    "n": "StarterGui",
+    "k": [
+     {
+      "c": "ScreenGui",
+      "n": "Hint",
+      "k": [
+       {
+        "c": "TextLabel",
+        "n": "Label",
+        "p": {
+         "Text": "$hint",
+         "Position": {
+          "$u2": [
+           0.5,
+           -200,
+           0,
+           12
+          ]
+         },
+         "Size": {
+          "$u2": [
+           0,
+           400,
+           0,
+           30
+          ]
+         },
+         "BackgroundTransparency": 0.45,
+         "BackgroundColor": {
+          "$c3": "#16141d"
+         },
+         "TextColor": {
+          "$c3": "#f4f1ec"
+         },
+         "TextSize": 15,
+         "Font": "Bold",
+         "TextWrapped": true
+        },
+        "k": [
+         {
+          "c": "UICorner",
+          "n": "UICorner",
+          "p": {
+           "CornerRadius": {
+            "$u": [
+             0,
+             12
+            ]
+           }
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "c": "StarterPlayer",
+    "n": "StarterPlayer",
+    "p": {
+     "CameraMaxZoom": 18,
+     "WalkSpeed": 5,
+     "SprintSpeed": 8
+    },
+    "k": [
+     {
+      "c": "StarterPlayerScripts",
+      "n": "StarterPlayerScripts",
+      "k": [
+       {
+        "c": "LocalScript",
+        "n": "Blocks",
+        "p": {
+         "Source": "-- Draws the world around the player: 16x16 chunks load as you walk and far ones\n-- unload. Only blocks you could actually see become parts (buried ones are skipped),\n-- and same blocks lying side by side merge into one big part per layer.\nlocal Players = game:GetService(\"Players\")\nlocal RS = game:GetService(\"ReplicatedStorage\")\n-- (Apps before 1.4.2 give LocalScripts no `workspace` global, so fetch it.)\nlocal workspace = game:GetService(\"Workspace\")\nlocal World = require(RS:WaitForChild(\"World\"))\nlocal BlockEvent = RS:WaitForChild(\"BlockEvent\")\nlocal GetEdits = RS:WaitForChild(\"GetEdits\")\n\n-- Chunks around the player: 5x5 on computers, 3x3 on phones (with closer fog).\nlocal RADIUS = game:GetService(\"UserInputService\").TouchEnabled and 1 or 2\nlocal CHUNK = World.CHUNK\n\nlocal player = Players.LocalPlayer\nif RADIUS < 2 then\n\tgame:GetService(\"Lighting\").FogEnd = 40\nend\n\nlocal folder = Instance.new(\"Folder\")\nfolder.Name = \"Blocks\"\nfolder.Parent = workspace\nWorld.folder = folder\n\nlocal loaded = {} -- chunk key -> Folder\nlocal coords = {} -- chunk key -> { cx, cz }\nlocal queued = {} -- chunk key -> true (needs a rebuild)\n\nlocal function makePart(parent, block, x, y, z, w, d, h)\n\tlocal info = World.BLOCKS[block]\n\tlocal p = Instance.new(\"Part\")\n\tp.Name = block\n\tp.Size = Vector3.new(w, h, d)\n\tp.Position = Vector3.new(x + w / 2, y + h / 2, z + d / 2)\n\tp.Color = info.color\n\tp.Material = info.material\n\tp.Transparency = info.transparency or 0\n\tp.CanCollide = not info.liquid\n\tp.CanTouch = false\n\tp.CastShadow = false\n\tp.Parent = parent\nend\n\nlocal function buildChunk(cx, cz)\n\tlocal x0, z0 = cx * CHUNK, cz * CHUNK\n\tlocal read, heights = World.reader(x0 - 1, z0 - 1, x0 + CHUNK, z0 + CHUNK)\n\t-- How deep to look: the lowest ground (or water bed) around, and anything players dug.\n\tlocal low = World.HEIGHT\n\tfor x = x0 - 1, x0 + CHUNK do\n\t\tfor z = z0 - 1, z0 + CHUNK do\n\t\t\tlocal h = World.height(x, z)\n\t\t\theights[(x + 1024) * 2048 + (z + 1024)] = h\n\t\t\tlow = math.min(low, h)\n\t\tend\n\tend\n\tlow = math.min(low, World.WATER) - 1\n\tlocal floor = World.editFloor[World.chunkKey(cx, cz)]\n\tfor _, n in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do\n\t\tlocal f = World.editFloor[World.chunkKey(cx + n[1], cz + n[2])]\n\t\tif f then\n\t\t\tfloor = math.min(floor or f, f)\n\t\tend\n\tend\n\tif floor then\n\t\tlow = math.min(low, floor - 1)\n\tend\n\n\tlocal model = Instance.new(\"Folder\")\n\tmodel.Name = cx .. \",\" .. cz\n\tlocal N = CHUNK * CHUNK\n\tlocal grid = table.create(N) -- block in each cell of the layer (false = air)\n\tlocal seen = table.create(N) -- can you see it?\n\tlocal used = table.create(N)\n\t-- Boxes still growing upwards: an identical rectangle on the next layer makes them taller.\n\tlocal open = {}\n\tfor y = math.max(low, 0), World.HEIGHT do\n\t\tlocal any = false\n\t\tif y < World.HEIGHT then\n\t\t\tfor lz = 0, CHUNK - 1 do\n\t\t\t\tfor lx = 0, CHUNK - 1 do\n\t\t\t\t\tlocal i = lx + lz * CHUNK + 1\n\t\t\t\t\tlocal b = read(x0 + lx, y, z0 + lz)\n\t\t\t\t\tif b ~= \"Air\" then\n\t\t\t\t\t\tgrid[i] = b\n\t\t\t\t\t\tlocal vis = World.exposed(read, x0 + lx, y, z0 + lz, b)\n\t\t\t\t\t\tseen[i] = vis\n\t\t\t\t\t\tany = any or vis\n\t\t\t\t\telse\n\t\t\t\t\t\tgrid[i] = false\n\t\t\t\t\t\tseen[i] = false\n\t\t\t\t\tend\n\t\t\t\t\tused[i] = false\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\tlocal nextOpen = {}\n\t\tif any then\n\t\t\t-- Greedy: start at a visible block and grow the widest rectangle of the same\n\t\t\t-- kind. Hidden blocks of that kind may be swallowed too (nobody sees the inside).\n\t\t\tfor lz = 0, CHUNK - 1 do\n\t\t\t\tfor lx = 0, CHUNK - 1 do\n\t\t\t\t\tlocal i = lx + lz * CHUNK + 1\n\t\t\t\t\tlocal b = grid[i]\n\t\t\t\t\tif b and seen[i] and not used[i] then\n\t\t\t\t\t\tlocal w = 1\n\t\t\t\t\t\twhile lx + w < CHUNK and grid[i + w] == b and not used[i + w] do\n\t\t\t\t\t\t\tw += 1\n\t\t\t\t\t\tend\n\t\t\t\t\t\tlocal d = 1\n\t\t\t\t\t\twhile lz + d < CHUNK do\n\t\t\t\t\t\t\tlocal ok = true\n\t\t\t\t\t\t\tfor k = 0, w - 1 do\n\t\t\t\t\t\t\t\tlocal j = lx + k + (lz + d) * CHUNK + 1\n\t\t\t\t\t\t\t\tif grid[j] ~= b or used[j] then\n\t\t\t\t\t\t\t\t\tok = false\n\t\t\t\t\t\t\t\t\tbreak\n\t\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\tif not ok then\n\t\t\t\t\t\t\t\tbreak\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\td += 1\n\t\t\t\t\t\tend\n\t\t\t\t\t\tfor dz = 0, d - 1 do\n\t\t\t\t\t\t\tfor k = 0, w - 1 do\n\t\t\t\t\t\t\t\tused[lx + k + (lz + dz) * CHUNK + 1] = true\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\n\t\t\t\t\t\tlocal key = string.format(\"%s|%d|%d|%d|%d\", b, lx, lz, w, d)\n\t\t\t\t\t\tlocal box = open[key]\n\t\t\t\t\t\tif box then\n\t\t\t\t\t\t\tbox.h += 1\n\t\t\t\t\t\t\topen[key] = nil\n\t\t\t\t\t\telse\n\t\t\t\t\t\t\tbox = { b = b, x = x0 + lx, y = y, z = z0 + lz, w = w, d = d, h = 1 }\n\t\t\t\t\t\tend\n\t\t\t\t\t\tnextOpen[key] = box\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\t-- Boxes that didn't continue on this layer are finished.\n\t\tfor _, box in open do\n\t\t\tmakePart(model, box.b, box.x, box.y, box.z, box.w, box.d, box.h)\n\t\tend\n\t\topen = nextOpen\n\tend\n\treturn model\nend\n\nlocal function load(cx, cz)\n\tlocal ck = World.chunkKey(cx, cz)\n\tlocal fresh = buildChunk(cx, cz)\n\tfresh.Parent = folder\n\tlocal old = loaded[ck]\n\tloaded[ck] = fresh\n\tcoords[ck] = { cx, cz }\n\tqueued[ck] = nil\n\tif old then\n\t\told:Destroy()\n\tend\nend\n\n-- Rebuilds the chunk of a changed cell (and the neighbour it borders).\nlocal function changed(x, z)\n\tlocal cx, cz = x // CHUNK, z // CHUNK\n\tfor _, c in { { cx, cz }, { (x - 1) // CHUNK, cz }, { (x + 1) // CHUNK, cz }, { cx, (z - 1) // CHUNK }, { cx, (z + 1) // CHUNK } } do\n\t\tlocal ck = World.chunkKey(c[1], c[2])\n\t\tif loaded[ck] and not queued[ck] then\n\t\t\tqueued[ck] = c\n\t\tend\n\tend\nend\n\nBlockEvent.OnClientEvent:Connect(function(what, x, y, z, block)\n\tif what == \"set\" then\n\t\tWorld.setEdit(x, y, z, block)\n\t\tchanged(x, z)\n\tend\nend)\n\n-- What others already built before we came.\nWorld.applyEditList(GetEdits:InvokeServer())\n\nlocal function rootPosition()\n\tlocal char = player.Character\n\tlocal root = char and char:FindFirstChild(\"HumanoidRootPart\")\n\treturn root and root.Position\nend\n\n-- Keep the chunks around the player: nearest missing one first, one per frame.\nwhile true do\n\tlocal todo = {}\n\tfor _, c in queued do\n\t\ttable.insert(todo, c)\n\tend\n\tfor _, c in todo do\n\t\tload(c[1], c[2])\n\tend\n\tlocal pos = rootPosition()\n\tif pos then\n\t\tlocal pcx, pcz = math.floor(pos.X / CHUNK), math.floor(pos.Z / CHUNK)\n\t\tlocal best, bestD = nil, math.huge\n\t\tfor dx = -RADIUS, RADIUS do\n\t\t\tfor dz = -RADIUS, RADIUS do\n\t\t\t\tlocal cx, cz = pcx + dx, pcz + dz\n\t\t\t\tlocal inWorld = cx * CHUNK < World.SIZE and (cx + 1) * CHUNK > -World.SIZE and cz * CHUNK < World.SIZE and (cz + 1) * CHUNK > -World.SIZE\n\t\t\t\tlocal d = dx * dx + dz * dz\n\t\t\t\tif inWorld and not loaded[World.chunkKey(cx, cz)] and d < bestD then\n\t\t\t\t\tbest, bestD = { cx, cz }, d\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\tif best then\n\t\t\tload(best[1], best[2])\n\t\tend\n\t\t-- Chunks we walked away from go away.\n\t\tfor ck, f in loaded do\n\t\t\tlocal c = coords[ck]\n\t\t\tif math.max(math.abs(c[1] - pcx), math.abs(c[2] - pcz)) > RADIUS + 1 then\n\t\t\t\tf:Destroy()\n\t\t\t\tloaded[ck] = nil\n\t\t\t\tcoords[ck] = nil\n\t\t\tend\n\t\tend\n\tend\n\ttask.wait()\nend\n"
+        }
+       },
+       {
+        "c": "LocalScript",
+        "n": "Build",
+        "p": {
+         "Source": "-- Breaking and placing: hold the Pickaxe to dig, a block to build. Click (or tap)\n-- the block you aim at; a white frame shows which one. The server has the last word.\nlocal Players = game:GetService(\"Players\")\nlocal RS = game:GetService(\"ReplicatedStorage\")\n-- (Apps before 1.4.2 give LocalScripts no `workspace` global, so fetch it.)\nlocal workspace = game:GetService(\"Workspace\")\nlocal World = require(RS:WaitForChild(\"World\"))\nlocal BlockEvent = RS:WaitForChild(\"BlockEvent\")\n\nlocal REACH = 7\nlocal player = Players.LocalPlayer\nlocal mouse = player:GetMouse()\n\nlocal frame = Instance.new(\"Part\")\nframe.Name = \"Selection\"\nframe.Size = Vector3.new(1.04, 1.04, 1.04)\nframe.Color = Color3.new(1, 1, 1)\nframe.Material = \"SmoothPlastic\"\nframe.Transparency = 1\nframe.CanCollide = false\nframe.CanTouch = false\nframe.CastShadow = false\nframe.Parent = workspace\n\nlocal function heldTool()\n\tlocal char = player.Character\n\treturn char and char:FindFirstChildOfClass(\"Tool\")\nend\n\n-- The block under the pointer: the cell to dig and the empty cell in front of it.\nlocal function aim()\n\tlocal char = player.Character\n\tlocal root = char and char:FindFirstChild(\"HumanoidRootPart\")\n\tif not root or not World.folder then\n\t\treturn nil\n\tend\n\tlocal params = RaycastParams.new()\n\tparams.FilterDescendantsInstances = { World.folder }\n\tparams.FilterType = \"Include\"\n\tparams.RespectCanCollide = true\n\tlocal hit = workspace:Raycast(mouse.Origin, mouse.UnitRay.Direction * 60, params)\n\tif not hit or (hit.Position - root.Position).Magnitude > REACH then\n\t\treturn nil\n\tend\n\tlocal inside = hit.Position - hit.Normal * 0.5\n\tlocal front = hit.Position + hit.Normal * 0.5\n\treturn Vector3.new(math.floor(inside.X), math.floor(inside.Y), math.floor(inside.Z)),\n\t\tVector3.new(math.floor(front.X), math.floor(front.Y), math.floor(front.Z)),\n\t\troot.Position\nend\n\n-- Would a block here trap the player inside it?\nlocal function hitsMe(cell, rootPos)\n\treturn cell.X + 1 > rootPos.X - 0.4 and cell.X < rootPos.X + 0.4\n\t\tand cell.Z + 1 > rootPos.Z - 0.4 and cell.Z < rootPos.Z + 0.4\n\t\tand cell.Y + 1 > rootPos.Y - 0.9 and cell.Y < rootPos.Y + 0.9\nend\n\nmouse.Button1Down:Connect(function()\n\tlocal tool = heldTool()\n\tif not tool then\n\t\treturn\n\tend\n\tlocal dig, place, rootPos = aim()\n\tif not dig then\n\t\treturn\n\tend\n\tif tool.Name == \"Pickaxe\" then\n\t\tBlockEvent:FireServer(\"break\", dig.X, dig.Y, dig.Z)\n\telseif World.PLACEABLE[tool.Name] and not hitsMe(place, rootPos) then\n\t\tBlockEvent:FireServer(\"place\", place.X, place.Y, place.Z, tool.Name)\n\tend\nend)\n\n-- Keep the frame on the aimed block.\nwhile true do\n\tlocal dig = heldTool() and aim()\n\tif dig then\n\t\tframe.Position = dig + Vector3.new(0.5, 0.5, 0.5)\n\t\tframe.Transparency = 0.75\n\telseif frame.Transparency ~= 1 then\n\t\tframe.Transparency = 1\n\tend\n\ttask.wait(0.05)\nend\n"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "c": "StarterPack",
+    "n": "StarterPack",
+    "k": [
+     {
+      "c": "Tool",
+      "n": "Pickaxe",
+      "p": {
+       "ToolTip": "Dig"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.16,
+           0.16,
+           1.6
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#7a5230"
+         },
+         "Material": "Wood",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Head",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.3,
+           0.18,
+           0.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.75
+          ]
+         },
+         "Color": {
+          "$c3": "#9aa3ad"
+         },
+         "Material": "Metal",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Dirt",
+      "p": {
+       "ToolTip": "Dirt"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#8a5a36"
+         },
+         "Material": "Sand",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Stone",
+      "p": {
+       "ToolTip": "Stone"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#8d8d93"
+         },
+         "Material": "Concrete",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Planks",
+      "p": {
+       "ToolTip": "Planks"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#c08e55"
+         },
+         "Material": "Wood",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Glass",
+      "p": {
+       "ToolTip": "Glass"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#cfefff"
+         },
+         "Material": "Glass",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Brick",
+      "p": {
+       "ToolTip": "Brick"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#a4513a"
+         },
+         "Material": "Brick",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Grass",
+      "p": {
+       "ToolTip": "Grass"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#6cbf49"
+         },
+         "Material": "Grass",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Wood",
+      "p": {
+       "ToolTip": "Wood"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#6b4a2b"
+         },
+         "Material": "Wood",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Leaves",
+      "p": {
+       "ToolTip": "Leaves"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#3f8f3a"
+         },
+         "Material": "Grass",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Sand",
+      "p": {
+       "ToolTip": "Sand"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#e6d59a"
+         },
+         "Material": "Sand",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Cobblestone",
+      "p": {
+       "ToolTip": "Cobblestone"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#6f6f76"
+         },
+         "Material": "Brick",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Snow",
+      "p": {
+       "ToolTip": "Snow"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#f4f7fb"
+         },
+         "Material": "SmoothPlastic",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Pumpkin",
+      "p": {
+       "ToolTip": "Pumpkin"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#e8871e"
+         },
+         "Material": "Plastic",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Gold",
+      "p": {
+       "ToolTip": "Gold"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#f2c94c"
+         },
+         "Material": "Metal",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Tool",
+      "n": "Diamond",
+      "p": {
+       "ToolTip": "Diamond"
+      },
+      "k": [
+       {
+        "c": "Part",
+        "n": "Handle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.55,
+           0.55,
+           0.55
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0,
+           -0.2
+          ]
+         },
+         "Color": {
+          "$c3": "#5ce1e6"
+         },
+         "Material": "Neon",
+         "CanCollide": false,
+         "CastShadow": false
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
