@@ -97,6 +97,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
   api = createApi({ db, hub, renderDir: renders, store, owner });
   datastore = createDataStore(db);
   hub.economy = api.economy;
+  hub.badges = api.badges;
 
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {

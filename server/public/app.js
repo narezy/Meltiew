@@ -601,9 +601,23 @@ async function profilePage(root, username) {
       ${more}
       ${me ? `<p class="muted">${t('edit_in_app')}</p>` : ''}
     </div></div>
-    <div id="pplaces"></div>
-    <h2>${t('friends_of')}</h2><div id="pf"><div class="loader"><i></i></div></div>`;
+    <div class="tabs" id="ptabs" style="margin-top:24px"><button class="on" data-ptab="main">${t('profile_tab')}</button><button data-ptab="badges">${t('badges')} <span id="pbcount"></span></button></div>
+    <div id="ptab-main"><div id="pplaces"></div>
+    <h2>${t('friends_of')}</h2><div id="pf"><div class="loader"><i></i></div></div></div>
+    <div id="ptab-badges" hidden><div class="loader"><i></i></div></div>`;
   mellyViewer($('#stage'), u);
+  // Badges from places, in their own tab.
+  root.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => {
+    root.querySelectorAll('[data-ptab]').forEach((x) => x.classList.toggle('on', x === b));
+    $('#ptab-main').hidden = b.dataset.ptab !== 'main';
+    $('#ptab-badges').hidden = b.dataset.ptab !== 'badges';
+  }));
+  api('GET', `/api/users/${encodeURIComponent(u.username)}/badges`).then((r) => {
+    const box = $('#ptab-badges');
+    if (!box) return;
+    $('#pbcount').textContent = r.badges.length ? `· ${r.badges.length}` : '';
+    box.innerHTML = r.badges.length ? `<div class="badges">${r.badges.map((b) => badgeTile(b, true)).join('')}</div>` : `<div class="empty">${t('no_badges_user')}</div>`;
+  }).catch(() => {});
   api('GET', `/api/users/${encodeURIComponent(u.username)}/places`).then((r) => {
     const box = $('#pplaces');
     if (box && r.places.length) box.innerHTML = `<h2>${t('places_of')}</h2><div class="places" style="margin-bottom:10px">${r.places.map(placeCard).join('')}</div>`;
@@ -1066,7 +1080,7 @@ async function placePage(root, id) {
           <div class="stack" style="gap:6px;align-items:flex-end"><b>${s.players} / ${s.max_players}</b><div class="meter"><i style="width:${(s.players / s.max_players) * 100}%"></i></div></div>
           <button class="btn mint" data-play="${esc(s.id)}" ${game} ${s.players >= s.max_players ? 'disabled' : ''}>${s.players >= s.max_players ? t('full') : t('join')}</button>
         </div>`).join('') : `<div class="empty">${t('no_servers')}</div>`}</div>
-      ${studio ? '<div id="passes" style="margin-top:30px"></div>' : ''}
+      ${studio ? '<div id="passes" style="margin-top:30px"></div><div id="badges" style="margin-top:30px"></div>' : ''}
       <div id="comments" style="margin-top:30px"></div>`;
     root.querySelectorAll('[data-vote]').forEach((b) => b.addEventListener('click', async () => {
       try { await api('POST', `/api/places/${encodeURIComponent(id)}/vote`, { value: Number(b.dataset.vote) }); draw(); }
@@ -1075,6 +1089,7 @@ async function placePage(root, id) {
     $('#report-place')?.addEventListener('click', () => reportDialog(p.author, { place_id: p.id }));
     if (studio && mine) ownerPanel($('#owner'), p, draw);
     if (studio) passesBlock($('#passes'), p, mine).catch(() => {});
+    if (studio) badgesBlock($('#badges'), p, mine).catch(() => {});
     commentsBlock($('#comments'), p);
   };
   await draw();

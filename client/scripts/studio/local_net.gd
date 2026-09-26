@@ -18,6 +18,7 @@ var _pos := {}
 var _events: Array = []
 var _shared: Array = []
 var _mine: Array = []
+var _badge_info: Array = []
 
 
 func _init(place: Dictionary) -> void:
@@ -69,6 +70,16 @@ func send(m: Dictionary) -> void:
 
 
 func _join() -> void:
+	# The place's real badges, so BadgeService works in a test (nothing is saved).
+	var badge_info: Array = []
+	if Session.studio_place_id != "":
+		var r := await Api.request("GET", "/api/places/%s/badges" % Session.studio_place_id)
+		if r.ok:
+			for b in r.data.get("badges", []):
+				badge_info.append({"id": b.id, "name": b.name, "description": b.get("description", ""), "image": b.get("image", "")})
+	if not _open:
+		return
+	_badge_info = badge_info
 	_vm = ClassDB.instantiate("LuauVM")
 	_vm.open(64)
 	var err: String = _vm.run("=runtime", FileAccess.get_file_as_string(PlaceHost.RUNTIME_PATH))
@@ -93,7 +104,7 @@ func _join() -> void:
 		"spawn": [0, 5, 0],
 		"players": [],
 	})
-	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang}]))
+	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info}]))
 	_flush()
 
 
@@ -141,6 +152,12 @@ func _route(ops: Array) -> void:
 				message.emit({"t": "kicked", "code": "place", "m": str(op.get("msg", ""))})
 			"prompt_pass":
 				_mine.append({"o": "prompt_pass", "id": op.id})
+			"badge":
+				# Shown like the real thing, but a test doesn't hand out badges for keeps.
+				for b in _badge_info:
+					if int(b.id) == int(op.id):
+						message.emit({"t": "badge", "badge": b})
+				_mine.append({"o": "badge_got", "id": op.id})
 			"ds":
 				# A play test keeps saved data in memory, for this test only.
 				_events.append(_datastore(op))

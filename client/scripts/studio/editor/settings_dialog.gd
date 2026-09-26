@@ -183,6 +183,12 @@ func _render() -> void:
 	passes.add_child(ph)
 	_load_passes(passes)
 
+	var badges := _section(L.t("bg_title"))
+	var bh := UI.label(L.t("bg_hint"), 14, UI.MUTED)
+	bh.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	badges.add_child(bh)
+	_load_badges(badges)
+
 	var stats := _section(L.t("st_stats"))
 	stats.add_child(Loading.spinner(28))
 	_load_stats(stats)
@@ -353,5 +359,83 @@ func _load_passes(box: VBoxContainer) -> void:
 			if ch != box.get_child(0) and ch != box.get_child(1):
 				ch.queue_free()
 		_load_passes(box))
+	form.add_child(add)
+	box.add_child(form)
+
+
+## This place's badges (up to 15): the list with ids for scripts, and a form for a new one.
+func _load_badges(box: VBoxContainer) -> void:
+	var list := UI.vbox(6)
+	box.add_child(list)
+	var r := await Api.request("GET", "/api/places/%s/badges" % place_id)
+	if not is_instance_valid(list):
+		return
+	var all: Array = r.data.get("badges", []) if r.ok else []
+	for b in all:
+		var row := UI.hbox(8)
+		var pic := TextureRect.new()
+		pic.custom_minimum_size = Vector2(36, 36)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(pic)
+		if str(b.get("image", "")) != "":
+			AssetCache.fetch(str(b.image), func(t: Texture2D):
+				if is_instance_valid(pic):
+					pic.texture = t)
+		var n := UI.label(str(b.name), 16, UI.TEXT, "bold")
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		n.clip_text = true
+		row.add_child(n)
+		row.add_child(UI.label(L.t("bg_row", [int(b.id), int(b.awarded)]), 14, UI.MUTED))
+		var del := UI.button("✕", "ghost", 36)
+		del.custom_minimum_size.x = 40
+		var bid := int(b.id)
+		del.pressed.connect(func():
+			if not await UI.confirm(self, L.t("bg_delete_q"), L.t("bg_delete_text"), L.t("delete"), true):
+				return
+			var d := await Api.request("DELETE", "/api/studio/places/%s/badges/%d" % [place_id, bid])
+			if d.ok:
+				row.queue_free()
+			else:
+				UI.toast(d.message, "error"))
+		row.add_child(del)
+		list.add_child(row)
+	if all.size() >= int(r.data.get("max", 15)):
+		box.add_child(UI.label(L.t("bg_full"), 14, UI.MUTED))
+		return
+	var form := UI.hbox(8)
+	var name := UI.input(L.t("bg_name"))
+	name.max_length = 50
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form.add_child(name)
+	var desc := UI.input(L.t("bg_desc"))
+	desc.max_length = 300
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form.add_child(desc)
+	var image := [""]
+	var pick := UI.button(L.t("eco_pass_pick_image"), "ghost", 44)
+	pick.pressed.connect(func():
+		StudioFiles.open_file(["*.png ; PNG", "*.jpg, *.jpeg ; JPEG"], func(_path, bytes):
+			var im := Image.new()
+			if im.load_png_from_buffer(bytes) != OK and im.load_jpg_from_buffer(bytes) != OK:
+				UI.toast(L.t("bad_image"), "error")
+				return
+			image[0] = Marshalls.raw_to_base64(_crop(im, "square").save_png_to_buffer())
+			pick.text = "✓ " + L.t("eco_pass_pick_image")))
+	form.add_child(pick)
+	var add := UI.button(L.t("bg_new"), "primary", 44)
+	add.pressed.connect(func():
+		var body := {"name": name.text.strip_edges(), "description": desc.text.strip_edges()}
+		if image[0] != "":
+			body.image = image[0]
+		var c := await Api.request("POST", "/api/studio/places/%s/badges" % place_id, body)
+		if not c.ok:
+			UI.toast(c.message, "error")
+			return
+		UI.toast(L.t("saved"), "ok")
+		for ch in box.get_children():
+			if ch != box.get_child(0) and ch != box.get_child(1):
+				ch.queue_free()
+		_load_badges(box))
 	form.add_child(add)
 	box.add_child(form)

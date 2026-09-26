@@ -222,6 +222,8 @@ func _on_message(m: Dictionary) -> void:
 			_refresh_players()
 		"wallet":
 			Economy.set_wallet(m.get("wallet", {}))
+		"badge":
+			hud.badge_popup(m.get("badge", {}))
 		"look":
 			var u: Dictionary = m.player
 			users[int(u.id)] = u

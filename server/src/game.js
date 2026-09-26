@@ -170,6 +170,18 @@ export class GameHub {
         case 'kick':
           server.kicks.push(op);
           break;
+        case 'badge': {
+          // A script awards one of this place's badges (other places' ids are refused).
+          const uid = Number(op.to);
+          if (!server.players.has(uid)) break;
+          const res = this.badges?.award(server.game, uid, op.id);
+          if (res?.ok && res.fresh) {
+            const b = res.badge;
+            this.byUser.get(uid)?.conn.send({ t: 'badge', badge: { id: b.id, name: b.name, description: b.description, image: this.badges.imageUrl(b) } });
+            this.target(server, uid, { o: 'badge_got', id: b.id });
+          }
+          break;
+        }
         case 'prompt_pass':
           // A script offers a gamepass: that player's app shows the purchase dialog.
           this.target(server, op.to, { o: 'prompt_pass', id: op.id });
@@ -477,7 +489,9 @@ export class GameHub {
     // Gamepasses: which of this place's passes the player owns, and what's on sale.
     const passes = studio ? this.economy?.passesOwned(conn.user.id, game) || [] : [];
     const passInfo = studio ? this.economy?.passesInfo(game) || [] : [];
-    const place = studio ? { id: game, strings: server.strings, snapshot: server.vm.snapshot(), passes, pass_info: passInfo } : null;
+    const badges = studio ? this.badges?.ownedIn(conn.user.id, game) || [] : [];
+    const badgeInfo = studio ? this.badges?.info(game) || [] : [];
+    const place = studio ? { id: game, strings: server.strings, snapshot: server.vm.snapshot(), passes, pass_info: passInfo, badges, badge_info: badgeInfo } : null;
     conn.send({
       t: 'welcome',
       server: this.describe(server),
@@ -493,7 +507,7 @@ export class GameHub {
     this.broadcast(server, { t: 'join', player: { ...player.user, p: player.p, r: player.r, a: player.a } }, conn.user.id);
     this.broadcast(server, { t: 'sys', k: 'joined', n: player.user.display_name }, conn.user.id);
     if (studio) {
-      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, passes, pass_info: passInfo }]));
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
       this.flushPlace(server);
     }
     // Every place (the playground too) keeps visit history: stats and "recently played".

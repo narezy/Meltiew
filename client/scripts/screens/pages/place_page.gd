@@ -180,6 +180,9 @@ func _build() -> void:
 		var passes := UI.vbox(10)
 		_root.add_child(passes)
 		_load_passes(passes)
+		var badges := UI.vbox(10)
+		_root.add_child(badges)
+		_load_badges(badges)
 	_comments_box = UI.vbox(10)
 	_root.add_child(_comments_box)
 	_load_comments()
@@ -448,6 +451,15 @@ func _comment_row(c: Dictionary, enabled: bool, can_post: bool) -> Control:
 		actions.add_child(rep)
 	row.add_child(actions)
 	return card
+
+
+## Badges this place gives out: the ones you have are bright, the rest dimmed.
+func _load_badges(box: VBoxContainer) -> void:
+	var r := await Api.request("GET", "/api/places/%s/badges" % place_id)
+	if not r.ok or not is_instance_valid(box) or r.data.badges.is_empty():
+		return
+	box.add_child(UI.label(L.t("bg_title"), 24, UI.TEXT, "black"))
+	box.add_child(BadgeGrid.make(r.data.badges, false))
 
 
 ## Gamepasses sold in this place: picture, name, price, buy.

@@ -2576,6 +2576,64 @@ function DataStoreService:GetDataStore(name)
 	return setmetatable({ Name = name }, DataStore)
 end
 
+-- Badges this place made in Studio: scripts award them (server only, and only
+-- this place's own); players keep them on their profile.
+local badgeOwners = {} -- userId -> { [badgeId] = true }
+local badgeInfo = {} -- badgeId -> { Id, Name, Description }
+
+local function setBadgeInfo(list)
+	for k, b in list or {} do
+		local id = type(k) == "number" and type(b) == "table" and tonumber(b.id)
+		if id then
+			badgeInfo[id] = table.freeze({ Id = id, Name = tostring(b.name or ""), Description = tostring(b.description or "") })
+		end
+	end
+end
+
+local function setBadgeOwner(userId, list)
+	local set = badgeOwners[userId] or {}
+	for k, id in list or {} do
+		local n = type(k) == "number" and tonumber(id)
+		if n then
+			set[n] = true
+		end
+	end
+	badgeOwners[userId] = set
+end
+
+local BadgeService = {}
+-- Gives a player one of this place's badges (once; later calls do nothing). Server only.
+-- Returns true when they have it now.
+function BadgeService:AwardBadge(userId, badgeId)
+	if role ~= "server" then
+		error("BadgeService:AwardBadge works in server Scripts only", 2)
+	end
+	local uid, id = tonumber(userId), tonumber(badgeId)
+	if not uid or not id then
+		error("AwardBadge needs a UserId and a badge id", 2)
+	end
+	if not badgeInfo[id] then
+		error("badge " .. tostring(badgeId) .. " is not one of this place's badges", 2)
+	end
+	local set = badgeOwners[uid] or {}
+	if set[id] then
+		return true
+	end
+	set[id] = true
+	badgeOwners[uid] = set
+	emit({ o = "badge", to = uid, id = id })
+	return true
+end
+-- Does the player have this badge? (players in this server; on a device, the LocalPlayer)
+function BadgeService:UserHasBadgeAsync(userId, badgeId)
+	local set = badgeOwners[tonumber(userId)]
+	return set ~= nil and set[tonumber(badgeId)] == true
+end
+-- { Id, Name, Description } of one of this place's badges, or nil.
+function BadgeService:GetBadgeInfo(badgeId)
+	return badgeInfo[tonumber(badgeId)]
+end
+
 ---------------------------------------------------------------------------
 -- Players and characters (the server owns health; clients own movement)
 ---------------------------------------------------------------------------
@@ -3043,6 +3101,7 @@ local specialServices = {
 	HttpService = HttpService,
 	MarketplaceService = MarketplaceService,
 	DataStoreService = DataStoreService,
+	BadgeService = BadgeService,
 }
 Methods.DataModel = {
 	GetService = function(_, name)
@@ -3192,6 +3251,8 @@ function handlers.player_add(e)
 	d.props.Language = tostring(e.lang or "en")
 	setPassOwner(d.props.UserId, e.passes)
 	setPassInfo(e.pass_info)
+	setBadgeOwner(d.props.UserId, e.badges)
+	setBadgeInfo(e.badge_info)
 	d.props.CameraMode = starterValue("CameraMode") or "Classic"
 	d.props.CameraMinZoom = starterValue("CameraMinZoom") or 0.5
 	d.props.CameraMaxZoom = starterValue("CameraMaxZoom") or 14
@@ -3380,6 +3441,14 @@ function handlers.ds_ret(e)
 	end
 end
 
+-- a badge was awarded to the LocalPlayer (client)
+function handlers.badge_got(e)
+	local id = tonumber(e.id)
+	if id and localUserId then
+		setBadgeOwner(localUserId, { id })
+	end
+end
+
 -- a gamepass was bought (server: from the website or app; client: the dialog's answer)
 function handlers.pass_bought(e)
 	local uid = role == "server" and tonumber(e.userId) or localUserId
@@ -3554,6 +3623,10 @@ G.__init = hostCall(function(cfg)
 		setPassOwner(localUserId, cfg.passes)
 	end
 	setPassInfo(cfg.pass_info)
+	if cfg.badges and localUserId then
+		setBadgeOwner(localUserId, cfg.badges)
+	end
+	setBadgeInfo(cfg.badge_info)
 	local device = cfg.device or {}
 	UIS.TouchEnabled = device.touch == true
 	UIS.KeyboardEnabled = device.keyboard == true

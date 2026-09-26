@@ -8,6 +8,7 @@ import { FACES, ageOf, chatRules, validBirthdate } from './age.js';
 import { filterText } from './filter.js';
 import { createStudioRoutes } from './studio/routes.js';
 import { createEconomy, priceOf } from './economy.js';
+import { createBadges } from './badges.js';
 import path from 'node:path';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -351,6 +352,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     writeLimiter,
     log: (...a) => console.log(new Date().toISOString(), ...a),
   });
+
+  const badges = createBadges({ db, hub, mediaDir: store.mediaDir, HttpError, bad, cleanText, requireAuth, authenticate });
 
   const routes = {
     // The accessory catalog (public, same for everyone).
@@ -971,6 +974,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   Object.assign(
     routes,
     economy.routes,
+    badges.routes,
     createStudioRoutes({ db, hub, store, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 
@@ -1057,5 +1061,5 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     } catch {}
   }
 
-  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate, cheatReport, economy };
+  return { handle, userForToken, blockSet, friendSet, isFriend, countVisit: (id) => pq.visit.run(id), gate, cheatReport, economy, badges };
 }

@@ -646,6 +646,44 @@ func _update_stamina() -> void:
 	_stamina_bg.modulate.a = move_toward(_stamina_bg.modulate.a, 0.45 if frac >= 0.999 else 1.0, get_process_delta_time() * 3.0)
 
 
+## A place gave you a badge: a card slides down from the top for a few seconds.
+func badge_popup(b: Dictionary) -> void:
+	var card := UI.card(12, Color(UI.CARD, 0.96), 20)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var row := UI.hbox(12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	var pic := TextureRect.new()
+	pic.custom_minimum_size = Vector2(64, 64)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(pic)
+	if str(b.get("image", "")) != "":
+		var wr: WeakRef = weakref(pic)
+		AssetCache.fetch(str(b.image), func(t: Texture2D):
+			var p: TextureRect = wr.get_ref()
+			if p and t:
+				p.texture = t)
+	else:
+		pic.add_child(Icon.make("star", 64, UI.ACCENT))
+	var col := UI.vbox(2)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(UI.label(L.t("bg_got", [str(b.get("name", ""))]), 20, UI.TEXT, "black"))
+	if str(b.get("description", "")) != "":
+		col.add_child(UI.label(str(b.description), 15, UI.MUTED))
+	row.add_child(col)
+	_root.add_child(card)
+	card.offset_top = -120
+	Sfx.play("win")
+	var t := card.create_tween()
+	t.tween_property(card, "offset_top", 70.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_interval(4.0)
+	t.tween_property(card, "modulate:a", 0.0, 0.4)
+	t.tween_callback(card.queue_free)
+
+
 func big_message(text: String, seconds := 2.5) -> void:
 	_toast_big.text = text
 	var t := _toast_big.create_tween()

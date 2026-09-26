@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { migrateEconomy } from './economy.js';
+import { migrateBadges } from './badges.js';
 
 export function openDb(file) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -200,4 +201,5 @@ function migrate(db) {
   if (!rcols.has('target_type')) db.exec("ALTER TABLE reports ADD COLUMN target_type TEXT NOT NULL DEFAULT 'user'");
   if (!rcols.has('target_ref')) db.exec("ALTER TABLE reports ADD COLUMN target_ref TEXT NOT NULL DEFAULT ''");
   migrateEconomy(db);
+  migrateBadges(db);
 }

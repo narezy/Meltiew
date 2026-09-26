@@ -328,6 +328,24 @@ end)
 
 `MarketplaceService:GetGamePassInfo(id)` returns `{ Id, Name, Price }`. Always check ownership on the server: a LocalScript can be changed by its player.
 
+## Badges
+
+A place can have up to 15 badges: make them in the place's settings in Studio (or on its page on the site) with a name, what they're for and a picture. Each gets a number. Players keep badges on their profile, in the app and on the site.
+
+```lua
+local BadgeService = game:GetService("BadgeService")
+local FINISHED = 7
+
+workspace.Finish.Touched:Connect(function(part)
+	local player = game.Players:GetPlayerFromCharacter(part.Parent)
+	if player and not BadgeService:UserHasBadgeAsync(player.UserId, FINISHED) then
+		BadgeService:AwardBadge(player.UserId, FINISHED) -- "New badge!" pops up for them
+	end
+end)
+```
+
+`AwardBadge` works in server Scripts only and only with this place's own badges; giving one twice does nothing. `BadgeService:GetBadgeInfo(id)` returns `{ Id, Name, Description }`. In a Studio test the popup shows, but nothing is saved.
+
 ## Saving data (DataStores)
 
 Server Scripts can save data that outlives the server: coins, levels, a built house.

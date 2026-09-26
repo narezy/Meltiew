@@ -33,6 +33,9 @@ const SHOP_T = {
     pass_image: 'Picture (square)', pass_add: 'Add gamepass', pass_sales: '{0} sold', pass_delete: 'Delete',
     pass_hint: 'Players buy passes for pieces; you get 95% of the price. In scripts: MarketplaceService:UserOwnsGamePassAsync(player.UserId, id).',
     terms: 'Terms of service', privacy_policy: 'Privacy policy', support: 'Support',
+    badges: 'Badges', no_badges: 'No badges yet', badge_add: 'Add a badge', badge_name: 'Badge name', badge_desc: 'What it is for',
+    badge_hint: 'Up to 15 per place. Give them out from a server Script: BadgeService:AwardBadge(player.UserId, id).',
+    badge_awarded: '{0} have it', badge_delete_q: 'Delete this badge? Players lose it from their profiles.', profile_tab: 'Profile', no_badges_user: 'No badges yet. Places give them out for doing things.',
     support_title: 'Support', support_text: 'Something broke, a payment went wrong or you want to report something? Write to us, we answer here.',
     subject: 'Subject', message: 'Message', contact: 'Contact for the answer (email or Telegram)', send_ticket: 'Send',
     ticket_sent: 'Sent! The answer will appear below.', my_tickets: 'Your requests', ticket_open: 'Waiting for an answer', ticket_closed: 'Answered',
@@ -67,6 +70,9 @@ const SHOP_T = {
     pass_image: 'Картинка (квадратная)', pass_add: 'Добавить геймпасс', pass_sales: 'Продано: {0}', pass_delete: 'Удалить',
     pass_hint: 'Игроки покупают пассы за кусочки, тебе достаётся 95% цены. В скриптах: MarketplaceService:UserOwnsGamePassAsync(player.UserId, id).',
     terms: 'Пользовательское соглашение', privacy_policy: 'Политика конфиденциальности', support: 'Поддержка',
+    badges: 'Значки', no_badges: 'Значков пока нет', badge_add: 'Добавить значок', badge_name: 'Название значка', badge_desc: 'За что даётся',
+    badge_hint: 'До 15 на плейс. Выдаются из серверного скрипта: BadgeService:AwardBadge(player.UserId, id).',
+    badge_awarded: 'есть у {0}', badge_delete_q: 'Удалить значок? У игроков он пропадёт из профиля.', profile_tab: 'Профиль', no_badges_user: 'Значков пока нет. Их выдают плейсы за достижения.',
     support_title: 'Поддержка', support_text: 'Что-то сломалось, не прошла оплата или хочешь пожаловаться? Напиши нам, ответ придёт сюда.',
     subject: 'Тема', message: 'Сообщение', contact: 'Контакт для ответа (почта или Telegram)', send_ticket: 'Отправить',
     ticket_sent: 'Отправлено! Ответ появится ниже.', my_tickets: 'Твои обращения', ticket_open: 'Ждёт ответа', ticket_closed: 'Отвечено',
@@ -365,6 +371,42 @@ async function passesBlock(box, p, mine) {
     try {
       const image = file && file.size ? (await cropImage(file, [512, 512])) : undefined;
       await api('POST', `/api/studio/places/${encodeURIComponent(p.id)}/passes`, { name: f.get('name'), price: Number(f.get('price')), description: f.get('description'), image });
+      redraw();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+// --- badges ------------------------------------------------------------------------------
+
+const badgeTile = (b, showPlace) => `<div class="card badge-tile ${b.owned ? '' : 'dim'}" title="${esc(b.description || '')}">
+  ${b.image ? `<img src="${esc(b.image)}" alt="">` : `<div class="badge-ph">★</div>`}
+  <b>${esc(b.name)}</b>${showPlace && b.place_name ? `<a class="muted" href="/place/${encodeURIComponent(b.place_id)}" data-link>${esc(b.place_name)}</a>` : ''}</div>`;
+
+// A place's badges: what you have is bright. The creator can add (up to 15) and delete.
+async function badgesBlock(box, p, mine) {
+  const { badges, max } = await api('GET', `/api/places/${encodeURIComponent(p.id)}/badges`);
+  if (!badges.length && !mine) { box.innerHTML = ''; return; }
+  box.innerHTML = `<h2>${t('badges')}</h2>
+    <div class="badges">${badges.length ? badges.map((b) => `<div class="badge-wrap">${badgeTile(b, false)}
+      ${mine ? `<span class="muted">#${b.id} · ${esc(t('badge_awarded', b.awarded))}</span><button class="link danger" data-delbadge="${b.id}">${t('pass_delete')}</button>` : ''}</div>`).join('') : `<div class="empty">${t('no_badges')}</div>`}</div>
+    ${mine && badges.length < max ? `<form class="card stack" id="newbadge" style="margin-top:14px"><h3>${t('badge_add')}</h3><span class="muted">${esc(t('badge_hint'))}</span>
+      <input name="name" maxlength="50" placeholder="${t('badge_name')}" required>
+      <input name="description" maxlength="300" placeholder="${t('badge_desc')}">
+      <label class="muted">${t('pass_image')} <input name="image" type="file" accept="image/png,image/jpeg"></label>
+      <button class="btn">${t('badge_add')}</button></form>` : ''}`;
+  const redraw = () => badgesBlock(box, p, mine);
+  box.querySelectorAll('[data-delbadge]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm(t('badge_delete_q'))) return;
+    try { await api('DELETE', `/api/studio/places/${encodeURIComponent(p.id)}/badges/${b.dataset.delbadge}`); redraw(); }
+    catch (e) { toast(e.message, 'error'); }
+  }));
+  $('#newbadge', box)?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const file = f.get('image');
+    try {
+      const image = file && file.size ? (await cropImage(file, [512, 512])) : undefined;
+      await api('POST', `/api/studio/places/${encodeURIComponent(p.id)}/badges`, { name: f.get('name'), description: f.get('description'), image });
       redraw();
     } catch (err) { toast(err.message, 'error'); }
   });
