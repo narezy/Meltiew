@@ -198,6 +198,11 @@ func _draw() -> void:
 		"piece", "orb":
 			# The currencies are drawn from the same SVGs as the website, smooth at any size.
 			draw_texture_rect(currency_texture(kind), Rect2(Vector2.ZERO, size), false)
+		"shop":
+			_line([Vector2(4.5, 8), Vector2(19.5, 8), Vector2(18.5, 20.5), Vector2(5.5, 20.5), Vector2(4.5, 8)])
+			_line([Vector2(8.5, 10.5), Vector2(8.5, 6.5)])
+			_arc(Vector2(12, 6.5), 3.5, PI, TAU)
+			_line([Vector2(15.5, 6.5), Vector2(15.5, 10.5)])
 		"backpack":
 			_line([Vector2(9, 6), Vector2(9, 4), Vector2(15, 4), Vector2(15, 6)])
 			_line([Vector2(6, 21), Vector2(4.5, 19.5), Vector2(4.5, 9.5), Vector2(7, 6.5), Vector2(17, 6.5),

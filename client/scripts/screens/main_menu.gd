@@ -6,6 +6,7 @@ const PAGES := [
 	{"id": "friends", "title": "nav_friends", "icon": "friends"},
 	{"id": "messages", "title": "messages", "icon": "chat"},
 	{"id": "avatar", "title": "nav_avatar", "icon": "avatar"},
+	{"id": "shop", "title": "nav_shop", "icon": "shop"},
 	{"id": "studio", "title": "nav_studio", "icon": "code"},
 	{"id": "settings", "title": "nav_settings", "icon": "settings"},
 ]
@@ -336,6 +337,8 @@ func open_page(id: String) -> void:
 			_page = FriendsPage.new()
 		"avatar":
 			_page = AvatarPage.new()
+		"shop":
+			_page = ShopPage.new()
 		"settings":
 			_page = SettingsPage.new()
 		"studio":

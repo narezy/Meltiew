@@ -31,15 +31,19 @@ static func set_wallet(w: Dictionary, owned_items: Variant = null) -> void:
 	Session.set_user(u)
 
 
-## A small "icon + number" label for a price ({pieces} or {orbs}).
-static func price_tag(price: Variant, size := 16) -> Control:
+## A small "icon + number" label for a price ({pieces} and/or {orbs}); `currency`
+## picks one, otherwise pieces when there are any.
+static func price_tag(price: Variant, size := 16, currency := "") -> Control:
 	var row := UI.hbox(4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not (price is Dictionary) or price.is_empty():
 		return row
-	var is_pieces: bool = price.has("pieces")
-	row.add_child(Icon.make("piece" if is_pieces else "orb", size + 2, PIECE_COLOR if is_pieces else ORB_COLOR))
-	row.add_child(UI.label(str(int(price.pieces if is_pieces else price.orbs)), size, UI.TEXT, "black"))
+	var cur := currency if currency != "" else ("pieces" if price.has("pieces") else "orbs")
+	if not price.has(cur):
+		return row
+	var is_pieces := cur == "pieces"
+	row.add_child(Icon.make("piece" if is_pieces else "orb", size + 2))
+	row.add_child(UI.label(str(int(price[cur])), size, UI.TEXT, "black"))
 	return row
 
 
@@ -86,9 +90,12 @@ static func _chip(icon: String, tint: Color, text: String, on_press: Callable) -
 	return b
 
 
-## Buys one item (accessory or face). Returns true when it's yours.
-static func buy(kind: String, id: String) -> bool:
-	var r := await Api.request("POST", "/api/shop/buy", {"kind": kind, "id": id})
+## Buys one item (accessory or face) for pieces or orbs. Returns true when it's yours.
+static func buy(kind: String, id: String, currency := "") -> bool:
+	var body := {"kind": kind, "id": id}
+	if currency != "":
+		body.currency = currency
+	var r := await Api.request("POST", "/api/shop/buy", body)
 	if not r.ok:
 		UI.toast(r.message, "error")
 		return false
