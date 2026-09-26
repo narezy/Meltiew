@@ -12,6 +12,9 @@ const RADIUS := 150.0
 const BTN := 92.0
 
 var _items: Array[Control] = []
+var _labels := {}  # emote -> Label
+## A place's EmoteOverrides: emote -> [title, animation].
+var overrides := {}
 
 
 func _ready() -> void:
@@ -50,10 +53,12 @@ func _ready() -> void:
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(l)
 		var emote: String = it[0]
+		_labels[emote] = l
 		b.pressed.connect(func():
 			Sfx.click()
 			close()
-			picked.emit(emote))
+			var o: Array = overrides.get(emote, [])
+			picked.emit(str(o[1]) if o.size() > 1 and str(o[1]) != "" else emote))
 		add_child(b)
 		_items.append(b)
 	var center := Button.new()
@@ -77,6 +82,14 @@ func _ready() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		close()
+
+
+## Swaps some moves for a place's own animations (EmoteOverride in StarterPlayer).
+func set_overrides(o: Dictionary) -> void:
+	overrides = o
+	for e in _labels:
+		var ov: Array = o.get(e, [])
+		_labels[e].text = str(ov[0]) if ov.size() > 0 and str(ov[0]) != "" else L.t("emote_" + e)
 
 
 func open() -> void:

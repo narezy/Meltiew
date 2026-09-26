@@ -433,6 +433,7 @@ func _sync_place(delta: float) -> void:
 	player.void_height = float(h.workspace_prop("FallHeight"))
 	player.set_camera_rules(str(h.player_prop("CameraMode")), float(h.player_prop("CameraMinZoom")), float(h.player_prop("CameraMaxZoom")))
 	hud.set_view_toggle(player.can_toggle_view())
+	_sync_emote_overrides()
 	_sync_tools()
 	if not player.dead:
 		for i in player.get_slide_collision_count():
@@ -831,7 +832,28 @@ func _emote(e: String) -> void:
 		_spawn_heart(player)
 		net.send({"t": "emote", "e": "heart"})
 		return
+	if e.begins_with("anim://"):
+		player.play_custom(e)
+		return
 	player.play_emote(e)
+
+
+var _emote_sig := ""
+
+
+## EmoteOverride objects in StarterPlayer swap wheel moves for the place's own animations.
+func _sync_emote_overrides() -> void:
+	var t := place_host.tree
+	var sp := t.service("StarterPlayer")
+	var o := {}
+	if sp != "":
+		for k in t.kids(sp):
+			if t.cls(k) == "EmoteOverride":
+				o[str(t.prop(k, "Slot"))] = [str(t.prop(k, "Title")), str(t.prop(k, "Animation"))]
+	var sig := str(o)
+	if sig != _emote_sig:
+		_emote_sig = sig
+		hud.wheel.set_overrides(o)
 
 
 func _on_died() -> void:

@@ -249,6 +249,23 @@ s:Play()
 
 Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV (up to 5 MB each, 40 MB in all per account) and pick it in a Sound's `SoundId` with the "…" button, or copy its `asset://...` and set it from a script. `Looped = true` repeats it (music), `sound:Stop()` stops it, `Pitch` makes it higher or lower. A Sound outside the Workspace's parts (in a LocalScript's folder, in the camera) plays for the whole screen.
 
+## Animations, Rigs and the emote wheel
+
+**Place → Animator** opens the Animator. Pick a body part, move the time slider and turn the part with the sliders: a key is set right there, and Melly moves smoothly from key to key. Set the length and whether it loops, then **Save**: the animation gets an id like `anim://12` (copied for you). Any place can play it.
+
+```lua
+-- a server Script: everyone sees this player do it
+player.Character.Humanoid:PlayAnimation("anim://12")
+player.Character.Humanoid:PlayAnimation("dance")  -- Melly's own moves work too
+player.Character.Humanoid:StopAnimation()
+```
+
+Moving stops an animation, like an emote. A LocalScript can animate its own player's character.
+
+A **Rig** (Insert → Rig) is a Melly standing in your place: shopkeepers, guards, dancers. Paint it like in the avatar editor, choose a Face, put on any accessories (the Accessories property's button), give it a DisplayName, and an Animation: one of Melly's moves or one of yours. From scripts: `rig:PlayAnimation("anim://12")`, `rig:StopAnimation()`, and move it by setting `Position` (with TweenService it slides smoothly).
+
+To give your place its own emotes, put an **EmoteOverride** in StarterPlayer: `Slot` is the wheel's move it replaces (wave, dance, cheer, sit, clap, laugh), `Animation` what plays instead, `Title` the name on the wheel.
+
 ## Tools
 
 A **Tool** in StarterPack (or put into a player's Backpack) shows up in the backpack bar. Picking it moves it into the character; the part named `Handle` goes into the right hand.
