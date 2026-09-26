@@ -171,12 +171,103 @@ static func _mesh(shape: String, p: Dictionary) -> Mesh:
 			m.radius = float(p.get("r", 0.2))
 			m.height = float(p.get("h", 0.8))
 			return m
+		"extrude":
+			var outline: Array = p.get("outline", [])
+			if outline.size() < 3:
+				return null
+			return extrude_mesh(outline.map(func(a): return Vector2(float(a[0]), float(a[1]))), float(p.get("depth", 0.1)), float(p.get("bevel", 0.0)))
 		"tube":
 			var pts: Array = p.get("points", [])
 			if pts.size() < 2:
 				return null
 			return tube_mesh(pts.map(func(a): return _v3(a)), float(p.get("r", 0.1)), float(p.get("r_end", p.get("r", 0.1))))
 	return null
+
+
+## A flat outline (x, y) pushed out `depth` along z (centered), its edge rounded
+## by `bevel`: hearts, bows, wings, scarf ends. Same algorithm as the website's.
+static func extrude_mesh(outline: Array, depth: float, bevel: float) -> ArrayMesh:
+	var pts := PackedVector2Array()
+	for p in outline:
+		if pts.is_empty() or (p as Vector2).distance_to(pts[pts.size() - 1]) > 0.0005:
+			pts.append(p)
+	if pts.size() > 3 and pts[0].distance_to(pts[pts.size() - 1]) <= 0.0005:
+		pts.remove_at(pts.size() - 1)
+	# Counter-clockwise, so edge normals point out.
+	var area := 0.0
+	for i in pts.size():
+		var a := pts[i]
+		var b := pts[(i + 1) % pts.size()]
+		area += a.x * b.y - b.x * a.y
+	if area < 0.0:
+		pts.reverse()
+	var n := pts.size()
+	var normals := PackedVector2Array()
+	for i in n:
+		var prev := pts[(i - 1 + n) % n]
+		var cur := pts[i]
+		var next := pts[(i + 1) % n]
+		var e1 := (cur - prev).normalized()
+		var e2 := (next - cur).normalized()
+		var n1 := Vector2(e1.y, -e1.x)
+		var n2 := Vector2(e2.y, -e2.x)
+		var m := (n1 + n2).normalized()
+		if m == Vector2.ZERO:
+			m = n1
+		normals.append(m / maxf(m.dot(n1), 0.5))  # miter, capped
+	bevel = clampf(bevel, 0.0, depth / 2.0)
+	var half := depth / 2.0 - bevel
+	var steps := 3 if bevel > 0.0 else 0
+	# Rings from the bottom face round the edge to the top face: [inset, z, angle].
+	var rings: Array = []
+	for k in range(-steps, 1):
+		var a := PI / 2.0 * k / maxf(steps, 1)
+		rings.append([bevel * (1.0 - cos(a)), -half + bevel * sin(a), a])
+	for k in range(0, steps + 1):
+		var a := PI / 2.0 * k / maxf(steps, 1)
+		rings.append([bevel * (1.0 - cos(a)), half + bevel * sin(a), a])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var vert := func(i: int, r: Array) -> Array:
+		var p2: Vector2 = pts[i] - normals[i] * float(r[0])
+		var nn: Vector2 = normals[i].normalized()
+		var a: float = r[2]
+		return [Vector3(p2.x, p2.y, r[1]), Vector3(nn.x * cos(a), nn.y * cos(a), sin(a)).normalized()]
+	# Godot's front faces wind the other way from the website's (three.js); emit reversed.
+	var tri := func(a: Array, b: Array, c: Array) -> void:
+		for v in [a, c, b]:
+			st.set_normal(v[1])
+			st.add_vertex(v[0])
+	for r in rings.size() - 1:
+		for i in n:
+			var j := (i + 1) % n
+			var A: Array = vert.call(i, rings[r])
+			var B: Array = vert.call(j, rings[r])
+			var C: Array = vert.call(j, rings[r + 1])
+			var D: Array = vert.call(i, rings[r + 1])
+			tri.call(A, B, C)
+			tri.call(A, C, D)
+	# Caps from the fully inset outline.
+	var cap := PackedVector2Array()
+	for i in n:
+		cap.append(pts[i] - normals[i] * bevel)
+	var idx := Geometry2D.triangulate_polygon(cap)
+	if idx.is_empty():
+		# The inset outline can cross itself in tight notches; the outline itself can't.
+		cap = pts
+		idx = Geometry2D.triangulate_polygon(cap)
+	var top_z := depth / 2.0
+	for t in range(0, idx.size(), 3):
+		var a2 := cap[idx[t]]
+		var b2 := cap[idx[t + 1]]
+		var c2 := cap[idx[t + 2]]
+		if (b2 - a2).cross(c2 - a2) < 0.0:
+			var tmp := b2
+			b2 = c2
+			c2 = tmp
+		tri.call([Vector3(a2.x, a2.y, top_z), Vector3.BACK], [Vector3(b2.x, b2.y, top_z), Vector3.BACK], [Vector3(c2.x, c2.y, top_z), Vector3.BACK])
+		tri.call([Vector3(a2.x, a2.y, -top_z), Vector3.FORWARD], [Vector3(c2.x, c2.y, -top_z), Vector3.FORWARD], [Vector3(b2.x, b2.y, -top_z), Vector3.FORWARD])
+	return st.commit()
 
 
 ## A smooth tube along a Catmull-Rom curve through `points`, narrowing from `r0`

@@ -716,6 +716,7 @@ function buildAccessory(THREE, def) {
       }
       case 'capsule': return new THREE.CapsuleGeometry(p.r ?? 0.2, Math.max((p.h ?? 0.8) - 2 * (p.r ?? 0.2), 0), 8, 16);
       case 'tube': return tubeGeometry(THREE, p.points.map((q) => new THREE.Vector3(...q)), p.r ?? 0.1, p.r_end ?? p.r ?? 0.1);
+      case 'extrude': return p.outline?.length > 2 ? extrudeGeometry(THREE, p.outline, p.depth ?? 0.1, p.bevel ?? 0) : null;
       default: return null;
     }
   };
@@ -749,6 +750,66 @@ function buildAccessory(THREE, def) {
     else if (a.type === 'spin') o.rotation.y = a.rot.y + k * Math.PI * 2;
   });
   return root;
+}
+
+// A flat outline pushed out along z with a rounded edge; same algorithm as the app's.
+function extrudeGeometry(THREE, outline, depth, bevel) {
+  let pts = [];
+  for (const [x, y] of outline) if (!pts.length || Math.hypot(x - pts[pts.length - 1][0], y - pts[pts.length - 1][1]) > 0.0005) pts.push([x, y]);
+  if (pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) <= 0.0005) pts.pop();
+  let area = 0;
+  pts.forEach((a, i) => { const b = pts[(i + 1) % pts.length]; area += a[0] * b[1] - b[0] * a[1]; });
+  if (area < 0) pts = pts.reverse();
+  const n = pts.length;
+  const norm = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+  const normals = pts.map((cur, i) => {
+    const prev = pts[(i - 1 + n) % n];
+    const next = pts[(i + 1) % n];
+    const e1 = norm([cur[0] - prev[0], cur[1] - prev[1]]);
+    const e2 = norm([next[0] - cur[0], next[1] - cur[1]]);
+    const n1 = [e1[1], -e1[0]];
+    const n2 = [e2[1], -e2[0]];
+    let m = [n1[0] + n2[0], n1[1] + n2[1]];
+    m = Math.hypot(m[0], m[1]) ? norm(m) : n1;
+    const k = Math.max(m[0] * n1[0] + m[1] * n1[1], 0.5);
+    return [m[0] / k, m[1] / k];
+  });
+  bevel = Math.min(Math.max(bevel, 0), depth / 2);
+  const half = depth / 2 - bevel;
+  const steps = bevel > 0 ? 3 : 0;
+  const rings = [];
+  for (let k = -steps; k <= 0; k++) { const a = (Math.PI / 2) * k / Math.max(steps, 1); rings.push([bevel * (1 - Math.cos(a)), -half + bevel * Math.sin(a), a]); }
+  for (let k = 0; k <= steps; k++) { const a = (Math.PI / 2) * k / Math.max(steps, 1); rings.push([bevel * (1 - Math.cos(a)), half + bevel * Math.sin(a), a]); }
+  const pos = [];
+  const nor = [];
+  const vert = (i, r) => {
+    const nn = norm(normals[i]);
+    const c = Math.cos(r[2]);
+    const v = [nn[0] * c, nn[1] * c, Math.sin(r[2])];
+    const l = Math.hypot(...v) || 1;
+    return [[pts[i][0] - normals[i][0] * r[0], pts[i][1] - normals[i][1] * r[0], r[1]], v.map((q) => q / l)];
+  };
+  const tri = (a, b, c) => { for (const v of [a, b, c]) { pos.push(...v[0]); nor.push(...v[1]); } };
+  for (let r = 0; r < rings.length - 1; r++) {
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const A = vert(i, rings[r]); const B = vert(j, rings[r]); const C = vert(j, rings[r + 1]); const D = vert(i, rings[r + 1]);
+      tri(A, B, C);
+      tri(A, C, D);
+    }
+  }
+  const cap = pts.map((p, i) => new THREE.Vector2(p[0] - normals[i][0] * bevel, p[1] - normals[i][1] * bevel));
+  const top = depth / 2;
+  for (let [a, b, c] of THREE.ShapeUtils.triangulateShape(cap, [])) {
+    const A = cap[a]; let B = cap[b]; let C = cap[c];
+    if ((B.x - A.x) * (C.y - A.y) - (B.y - A.y) * (C.x - A.x) < 0) [B, C] = [C, B];
+    tri([[A.x, A.y, top], [0, 0, 1]], [[B.x, B.y, top], [0, 0, 1]], [[C.x, C.y, top], [0, 0, 1]]);
+    tri([[A.x, A.y, -top], [0, 0, -1]], [[C.x, C.y, -top], [0, 0, -1]], [[B.x, B.y, -top], [0, 0, -1]]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return g;
 }
 
 // Tapering tube along a Catmull-Rom curve with a rounded tip (tails and the like).

@@ -14,6 +14,43 @@ def part(shape, pos, color, rot=None, **kw):
     p.update(kw)
     return p
 
+def ext(outline, pos, color, depth=0.1, bevel=0.03, rot=None, **kw):
+    """An outline (x, y) pushed out along z, with a rounded edge."""
+    return part("extrude", pos, color, rot=rot, outline=[[round(x, 3), round(y, 3)] for x, y in outline],
+                depth=depth, bevel=bevel, **kw)
+
+def chaikin(pts, rounds=3):
+    """Rounds the corners of a closed polygon by cutting them (Chaikin's algorithm)."""
+    for _ in range(rounds):
+        out = []
+        for i in range(len(pts)):
+            a, b = pts[i], pts[(i + 1) % len(pts)]
+            out.append((a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25))
+            out.append((a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75))
+        pts = out
+    return pts
+
+def heart(w, steps=48):
+    """The classic heart curve, `w` wide, centered."""
+    pts = []
+    for i in range(steps):
+        t = math.tau * i / steps
+        x = 16 * math.sin(t) ** 3
+        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((x * w / 34, (y + 2.5) * w / 34))
+    return pts
+
+def ellipse(rx, ry, steps=24):
+    return [(rx * math.cos(math.tau * i / steps), ry * math.sin(math.tau * i / steps)) for i in range(steps)]
+
+def rounded_rect(w, h, r, steps=5):
+    pts = []
+    for cx, cy, a0 in ((w / 2 - r, h / 2 - r, 0), (-w / 2 + r, h / 2 - r, 90), (-w / 2 + r, -h / 2 + r, 180), (w / 2 - r, -h / 2 + r, 270)):
+        for k in range(steps + 1):
+            a = math.radians(a0 + 90 * k / steps)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
 items = []
 
 # --- hats ------------------------------------------------------------------------
@@ -109,35 +146,101 @@ items.append({"id": "sunglasses", "name": {"en": "Sunglasses", "ru": "Солне
 
 hearts = []
 for side in (-1, 1):
-    cx = side * 0.3
-    hearts.append(part("sphere", [cx - 0.08, 0.83, 0.71], "#ff5c8a", r=0.13, h=0.1, glow=0.3))
-    hearts.append(part("sphere", [cx + 0.08, 0.83, 0.71], "#ff5c8a", r=0.13, h=0.1, glow=0.3))
-    hearts.append(part("prism", [cx, 0.68, 0.71], "#ff5c8a", rot=[0, 0, 180], size=[0.37, 0.24, 0.1], glow=0.3))
-hearts.append(part("box", [0, 0.84, 0.7], "#ff8fb1", size=[0.14, 0.04, 0.04]))
+    cx = side * 0.31
+    # A glossy pink heart lens in a thin darker rim, with a little shine.
+    hearts.append(ext(heart(0.5), [cx, 0.79, 0.69], "#c2185b", depth=0.05, bevel=0.02, rough=0.35))
+    hearts.append(ext(heart(0.42), [cx, 0.8, 0.715], "#ff5c95", depth=0.04, bevel=0.018, rough=0.12, glow=0.25))
+    hearts.append(ext(ellipse(0.055, 0.035), [cx - 0.07, 0.88, 0.735], "#ffe3ee", rot=[0, 0, 30], depth=0.012, bevel=0.005, rough=0.1, glow=0.4))
+    hearts.append(part("box", [side * 0.66, 0.86, 0.36], "#c2185b", size=[0.035, 0.045, 0.66], rough=0.35))
+hearts.append(ext(chaikin([(-0.09, 0.0), (0.0, 0.035), (0.09, 0.0), (0.09, -0.03), (0.0, 0.005), (-0.09, -0.03)], 2), [0, 0.87, 0.705], "#c2185b", depth=0.04, bevel=0.012, rough=0.35))
 items.append({"id": "heartglasses", "name": {"en": "Heart glasses", "ru": "Очки-сердечки"}, "slot": "face", "bone": "Head", "parts": hearts})
 
-items.append({"id": "scarf", "name": {"en": "Scarf", "ru": "Шарф"}, "slot": "neck", "bone": "Torso", "parts": [
-    part("torus", [0, 1.93, 0], "#4cc9f0", inner=0.42, outer=0.62, rough=0.95),
-    part("box", [0.25, 1.45, 0.47], "#4cc9f0", rot=[0, 0, 6], size=[0.3, 0.8, 0.1], rough=0.95),
-    part("box", [0.25, 1.1, 0.48], "#f4f1ec", rot=[0, 0, 6], size=[0.3, 0.1, 0.11], rough=0.95),
-]})
 
-items.append({"id": "bowtie", "name": {"en": "Bow tie", "ru": "Бабочка"}, "slot": "neck", "bone": "Torso", "parts": [
-    part("prism", [-0.2, 1.82, 0.44], "#e05b6f", rot=[0, 0, 90], size=[0.32, 0.3, 0.1]),
-    part("prism", [0.2, 1.82, 0.44], "#e05b6f", rot=[0, 0, -90], size=[0.32, 0.3, 0.1]),
-    part("box", [0, 1.82, 0.47], "#c9485d", size=[0.12, 0.14, 0.1]),
-]})
+def neck_loop(y, rx, rz, tilt):
+    """A ring of points round the neck (a little overlap hides the tube's ends)."""
+    pts = []
+    for i in range(15):
+        a = math.tau * i / 14 + 0.3
+        pts.append([round(rx * math.sin(a), 3), round(y + tilt * math.cos(a), 3), round(rz * math.cos(a), 3)])
+    return pts
+
+scarf = [
+    # two soft knitted rolls wrapped round the neck
+    part("tube", [0, 0, 0], "#3fb6e8", points=neck_loop(1.93, 0.6, 0.5, 0.05), r=0.15, rough=0.95),
+    part("tube", [0, 0, 0], "#4cc9f0", points=neck_loop(1.79, 0.64, 0.53, -0.04), r=0.14, rough=0.95),
+]
+for x, top, length, tilt, z in ((0.2, 1.72, 0.8, 7, 0.52), (0.38, 1.7, 0.64, -5, 0.46)):
+    # Hanging ends: a strip with two white stripes and a fringe, in its own group so it tilts as one.
+    end = [ext(rounded_rect(0.26, length, 0.06), [0, -length / 2, 0], "#4cc9f0", depth=0.07, bevel=0.03, rough=0.95)]
+    for k in (0.62, 0.76):
+        end.append(ext(rounded_rect(0.272, 0.05, 0.02), [0, -length * k, 0], "#f4f1ec", depth=0.078, bevel=0.03, rough=0.95))
+    for f in range(5):
+        end.append(part("capsule", [-0.1 + f * 0.05, -length - 0.04, 0], "#f4f1ec", r=0.018, h=0.12, rough=0.95))
+    scarf.append({"shape": "group", "pos": [x, top, z], "rot": [-10, 0, tilt], "parts": end})
+items.append({"id": "scarf", "name": {"en": "Scarf", "ru": "Шарф"}, "slot": "neck", "bone": "Torso", "parts": scarf})
+
+
+def bow_lobe(side):
+    """One wing of the bow: narrow at the knot, wide and rounded at the end."""
+    raw = [(0.05, 0.07), (0.18, 0.13), (0.31, 0.17), (0.37, 0.1), (0.38, 0.0), (0.37, -0.1), (0.31, -0.17), (0.18, -0.13), (0.05, -0.07)]
+    return [(side * x, y) for x, y in chaikin(raw, 3)]
+
+def crease(side, up):
+    raw = [(0.08, 0.015 * up), (0.26, 0.07 * up), (0.27, 0.05 * up), (0.08, 0.0)]
+    return [(side * x, y) for x, y in chaikin(raw, 2)]
+
+bow = []
+for side in (-1, 1):
+    bow.append(ext(bow_lobe(side), [0, 0, 0], "#e0445f", rot=[0, side * 12, 0], depth=0.11, bevel=0.04, rough=0.55))
+    for up in (1, -1):
+        bow.append(ext(crease(side, up), [0, 0, 0.045], "#b8324b", rot=[0, side * 12, 0], depth=0.03, bevel=0.01, rough=0.6))
+bow.append(ext(rounded_rect(0.14, 0.17, 0.05), [0, 0, 0.03], "#c23a53", depth=0.15, bevel=0.05, rough=0.55))
+items.append({"id": "bowtie", "name": {"en": "Bow tie", "ru": "Бабочка"}, "slot": "neck", "bone": "Torso",
+              "parts": [{"shape": "group", "pos": [0, 1.8, 0.46], "parts": bow}]})
+
+
+def wing_outline(scale, feathers=7, depth=1.0):
+    """An angel wing seen from behind, root at (0, 0), spreading out along +x:
+    a curved leading edge up top and a row of rounded feather ends below, the
+    longest ones out at the tip. `depth` scales how far the feathers hang."""
+    top = [(0.0, 0.08), (0.2, 0.32), (0.55, 0.55), (0.92, 0.66), (1.2, 0.64), (1.36, 0.52)]
+    pts = list(top)
+    # the line the feathers hang from, tip back to root
+    def base(t):
+        return 1.36 - 1.2 * t, 0.46 - 0.62 * t
+    for k in range(feathers):
+        t0, t1 = k / feathers, (k + 1) / feathers
+        ax, ay = base(t0)
+        bx, by = base(t1)
+        length = depth * (0.5 - 0.3 * (k / (feathers - 1)))
+        # a feather: down one side, a round end, back up the other
+        dx, dy = 0.28, -1.0  # hanging a little outward
+        dl = math.hypot(dx, dy)
+        dx, dy = dx / dl, dy / dl
+        mx, my = (ax + bx) / 2, (ay + by) / 2
+        half = math.hypot(bx - ax, by - ay) / 2 * 1.08
+        ux, uy = (ax - bx) / (2 * half), (ay - by) / (2 * half)
+        for q in range(9):
+            a = math.pi * q / 8
+            # from the tip side (a=0) round the end to the root side (a=pi)
+            r = half
+            cx, cy = mx + dx * length, my + dy * length
+            pts.append((cx + ux * r * math.cos(a) + dx * r * math.sin(a), cy + uy * r * math.cos(a) + dy * r * math.sin(a)))
+    pts.append((0.02, -0.08))
+    return [(x * scale, y * scale) for x, y in chaikin(pts, 2)]
 
 def wing(side):
-    # Three long feathers fanning out from the shoulder blade, in the back's plane.
-    feathers = []
-    for ang, length, col in ((25, 1.35, "#f7f4ff"), (55, 1.2, "#efeaff"), (85, 0.95, "#e4dcff")):
-        a = math.radians(ang)
-        d = (side * math.sin(a), math.cos(a))
-        feathers.append(part("capsule", [d[0] * length / 2, d[1] * length / 2, 0], col, rot=[0, 0, -side * ang],
-                             r=0.17, h=length, rough=0.5, glow=0.12))
-    return {"shape": "group", "pos": [side * 0.28, 1.45, -0.5], "rot": [0, side * 18, 0],
-            "anim": {"type": "sway", "axis": "y", "deg": 7, "period": 1.6}, "parts": feathers}
+    """Long flight feathers at the back, a shorter lighter row over them, and a
+    rounded bone along the top; the whole wing flaps gently."""
+    flip = lambda pts: [(side * x, y) for x, y in pts]
+    bone = [[side * x * 1.35, y * 1.35, 0.02] for x, y in ((0.0, 0.06), (0.3, 0.36), (0.7, 0.58), (1.05, 0.66), (1.32, 0.58))]
+    return {"shape": "group", "pos": [side * 0.2, 1.5, -0.5], "rot": [0, -side * 28, side * 14],
+            "anim": {"type": "sway", "axis": "y", "deg": 8, "period": 1.8}, "parts": [
+                ext(flip(wing_outline(1.35)), [0, 0, 0], "#e7defc", depth=0.05, bevel=0.022, rough=0.6, glow=0.06),
+                ext(flip(wing_outline(1.35, feathers=6, depth=0.45)), [0, 0.02, -0.04], "#f6f2ff", depth=0.05, bevel=0.022, rough=0.6, glow=0.08),
+                ext(flip(wing_outline(1.35, feathers=5, depth=0.12)), [0, 0.04, -0.08], "#ffffff", depth=0.05, bevel=0.022, rough=0.6, glow=0.1),
+                part("tube", [0, 0, -0.06], "#ffffff", points=bone, r=0.075, r_end=0.04, rough=0.6, glow=0.1),
+            ]}
 items.append({"id": "wings", "name": {"en": "Angel wings", "ru": "Крылья"}, "slot": "back", "bone": "Torso", "parts": [wing(-1), wing(1)]})
 
 items.append({"id": "backpack", "name": {"en": "Backpack", "ru": "Рюкзак"}, "slot": "back", "bone": "Torso", "parts": [
