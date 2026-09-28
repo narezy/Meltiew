@@ -1,6 +1,6 @@
 # Meltiew: download
 
-Version 1.7.2. Same account and friends on every platform.
+Version 1.7.3. Same account and friends on every platform.
 
 | Platform | File |
 | --- | --- |
