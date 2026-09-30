@@ -177,6 +177,14 @@
    "Back",
    "Left",
    "Right"
+  ],
+  "NormalId": [
+   "Front",
+   "Back",
+   "Top",
+   "Bottom",
+   "Left",
+   "Right"
   ]
  },
  "classes": {
@@ -186,6 +194,11 @@
     "Name": {
      "type": "string",
      "default": "Instance"
+    },
+    "Tags": {
+     "type": "string",
+     "default": "",
+     "doc": "Tags for CollectionService, separated by commas."
     }
    },
    "events": [
@@ -515,6 +528,20 @@
     "SyncAll": {
      "type": "bool",
      "default": false
+    },
+    "Team": {
+     "type": "Instance",
+     "default": null
+    },
+    "TeamColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "Neutral": {
+     "type": "bool",
+     "default": true
     }
    },
    "events": [
@@ -927,6 +954,16 @@
    "base": "BasePart",
    "props": {
     "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "TeamColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "Neutral": {
      "type": "bool",
      "default": true
     }
@@ -2510,6 +2547,309 @@
    "category": "Logic",
    "creatable": true,
    "doc": "A picture your scripts draw, pixel by pixel (up to 128x128): `:Fill`, `:SetPixel`, `:DrawRect`, `:DrawCircle`, `:DrawLine`, `:Clear`, `:GetPixel`. Show it with `label.Image = img:GetContent()` (also a Part's or a ParticleEmitter's Texture). Drawn on the server, everyone sees it; in a LocalScript, only you."
+  },
+  "Clothing": {
+   "base": "Instance",
+   "props": {
+    "Texture": {
+     "type": "asset",
+     "default": ""
+    },
+    "CatalogId": {
+     "type": "number",
+     "default": 0,
+     "min": 0
+    }
+   },
+   "events": [],
+   "icon": "star",
+   "category": "3D",
+   "creatable": true,
+   "doc": "Clothing on the character or Rig it's inside, over its body colours: one of your uploaded images laid out like the shirt template (**Texture**), or a piece from the catalog (**CatalogId**, the number in the shop). Several are worn at once, later ones on top."
+  },
+  "IntValue": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "number",
+     "default": 0,
+     "integer": true
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "Vector3Value": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "Color3Value": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "ObjectValue": {
+   "base": "Instance",
+   "props": {
+    "Value": {
+     "type": "Instance",
+     "default": null
+    }
+   },
+   "events": [],
+   "icon": "value",
+   "category": "Logic",
+   "creatable": true
+  },
+  "Teams": {
+   "base": "Instance",
+   "props": {},
+   "events": [],
+   "service": true,
+   "icon": "users",
+   "category": "Service",
+   "doc": "Holds the place's Team objects. Players are put on an AutoAssignable team when they join (the one with the fewest players), spawn on SpawnLocations of their team's colour, and are grouped by team in the player list."
+  },
+  "Team": {
+   "base": "Instance",
+   "props": {
+    "TeamColor": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#4f8cff"
+     }
+    },
+    "AutoAssignable": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [
+    "PlayerAdded",
+    "PlayerRemoved"
+   ],
+   "icon": "users",
+   "category": "Logic",
+   "creatable": true,
+   "doc": "A team inside the Teams service. **TeamColor** marks its players and its SpawnLocations; **AutoAssignable** teams take new players. `:GetPlayers()` lists who's on it."
+  },
+  "Decal": {
+   "base": "Instance",
+   "props": {
+    "Texture": {
+     "type": "asset",
+     "default": ""
+    },
+    "Face": {
+     "type": "enum:NormalId",
+     "default": "Front"
+    },
+    "Color3": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "Transparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    }
+   },
+   "events": [],
+   "icon": "image",
+   "category": "3D",
+   "creatable": true,
+   "doc": "A picture stuck on one **Face** of the Part it's in (Front, Back, Top, Bottom, Left, Right), stretched over the whole face. **Texture** is one of your uploaded images."
+  },
+  "SpotLight": {
+   "base": "Instance",
+   "props": {
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffe9b0"
+     }
+    },
+    "Brightness": {
+     "type": "number",
+     "default": 2.0,
+     "min": 0,
+     "max": 16
+    },
+    "Range": {
+     "type": "number",
+     "default": 16.0,
+     "min": 0.5,
+     "max": 100
+    },
+    "Angle": {
+     "type": "number",
+     "default": 60.0,
+     "min": 1,
+     "max": 170
+    },
+    "Face": {
+     "type": "enum:NormalId",
+     "default": "Front"
+    },
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "Shadows": {
+     "type": "bool",
+     "default": false
+    }
+   },
+   "events": [],
+   "icon": "bulb",
+   "category": "3D",
+   "creatable": true,
+   "doc": "A cone of light from the Part it's in, shining out of **Face**, **Angle** degrees wide and **Range** studs long."
+  },
+  "Explosion": {
+   "base": "Instance",
+   "props": {
+    "Position": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "BlastRadius": {
+     "type": "number",
+     "default": 4.0,
+     "min": 0,
+     "max": 100
+    },
+    "BlastPressure": {
+     "type": "number",
+     "default": 500000.0,
+     "min": 0
+    },
+    "DestroyJointRadiusPercent": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0,
+     "max": 1
+    },
+    "Visible": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [
+    "Hit"
+   ],
+   "icon": "star",
+   "category": "3D",
+   "creatable": true,
+   "doc": "Put in the Workspace (by a server Script) to blow up at **Position**: characters within **BlastRadius** × **DestroyJointRadiusPercent** die, and **Hit** fires for every part in the blast `(part, distance)`. It's gone a moment later."
+  },
+  "UIGradient": {
+   "base": "Instance",
+   "props": {
+    "Color": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#ffffff"
+     }
+    },
+    "Color2": {
+     "type": "Color3",
+     "default": {
+      "$c3": "#000000"
+     }
+    },
+    "Transparency": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "Transparency2": {
+     "type": "number",
+     "default": 0.0,
+     "min": 0,
+     "max": 1
+    },
+    "Rotation": {
+     "type": "number",
+     "default": 0.0
+    },
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    }
+   },
+   "events": [],
+   "icon": "frame",
+   "category": "UI",
+   "creatable": true,
+   "doc": "Tints the Frame, button or label it's in from **Color** to **Color2** (and **Transparency** to **Transparency2**), across at **Rotation** degrees."
+  },
+  "UIScale": {
+   "base": "Instance",
+   "props": {
+    "Scale": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0
+    }
+   },
+   "events": [],
+   "icon": "frame",
+   "category": "UI",
+   "creatable": true,
+   "doc": "Makes the element it's in (and everything inside) **Scale** times bigger or smaller."
+  },
+  "UIAspectRatioConstraint": {
+   "base": "Instance",
+   "props": {
+    "AspectRatio": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0.01
+    }
+   },
+   "events": [],
+   "icon": "frame",
+   "category": "UI",
+   "creatable": true,
+   "doc": "Keeps the element it's in at width ÷ height = **AspectRatio**, shrinking whichever side is too long."
   }
  },
  "services": [
@@ -2520,6 +2860,7 @@
   "ServerStorage",
   "StarterGui",
   "StarterPlayer",
-  "StarterPack"
+  "StarterPack",
+  "Teams"
  ]
 }

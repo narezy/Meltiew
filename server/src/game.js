@@ -19,6 +19,7 @@ const PLAYGROUND_OCC = new Occluders(
 // Its trampolines: taking off from around them, a bounce goes up to PLAYGROUND_LIMITS.jump.
 const TRAMPOLINES = [22, 20];
 const TRAMPOLINE_RADIUS = 11;
+const TRAMPOLINE_PADS = 8.5; // the mat they stand on
 const PLAYGROUND_JUMP = 8.2;
 import { chatRules, FACES } from './age.js';
 import { filterText, tameMarks } from './filter.js';
@@ -81,6 +82,15 @@ const SERVER_NAMES = [
   ['Lavender', 'Лавандовая'],
 ];
 
+function clothesOf(u) {
+  try {
+    const ids = JSON.parse(u.clothes || '[]');
+    return Array.isArray(ids) ? ids.filter(Number.isSafeInteger).slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+}
+
 function publicUser(u) {
   return {
     id: u.id,
@@ -89,6 +99,7 @@ function publicUser(u) {
     colors: parseColors(u.colors),
     hat: legacyHat(wornOf(u)),
     accessories: wornOf(u),
+    clothes: clothesOf(u),
     role: u.role || 'user',
     face: u.face || ':D',
   };
@@ -822,7 +833,10 @@ export class GameHub {
         // The playground: its own shapes; a normal jump except off the trampolines.
         const from = pl.guard.base?.p || pos;
         if (Math.hypot(from[0] - TRAMPOLINES[0], from[2] - TRAMPOLINES[1]) > TRAMPOLINE_RADIUS) lim.airJump = PLAYGROUND_JUMP;
-        lim.standing = PLAYGROUND_SOLIDS.standing(pos);
+        // The trampolines throw you up before your feet ever touch them: low over the pads
+        // counts as standing, or a run of bounces looks like one endless flight.
+        const onPads = Math.hypot(pos[0] - TRAMPOLINES[0], pos[2] - TRAMPOLINES[1]) < TRAMPOLINE_PADS && pos[1] < 4;
+        lim.standing = onPads || PLAYGROUND_SOLIDS.standing(pos);
         lim.grounded = lim.standing;
       } else if (conn.server?.clientWorld) delete lim.grounded;
       else if (conn.server?.solids && lim.grounded !== undefined) {

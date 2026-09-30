@@ -111,6 +111,7 @@ export function createCommunities({ db, economy, HttpError, bad, cleanText, requ
     updateRole: db.prepare('UPDATE community_roles SET name = ?, rank = ?, perms = ? WHERE id = ?'),
     deleteRole: db.prepare('DELETE FROM community_roles WHERE id = ?'),
     lowestRole: db.prepare('SELECT * FROM community_roles WHERE community_id = ? ORDER BY rank ASC LIMIT 1'),
+    memberOf: db.prepare('SELECT m.community_id FROM community_members m JOIN communities c ON c.id = m.community_id WHERE m.user_id = ? AND c.deleted = 0'),
     member: db.prepare('SELECT m.*, r.rank, r.perms, r.name AS role_name FROM community_members m JOIN community_roles r ON r.id = m.role_id WHERE m.community_id = ? AND m.user_id = ?'),
     members: db.prepare(`SELECT m.user_id, m.role_id, m.joined_at, u.* FROM community_members m JOIN users u ON u.id = m.user_id
       JOIN community_roles r ON r.id = m.role_id WHERE m.community_id = ? AND u.banned = 0 ORDER BY r.rank DESC, m.joined_at LIMIT 100 OFFSET ?`),
@@ -518,6 +519,8 @@ export function createCommunities({ db, economy, HttpError, bad, cleanText, requ
   return {
     routes,
     membership,
+    /** Communities this user may manage (make clothing for, and such). */
+    managedBy: (userId) => q.memberOf.all(userId).map((r) => r.community_id).filter((id) => can(id, userId, 'manage')),
     /** May this user open, save and publish this place (their own, or their community's)? */
     canEditPlace: (row, user) => row.owner_id === user.id || (row.community_id != null && can(row.community_id, user.id, 'places')),
     /** Private community places are visible to the community's members. */

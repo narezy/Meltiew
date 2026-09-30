@@ -55,6 +55,10 @@ var _holding: Array = []  # avatars that held something last frame
 ## Game: the avatar drawn for a character Model id (null if none), so held tools
 ## can follow its hand.
 var avatar_of: Callable
+var _clothing := {}  # Clothing id -> the rig or character it dresses
+var _decals := {}  # Decal id -> MeshInstance3D on its part
+var _undressed := {}  # rigs / characters whose clothing waits for their Melly to exist
+var _dress_retry := 0.0
 var _sun: DirectionalLight3D
 var _env: Environment
 var _sky_mat: ShaderMaterial
@@ -211,6 +215,10 @@ func _on_changed(id: String, key: String) -> void:
 		_style_rig(id, key)
 	elif _lights.has(id):
 		_style_light(id)
+	elif _decals.has(id):
+		_style_decal(id)
+	elif _clothing.has(id):
+		_dress(_clothing[id])
 	elif c == "Highlight":
 		highlights.restyle(id)
 	elif effects and effects.has(id):
@@ -248,8 +256,15 @@ func _build(id: String) -> void:
 		_build_text(id)
 	elif c == "Rig":
 		_build_rig(id)
-	elif c == "PointLight":
+	elif c == "PointLight" or c == "SpotLight":
 		_build_light(id)
+	elif c == "Decal":
+		_build_decal(id)
+	elif c == "Explosion":
+		_explosion_fx(id)
+	elif c == "Clothing":
+		_clothing[id] = tree.parent_of(id)
+		_dress(_clothing[id])
 	elif c == "Highlight":
 		highlights.add(id)
 		_rebatch_under(tree.parent_of(id))
@@ -288,9 +303,17 @@ func _destroy(id: String) -> void:
 		if is_instance_valid(_lights[id]):
 			_lights[id].queue_free()
 		_lights.erase(id)
+	if _decals.has(id):
+		if is_instance_valid(_decals[id]):
+			_decals[id].queue_free()
+		_decals.erase(id)
 	highlights.remove(id)
 	if effects:
 		effects.remove(id)
+	if _clothing.has(id):
+		var owner_id: String = _clothing[id]
+		_clothing.erase(id)
+		_dress(owner_id)
 
 
 func _transform_of(id: String) -> Transform3D:
@@ -400,7 +423,58 @@ func _teleport(body: Node3D, t: Transform3D) -> void:
 		body.global_transform = t
 
 
+## Clothing inside a Rig or a character: its pictures on that Melly, in order (later on
+## top), over whatever the player wears from the catalog.
+func _dress(owner_id: String) -> void:
+	var av: MellyAvatar = null
+	if _rigs.has(owner_id):
+		av = _rigs[owner_id].avatar
+	elif avatar_of.is_valid() and tree.has(owner_id):
+		av = avatar_of.call(owner_id)
+	if av == null:
+		if tree.has(owner_id) and tree.kids(owner_id).any(func(k): return tree.cls(k) == "Clothing"):
+			_undressed[owner_id] = true
+		return
+	_undressed.erase(owner_id)
+	var refs: Array = []
+	for k in tree.kids(owner_id):
+		if tree.cls(k) != "Clothing":
+			continue
+		var cat := int(tree.prop(k, "CatalogId"))
+		var ref := ClothingLayout.image_ref(cat) if cat > 0 else str(tree.prop(k, "Texture"))
+		if ref != "":
+			refs.append(ref)
+	var got := {}
+	if refs.is_empty():
+		av.set_extra_clothes([])
+		return
+	for ref in refs:
+		AssetCache.fetch(ref, func(tex: Texture2D):
+			got[ref] = tex
+			if got.size() < refs.size() or not is_instance_valid(av):
+				return
+			av.set_extra_clothes(refs.map(func(r): return got.get(r))))
+
+
+var _cloud_clock := 0.0
+var _cloud_step := 0.0
+
+
 func _process(_delta: float) -> void:
+	# The clouds drift slowly: moving them 5 times a second looks the same, and each move
+	# redraws the sky's reflection map (every frame, if the shader read the time itself).
+	_cloud_clock += _delta
+	_cloud_step -= _delta
+	if _cloud_step <= 0.0:
+		_cloud_step = 0.2
+		_sky_mat.set_shader_parameter("cloud_time", _cloud_clock)
+	# Characters get their Melly a moment after they appear in the tree.
+	if not _undressed.is_empty():
+		_dress_retry -= _delta
+		if _dress_retry <= 0.0:
+			_dress_retry = 0.5
+			for owner_id in _undressed.keys():
+				_dress(owner_id)
 	if highlights.has_any():
 		highlights.process(_delta)
 	if not _held.is_empty() or not _holding.is_empty():
@@ -832,6 +906,7 @@ func _build_rig(id: String) -> void:
 	add_child(body)
 	_rigs[id] = {"body": body, "avatar": av, "tag": tag}
 	_style_rig(id, "")
+	_dress(id)
 
 
 func _style_rig(id: String, key: String) -> void:
@@ -948,12 +1023,23 @@ func _follow_heads() -> void:
 		l.global_transform = Transform3D(Basis.from_euler(r * (PI / 180.0)), at)
 
 
+## A face of a part, in the part's own space (Front is -Z, like everywhere here).
+const FACE_NORMALS := {"Front": Vector3.FORWARD, "Back": Vector3.BACK, "Top": Vector3.UP,
+	"Bottom": Vector3.DOWN, "Left": Vector3.LEFT, "Right": Vector3.RIGHT}
+
+
+## Turned so that its -Z points along `n` (lights) — flip for things facing out (+Z).
+static func _facing(n: Vector3) -> Basis:
+	var up := Vector3.FORWARD if absf(n.y) > 0.9 else Vector3.UP
+	return Basis.looking_at(n, up)
+
+
 func _build_light(id: String) -> void:
 	var parent := tree.parent_of(id)
 	var holder: Node3D = body_of(parent)
 	if holder == null:
 		return
-	var light := OmniLight3D.new()
+	var light: Light3D = SpotLight3D.new() if tree.cls(id) == "SpotLight" else OmniLight3D.new()
 	light.set_meta("place_id", id)
 	holder.add_child(light)
 	_lights[id] = light
@@ -961,13 +1047,117 @@ func _build_light(id: String) -> void:
 
 
 func _style_light(id: String) -> void:
-	var light: OmniLight3D = _lights[id]
+	var light: Light3D = _lights[id]
 	light.light_color = tree.prop(id, "Color")
 	light.light_energy = float(tree.prop(id, "Brightness"))
-	light.omni_range = float(tree.prop(id, "Range"))
 	light.visible = tree.prop(id, "Enabled")
-	light.position = tree.prop(id, "Offset")
-	light.shadow_enabled = false
+	if light is SpotLight3D:
+		var spot := light as SpotLight3D
+		spot.spot_range = float(tree.prop(id, "Range"))
+		spot.spot_angle = clampf(float(tree.prop(id, "Angle")) / 2.0, 0.5, 89.0)
+		spot.shadow_enabled = tree.prop(id, "Shadows") == true
+		# From the middle of its face, shining out of it.
+		var n: Vector3 = FACE_NORMALS.get(str(tree.prop(id, "Face")), Vector3.FORWARD)
+		var size: Variant = tree.prop(tree.parent_of(id), "Size")
+		var half: Vector3 = (size as Vector3) / 2.0 if size is Vector3 else Vector3.ZERO
+		spot.transform = Transform3D(_facing(n), n * (absf(n.x) * half.x + absf(n.y) * half.y + absf(n.z) * half.z))
+	else:
+		(light as OmniLight3D).omni_range = float(tree.prop(id, "Range"))
+		light.position = tree.prop(id, "Offset")
+		light.shadow_enabled = false
+
+
+## A Decal: its picture over one whole face of its part, just off the surface.
+func _build_decal(id: String) -> void:
+	var holder: Node3D = body_of(tree.parent_of(id))
+	if holder == null:
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = QuadMesh.new()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mi.material_override = mat
+	holder.add_child(mi)
+	_decals[id] = mi
+	_style_decal(id)
+
+
+func _style_decal(id: String) -> void:
+	var mi: MeshInstance3D = _decals[id]
+	var size: Variant = tree.prop(tree.parent_of(id), "Size")
+	var s: Vector3 = size if size is Vector3 else Vector3.ONE
+	var face := str(tree.prop(id, "Face"))
+	var n: Vector3 = FACE_NORMALS.get(face, Vector3.FORWARD)
+	var quad := mi.mesh as QuadMesh
+	if absf(n.z) > 0.5:
+		quad.size = Vector2(s.x, s.y)
+	elif absf(n.x) > 0.5:
+		quad.size = Vector2(s.z, s.y)
+	else:
+		quad.size = Vector2(s.x, s.z)
+	var depth := absf(n.x) * s.x + absf(n.y) * s.y + absf(n.z) * s.z
+	# A quad faces +Z: turn its -Z to point into the part.
+	mi.transform = Transform3D(_facing(-n), n * (depth / 2.0 + 0.01))
+	var mat := mi.material_override as StandardMaterial3D
+	var col: Color = tree.prop(id, "Color3") if tree.prop(id, "Color3") is Color else Color.WHITE
+	col.a = 1.0 - clampf(float(tree.prop(id, "Transparency")), 0.0, 1.0)
+	mat.albedo_color = col
+	var ref := str(tree.prop(id, "Texture"))
+	mat.albedo_texture = null
+	if ref != "":
+		AssetCache.fetch(ref, func(tex: Texture2D):
+			if _decals.get(id) == mi and is_instance_valid(mi):
+				mat.albedo_texture = tex)
+
+
+## An Explosion: a flash and a burst of fire and smoke where it went off (the server
+## does the damage). Gone by itself a moment later.
+func _explosion_fx(id: String) -> void:
+	if editing or tree.prop(id, "Visible") == false:
+		return
+	var at: Variant = tree.prop(id, "Position")
+	var r := clampf(float(tree.prop(id, "BlastRadius")), 1.0, 40.0)
+	var root := Node3D.new()
+	add_child(root)
+	root.global_position = at if at is Vector3 else Vector3.ZERO
+	var flash := OmniLight3D.new()
+	flash.light_color = Color("#ffb259")
+	flash.light_energy = 6.0
+	flash.omni_range = r * 3.0
+	root.add_child(flash)
+	var fire := CPUParticles3D.new()
+	fire.one_shot = true
+	fire.explosiveness = 1.0
+	fire.amount = 60
+	fire.lifetime = 0.9
+	fire.spread = 180.0
+	fire.initial_velocity_min = r * 1.5
+	fire.initial_velocity_max = r * 3.0
+	fire.damping_min = r * 2.0
+	fire.damping_max = r * 3.0
+	fire.gravity = Vector3(0, 2, 0)
+	fire.scale_amount_min = r * 0.35
+	fire.scale_amount_max = r * 0.7
+	var grad := Gradient.new()
+	grad.set_color(0, Color("#fff2b0"))
+	grad.set_color(1, Color(0.25, 0.22, 0.22, 0.0))
+	grad.add_point(0.25, Color("#ff7a1f"))
+	fire.color_ramp = grad
+	var quad := QuadMesh.new()
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pm.vertex_color_use_as_albedo = true
+	pm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	pm.albedo_texture = PlaceEffects._soft_dot()
+	quad.material = pm
+	fire.mesh = quad
+	root.add_child(fire)
+	fire.emitting = true
+	var tw := root.create_tween()
+	tw.tween_property(flash, "light_energy", 0.0, 0.5)
+	get_tree().create_timer(1.5).timeout.connect(root.queue_free)
 
 
 # --- lighting & sky ----------------------------------------------------------------
@@ -999,6 +1189,13 @@ func _apply_lighting() -> void:
 	_sun.light_energy = brightness * (1.0 if day else 0.18)
 	_sun.light_color = Color("#fff4e0") if day else Color("#aebcff")
 	_sun.shadow_enabled = shadows and _quality != "low"
+	# Phones on "medium": one shadow cascade, not two (the scene is drawn once for shadows).
+	if OS.has_feature("mobile") and _quality == "medium":
+		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		_sun.directional_shadow_max_distance = 45.0
+	else:
+		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		_sun.directional_shadow_max_distance = 80.0
 
 	var sky_id := tree.child_of_class(lid, "Sky") if lid != "" else ""
 	var preset := "Day"

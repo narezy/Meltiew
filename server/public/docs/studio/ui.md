@@ -20,8 +20,11 @@ Turn on **UI** in the Studio top bar to see and drag your UI over the 3D view.
 | `UIPadding` | Space inside its parent before the children start. |
 | `UIListLayout` | Lines up its siblings in a row or a column. |
 | `UIGridLayout` | Lines up its siblings in a grid of `CellSize` cells. |
+| `UIGradient` | Tints its parent (and its text or image) from `Color` to `Color2` across it, at `Rotation` degrees; `Transparency` / `Transparency2` fade it. |
+| `UIScale` | Makes its parent `Scale` times bigger or smaller, children included. |
+| `UIAspectRatioConstraint` | Keeps its parent at width ÷ height = `AspectRatio` (the too-long side shrinks). |
 
-The last five are decorations: put them **inside** the object they change.
+The last eight are decorations: put them **inside** the object they change.
 
 ## Size and position: UDim2
 

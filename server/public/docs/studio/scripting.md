@@ -133,7 +133,15 @@ On the server a player can be sent somewhere with `player:Teleport(Vector3.new(0
 
 ### Anti-cheat
 
-The server checks how every character moves against the place's own rules: the Humanoid's `WalkSpeed`, `SprintSpeed` and `JumpPower` and `Workspace.Gravity`. Moving faster than that, jumping higher or teleporting puts the player back where they were, and players who keep doing it get kicked. Teleports from your Scripts (`player:Teleport`, respawns) are always fine; `Teleport` only works on the server for that reason. If your place moves players in ways the checks can't know about (fast moving platforms, launchers), set `StarterPlayer.AntiCheat` to false.
+The server checks how every character moves against the place's own rules: the Humanoid's `WalkSpeed`, `SprintSpeed` and `JumpPower` and `Workspace.Gravity`. Moving faster than that, jumping higher than a jump can reach from where the player took off, climbing walls that aren't `Climbable` or teleporting puts the player back where they were, and players who keep doing it get kicked. What they stand on is checked against the place's own parts. Teleports from your Scripts (`player:Teleport`, respawns) are always fine; `Teleport` only works on the server for that reason. If your place moves players in ways the checks can't know about (launchers, a world your LocalScripts build), set `StarterPlayer.AntiCheat` to false.
+
+Ways to move players the anti-cheat understands:
+
+- `player:Glide(Vector3.new(0, 50, 0), 2)` (server) flies them there in a straight line over 2 seconds: dashes, ziplines, cannons.
+- `humanoid.Floating = true` lets them hang in the air and move around freely until you set it back.
+- `player:GetNetworkIdle()` (server): seconds since their app last reported where they are. A few seconds means their connection froze, so don't land a hit on where they were.
+
+Players hidden behind the place's walls aren't sent to the others at all, so wallhacks have nothing to show. `StarterPlayer.PlayerSyncRange` (studs, 0 = everywhere) also leaves out players further away than that. `player.SyncAll = true` lets one player see everyone anyway: spectators, abilities that show all players.
 
 In a LocalScript, `game.Players.LocalPlayer` is you.
 
@@ -425,9 +433,12 @@ end
 for _, part in workspace:GetPartBoundsInRadius(position, 10) do
 	print(part.Name)
 end
+-- Parts in a box (centre, size), and parts touching a part (a hitbox, a zone):
+local inBox = workspace:GetPartBoundsInBox(Vector3.new(0, 5, 0), Vector3.new(10, 10, 10))
+local touching = workspace:GetPartsInPart(workspace.Zone)
 ```
 
-Rays go up to 5000 studs and also hit ProceduralMeshes. `params.RespectCanCollide = true` skips parts with CanCollide off.
+These three go by each part's bounding box. Rays go up to 5000 studs and also hit ProceduralMeshes. `params.RespectCanCollide = true` skips parts with CanCollide off.
 
 ## Small helpers
 
@@ -532,6 +543,105 @@ mesh.Parent = workspace
 - `GetVertexCount()`, `GetTriangleCount()`, `Clear()`. Up to 60 000 points per mesh.
 - `Smooth = true` blends the light between faces (hills), `false` keeps them flat (crystals, low-poly). `CanCollide`, `Transparency`, `Material` and `CastShadow` work like on parts; players walk on the mesh's real shape.
 
+## Player list stats (leaderstats)
+
+A Folder called `leaderstats` inside a Player turns on the player list with stats, like on Roblox: every value in it (`IntValue`, `NumberValue`, `StringValue`, `BoolValue`) becomes a column, up to four, sorted by the first. Players open the list with **Tab** or the button at the top right.
+
+```lua
+game.Players.PlayerAdded:Connect(function(player)
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	stats.Parent = player
+	local coins = Instance.new("IntValue")
+	coins.Name = "Coins"
+	coins.Value = 0
+	coins.Parent = stats
+end)
+
+-- later: player.leaderstats.Coins.Value += 10
+```
+
+`IntValue` keeps whole numbers; there are also `Vector3Value`, `Color3Value` and `ObjectValue` (holds an Instance).
+
+## Teams
+
+Put **Team** objects into the **Teams** service. New players go onto the `AutoAssignable` team with the fewest players; set `player.Team = team` to move someone. A player's `TeamColor` follows their team (and `Neutral` is false while they're on one). They spawn on SpawnLocations whose `TeamColor` matches theirs and `Neutral` is off, or on neutral spawns if their team has none. The player list groups players by team.
+
+```lua
+local red = game.Teams.Red
+red.PlayerAdded:Connect(function(player) print(player.Name, "joined red") end)
+print(#red:GetPlayers(), "on red")
+for _, team in game.Teams:GetTeams() do print(team.Name) end
+```
+
+## Tags (CollectionService)
+
+Give many objects one behaviour without a script in each: tag them, then handle the tag once.
+
+```lua
+local CollectionService = game:GetService("CollectionService")
+for _, part in CollectionService:GetTagged("Lava") do
+	part.Touched:Connect(function(hit)
+		local hum = hit.Parent:FindFirstChildOfClass("Humanoid")
+		if hum then hum.Health = 0 end
+	end)
+end
+CollectionService:GetInstanceAddedSignal("Lava"):Connect(function(part) print("new lava", part) end)
+```
+
+`part:AddTag("Lava")`, `RemoveTag`, `HasTag`, `GetTags()` (or the same on CollectionService). Tags are also the **Tags** property in Studio (names separated by commas), saved with the place.
+
+## Effects
+
+- **ParticleEmitter** in a Part or a character: sparks, smoke, snow. `Rate`, lifetime, speed, colours and sizes over life, a `Texture` from your images. `emitter:Emit(30)` throws out a burst.
+- **Trail**: a ribbon behind whatever it's in as it moves.
+- **Highlight**: outlines and tints the Part, Model, character or Rig it's in; `DepthMode = "AlwaysOnTop"` shows it through walls.
+- **PointLight** and **SpotLight** in a Part: a glow around it, or a cone out of one `Face` (`Angle`, `Range`).
+- **Decal** in a Part: one of your images over a whole `Face` of it.
+- **Explosion**: made by a server Script in the Workspace, it goes off at `Position`: characters within `BlastRadius` × `DestroyJointRadiusPercent` die, and `Hit(part, distance)` fires for every part in the blast.
+
+```lua
+local boom = Instance.new("Explosion")
+boom.Position = Vector3.new(0, 5, 0)
+boom.BlastRadius = 8
+boom.Hit:Connect(function(part, distance) print(part.Name, distance) end)
+boom.Parent = workspace
+```
+
+## Things over the world: BillboardGui and ProximityPrompt
+
+- **BillboardGui** in a Part or Model floats a small GUI over it that always faces the camera: health bars, names, signs. Put Frames and labels inside, like in a ScreenGui. `StudsOffset` lifts it, `MaxDistance` hides it far away, `AlwaysOnTop` shows it through walls.
+- **ProximityPrompt** in a Part: players who come close see "[E] ActionText" and press the key (tap on phones), or hold it for `HoldDuration` seconds. `Triggered(player)` fires on the server (which checks they really were close) and in that player's LocalScripts.
+
+```lua
+workspace.Door.ProximityPrompt.Triggered:Connect(function(player)
+	workspace.Door.Transparency = 0.8
+	workspace.Door.CanCollide = false
+end)
+```
+
+## Drawing pictures (DynamicImage)
+
+A **DynamicImage** is a picture your scripts draw, up to 128×128: `:Fill(color)`, `:SetPixel(x, y, color)`, `:DrawRect`, `:DrawCircle`, `:DrawLine`, `:Clear()`, `:GetPixel(x, y)`. Show it anywhere an image goes with `img:GetContent()`: an ImageLabel, a Part's or a ParticleEmitter's `Texture`. Drawn on the server, everyone sees it; in a LocalScript, only that player.
+
+## Turning joints
+
+Humanoids and Rigs have `HeadAngle`, `TorsoAngle`, `LeftArmAngle`, `RightArmAngle`, `LeftLegAngle` and `RightLegAngle` (degrees, a Vector3), added on top of whatever animation is playing: look at something, aim a tool, wave an arm.
+
+```lua
+humanoid.HeadAngle = Vector3.new(0, 30, 0) -- look to the side
+```
+
+## Clothing
+
+Anyone can make shirts in **Studio → Accessories** and sell or give them away; players wear them from the shop. In a place, a **Clothing** object inside a character or a Rig dresses it, over its body colours: set `Texture` to one of your images laid out like the shirt template, or `CatalogId` to a shirt from the shop. Several are worn at once, later ones on top.
+
+```lua
+local shirt = Instance.new("Clothing")
+shirt.CatalogId = 12
+shirt.Parent = workspace.Shopkeeper -- a Rig
+```
+
 ## Making big places fast
 
 Anchored, opaque, untextured parts that don't move are drawn together in 32×32-stud areas, so a thousand blocks cost a handful of draws. Moving a part often, or making it see-through, Neon, Glass or Ice, takes it out of that and it costs a draw of its own again. For worlds of blocks, create only the faces players can see and merge neighbours into bigger parts; for smooth ground, use one ProceduralMesh.
@@ -540,6 +650,7 @@ Anchored, opaque, untextured parts that don't move are drawn together in 32×32-
 
 Errors show up in Output with the script name and line. While playing, the Console tab of the game menu shows them too, and `F9` mirrors the console into the chat. One broken script doesn't stop the others.
 
+- A script whose tasks run away (a `task.spawn` or `task.defer` that starts more of itself, again and again) is stopped after 10 000 of them at once, with a message in Output. The rest of the place goes on.
 - A script can run for **0.25 s** without yielding (`task.wait`, waiting on an event). Longer than that, for example an endless `while true do end` without a wait, and it's stopped with an error.
 - All scripts of a server share **64 MB** of memory.
 - A place's server shuts down if its scripts keep crashing it.

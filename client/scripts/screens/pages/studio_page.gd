@@ -4,6 +4,8 @@ extends ScrollContainer
 ## import a .melt file, open, play, see stats or delete.
 
 var _list: VBoxContainer
+var _places_box: VBoxContainer
+var _clothing: StudioClothing
 ## Communities where you may build: new places can be theirs, and yours can be handed over.
 var _communities: Array = []
 
@@ -30,6 +32,33 @@ func _ready() -> void:
 	create.pressed.connect(_create)
 	head.add_child(create)
 	root.add_child(head)
+	# Places, and accessories (shirts for now).
+	var tabs := UI.hbox(8)
+	var tab_places := UI.button(L.t("st_tab_places"), "flat", 44)
+	var tab_acc := UI.button(L.t("st_tab_accessories"), "flat", 44)
+	for b in [tab_places, tab_acc]:
+		b.theme_type_variation = "ChipButton"
+		b.toggle_mode = true
+		tabs.add_child(b)
+	tab_places.button_pressed = true
+	root.add_child(tabs)
+	_places_box = UI.vbox(16)
+	root.add_child(_places_box)
+	var show := func(acc: bool):
+		tab_places.button_pressed = not acc
+		tab_acc.button_pressed = acc
+		_places_box.visible = not acc
+		imp.visible = not acc
+		create.visible = not acc
+		if acc and _clothing == null:
+			_clothing = StudioClothing.new()
+			_clothing.communities = _communities
+			root.add_child(_clothing)
+		if _clothing:
+			_clothing.visible = acc
+	tab_places.pressed.connect(func(): show.call(false))
+	tab_acc.pressed.connect(func(): show.call(true))
+	root = _places_box
 	if OS.has_feature("mobile"):
 		var warn := UI.card(14, Color(UI.CARD_2, 0.8), 16)
 		var wl := UI.label(L.t("st_mobile_text"), 15, UI.MUTED)

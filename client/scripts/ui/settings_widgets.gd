@@ -72,6 +72,11 @@ static func game_block(parent: Control) -> void:
 	slider(parent, L.t("camera_sensitivity"), "camera_sensitivity", 0.3, 2.5, 0.05)
 	slider(parent, L.t("volume"), "volume", 0.0, 1.0, 0.05, true)
 	chips(parent, L.t("graphics"), "quality", [["low", L.t("quality_low")], ["medium", L.t("quality_medium")], ["high", L.t("quality_high")]])
+	# Frame limit: "auto" is the screen's full rate on phones, none on computers; a lower
+	# one keeps a phone cooler, if someone wants that.
+	var fps_options := [["auto", L.t("fps_auto")], ["30", "30"], ["60", "60"], ["90", "90"], ["120", "120"]] if OS.has_feature("mobile") \
+		else [["auto", L.t("fps_auto")], ["60", "60"], ["144", "144"], ["240", "240"], ["display", L.t("fps_display")], ["0", "∞"]]
+	chips(parent, L.t("fps_limit"), "fps", fps_options)
 	toggle(parent, L.t("show_fps"), "show_fps")
 	toggle(parent, L.t("voice_hear"), "voice_hear")
 	# Which microphone voice chat listens to.

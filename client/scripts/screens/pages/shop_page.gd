@@ -4,10 +4,11 @@ extends HBoxContainer
 ## item allows it), then wear them. What you own lives in the avatar editor.
 
 var _stage: AvatarStage
-var _items := {"accessory": [], "face": []}  # from /api/shop: {id, price, owned}
+var _items := {"accessory": [], "face": [], "clothing": []}  # accessories/faces from /api/shop; clothing from /api/clothing
 var _tab := "accessory"
 var _look_acc: Array = []
 var _look_face := ":D"
+var _look_clothes: Array = []  # clothing ids being tried on, bottom to top
 var _grid: GridContainer
 var _tab_buttons := {}
 var _wear: Button
@@ -20,6 +21,7 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 16 if compact else 24)
 	_look_acc = Session.worn_of(Session.user).duplicate()
 	_look_face = str(Session.user.get("face", ":D"))
+	_look_clothes = _my_clothes()
 
 	var left := UI.vbox(12)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -43,6 +45,7 @@ func _ready() -> void:
 	reset.pressed.connect(func():
 		_look_acc = Session.worn_of(Session.user).duplicate()
 		_look_face = str(Session.user.get("face", ":D"))
+		_look_clothes = _my_clothes()
 		_preview())
 	tools.add_child(reset)
 	_wear = UI.button(L.t("shop_wear_all"), "primary", 44 if compact else 48)
@@ -58,7 +61,7 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
 	var tabs := UI.hbox(8)
-	for t in [["accessory", L.t("accessories")], ["face", L.t("faces")]]:
+	for t in [["accessory", L.t("accessories")], ["face", L.t("faces")], ["clothing", L.t("clothing")]]:
 		var b := UI.button(t[1], "flat", 46)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -101,14 +104,26 @@ func _load() -> void:
 	_items.face = r.data.get("faces", [])
 	if r.data.get("wallet") is Dictionary:
 		Economy.set_wallet(r.data.wallet, Session.user.get("owned", null))
+	var c := await Api.request("GET", "/api/clothing?sort=popular")
+	if c.ok and is_inside_tree():
+		_items.clothing = c.data.get("items", [])
 	_draw()
 
 
+func _my_clothes() -> Array:
+	var c: Variant = Session.user.get("clothes", [])
+	return (c as Array).map(func(x): return int(x)) if c is Array else []
+
+
 func _owns(kind: String, it: Dictionary) -> bool:
+	if kind == "clothing":
+		return bool(it.get("owned", false))
 	return it.get("owned", false) or not (it.get("price") is Dictionary) or Economy.owned(kind).has(str(it.id))
 
 
 func _trying(kind: String, id: String) -> bool:
+	if kind == "clothing":
+		return int(id) in _look_clothes
 	return id in _look_acc if kind == "accessory" else id == _look_face
 
 
@@ -118,8 +133,136 @@ func _draw() -> void:
 	for c in _grid.get_children():
 		c.queue_free()
 	for it in _items[_tab]:
-		_grid.add_child(_card(_tab, it))
+		_grid.add_child(_cloth_card(it) if _tab == "clothing" else _card(_tab, it))
+	if _tab == "clothing" and _items.clothing.is_empty():
+		var empty := UI.label(L.t("clothing_empty"), 16, UI.MUTED)
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_grid.add_child(empty)
 	_update_wear()
+
+
+## A piece of clothing: the front of its shirt over your body colour (tap to try it on),
+## its name and maker, and "get" / "buy" / "wear".
+func _cloth_card(it: Dictionary) -> Control:
+	var id := int(it.id)
+	var card := UI.card(8, UI.BG_2 if not _trying("clothing", str(id)) else Color(UI.ACCENT, 0.22), 18)
+	card.custom_minimum_size = Vector2(136, 0)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var v := UI.vbox(6)
+	card.add_child(v)
+	var pic_btn := Button.new()
+	pic_btn.flat = true
+	pic_btn.focus_mode = Control.FOCUS_NONE
+	pic_btn.custom_minimum_size = Vector2(0, 110)
+	var tile := Panel.new()
+	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(str(Session.colors_of(Session.user).get("torso", "#8a7cf0")))
+	sb.set_corner_radius_all(12)
+	tile.add_theme_stylebox_override("panel", sb)
+	var front := ClothingLayout.torso_front()
+	tile.custom_minimum_size = front.size * 0.52
+	tile.set_anchors_preset(Control.PRESET_CENTER)
+	tile.offset_left = -front.size.x * 0.26
+	tile.offset_right = front.size.x * 0.26
+	tile.offset_top = -front.size.y * 0.26
+	tile.offset_bottom = front.size.y * 0.26
+	pic_btn.add_child(tile)
+	var pic := TextureRect.new()
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_SCALE
+	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(pic)
+	var wr: WeakRef = weakref(pic)
+	AssetCache.fetch(str(it.image), func(t: Texture2D):
+		var p: TextureRect = wr.get_ref()
+		if p and t:
+			var at := AtlasTexture.new()
+			at.atlas = t
+			at.region = front
+			p.texture = at)
+	pic_btn.pressed.connect(func():
+		Sfx.click()
+		if id in _look_clothes:
+			_look_clothes.erase(id)
+		else:
+			_look_clothes.append(id)
+			_look_clothes = _look_clothes.slice(maxi(0, _look_clothes.size() - 5))
+		_preview()
+		_draw())
+	v.add_child(pic_btn)
+	var name := UI.label(str(it.name), 15, UI.TEXT, "bold")
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.clip_text = true
+	name.custom_minimum_size.x = 100
+	v.add_child(name)
+	var by: Variant = it.get("community") if it.get("community") is Dictionary else it.get("creator")
+	if by is Dictionary:
+		var who := UI.label(str(by.get("name", by.get("display_name", ""))), 12, UI.MUTED)
+		who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		who.clip_text = true
+		v.add_child(who)
+	if it.get("owned", false):
+		var worn := id in _my_clothes()
+		var b := UI.button(L.t("shop_worn") if worn else L.t("shop_wear"), "ghost", 40)
+		b.add_theme_font_size_override("font_size", 15)
+		b.disabled = worn
+		b.pressed.connect(func():
+			var mine := _my_clothes()
+			mine.append(id)
+			_save_clothes(mine.slice(maxi(0, mine.size() - 5))))
+		v.add_child(b)
+	else:
+		var price := int(it.get("price", 0))
+		var b := UI.button(L.t("clothing_get") if price == 0 else "", "primary", 40)
+		if price > 0:
+			var row := Economy.price_tag({"pieces": price}, 15, "pieces")
+			row.set_anchors_preset(Control.PRESET_FULL_RECT)
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			b.add_child(row)
+		b.pressed.connect(func(): _buy_cloth(it))
+		v.add_child(b)
+	return card
+
+
+func _buy_cloth(it: Dictionary) -> void:
+	var price := int(it.get("price", 0))
+	if price > 0:
+		var price_text := "%d %s" % [price, L.t("eco_pieces")]
+		if not await UI.confirm(self, L.t("shop_buy_q", [it.name]), L.t("shop_buy_text", [it.name, price_text]), L.t("buy")):
+			return
+	var r := await Api.request("POST", "/api/clothing/%d/buy" % int(it.id))
+	if not is_inside_tree():
+		return
+	if not r.ok:
+		UI.toast(r.message, "error")
+		return
+	if r.data.get("wallet") is Dictionary:
+		Economy.set_wallet(r.data.wallet)
+	UI.toast(L.t("shop_bought", [it.name]), "ok")
+	if not int(it.id) in _look_clothes:
+		_look_clothes.append(int(it.id))
+		_preview()
+	_load()
+
+
+## Wearing clothes: the list goes to the server, bottom to top (at most 5).
+func _save_clothes(worn: Array) -> bool:
+	var r := await Api.request("PUT", "/api/me/clothing", {"worn": worn})
+	if not is_inside_tree():
+		return false
+	if not r.ok:
+		UI.toast(r.message, "error")
+		return false
+	var u := Session.user.duplicate()
+	u["clothes"] = r.data.get("worn", worn)
+	Session.set_user(u)
+	Busts.sync_my_render()
+	_look_clothes = _my_clothes()
+	_preview()
+	_draw()
+	return true
 
 
 ## One item: its picture (tap to try on), name, and either buy buttons or "wear".
@@ -217,6 +360,7 @@ func _preview() -> void:
 	_stage.avatar.set_colors(Session.colors_of(Session.user))
 	_stage.avatar.set_accessories(_look_acc)
 	_stage.avatar.set_face(_look_face)
+	_stage.avatar.set_clothes(_look_clothes)
 	_update_wear()
 
 
@@ -226,7 +370,7 @@ func _update_wear() -> void:
 		return
 	var mine_acc := Economy.owned("accessory")
 	var all_mine := _look_acc.all(func(a): return mine_acc.has(a)) and (Economy.owned("face").has(_look_face) or _look_face == str(Session.user.get("face", "")))
-	var same: bool = _look_acc == Session.worn_of(Session.user) and _look_face == str(Session.user.get("face", ""))
+	var same: bool = _look_acc == Session.worn_of(Session.user) and _look_face == str(Session.user.get("face", "")) and _look_clothes == _my_clothes()
 	_wear.disabled = same or not all_mine
 	_wear.tooltip_text = "" if all_mine else L.t("shop_buy_first")
 
@@ -252,6 +396,16 @@ func _wear_one(kind: String, id: String) -> void:
 
 
 func _wear_look() -> void:
+	if _look_clothes != _my_clothes():
+		# Only what's yours goes on; the rest stays a try-on.
+		var owned := {}
+		for it in _items.clothing:
+			if it.get("owned", false):
+				owned[int(it.id)] = true
+		for id in _my_clothes():
+			owned[id] = true
+		if not await _save_clothes(_look_clothes.filter(func(x): return owned.has(x))):
+			return
 	await _save_look(_look_acc, _look_face)
 
 

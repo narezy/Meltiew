@@ -89,6 +89,7 @@ func _ready() -> void:
 
 	hud = GameHud.new()
 	add_child(hud)
+	hud.leaderboard.game = self
 	prompts = PlacePrompts.new()
 	prompts.player = player
 	prompts.typing = func() -> bool: return hud.chat_open() or get_viewport().gui_get_focus_owner() is LineEdit
@@ -136,7 +137,7 @@ func _exit_tree() -> void:
 		place_host.close()
 	var vp := get_viewport()
 	vp.scaling_3d_scale = 1.0
-	Engine.max_fps = 0
+	Session.apply_fps(false)
 	get_tree().quit_on_go_back = true
 	get_tree().set_auto_accept_quit(true)
 
@@ -156,8 +157,8 @@ func _apply_quality() -> void:
 	_applied_quality = q
 	var vp := get_viewport()
 	var mobile := OS.has_feature("mobile")
-	# No FPS cap: vsync already follows the display (60/90/120 Hz).
-	Engine.max_fps = 0
+	# The frame limit from the settings (phones default to 60).
+	Session.apply_fps(true)
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 	match q:
 		"low":

@@ -22,7 +22,8 @@ var _content := {}  # id -> Control that holds its children (ScrollingFrame canv
 var _dirty := true
 var _last_screen := Vector2.ZERO
 
-const DECOR := ["UICorner", "UIStroke", "UIPadding", "UIListLayout", "UIGridLayout"]
+const DECOR := ["UICorner", "UIStroke", "UIPadding", "UIListLayout", "UIGridLayout", "UIGradient", "UIScale", "UIAspectRatioConstraint"]
+const GRADIENT := preload("res://assets/shaders/ui_gradient.gdshader")
 
 
 func _ready() -> void:
@@ -255,6 +256,28 @@ func _style(id: String) -> void:
 		sc.a = 1.0 - float(tree.prop(stroke, "Transparency"))
 		sb.border_color = sc
 		sb.set_border_width_all(int(tree.prop(stroke, "Thickness")))
+	# UIGradient: a shader over the element (its text and picture follow, via the parent's material).
+	var grad := tree.child_of_class(id, "UIGradient")
+	if grad != "" and tree.prop(grad, "Enabled") != false:
+		var gm := ctl.material as ShaderMaterial
+		if gm == null or gm.shader != GRADIENT:
+			gm = ShaderMaterial.new()
+			gm.shader = GRADIENT
+			ctl.material = gm
+		var g0: Color = tree.prop(grad, "Color")
+		var g1: Color = tree.prop(grad, "Color2")
+		g0.a = 1.0 - float(tree.prop(grad, "Transparency"))
+		g1.a = 1.0 - float(tree.prop(grad, "Transparency2"))
+		gm.set_shader_parameter("c0", g0)
+		gm.set_shader_parameter("c1", g1)
+		gm.set_shader_parameter("angle", deg_to_rad(float(tree.prop(grad, "Rotation"))))
+		gm.set_shader_parameter("box", ctl.size)
+		for part in ["Text", "Image"]:
+			var n := ctl.get_node_or_null(part) as CanvasItem
+			if n:
+				n.use_parent_material = true
+	elif ctl.material is ShaderMaterial and (ctl.material as ShaderMaterial).shader == GRADIENT:
+		ctl.material = null
 	var catches := bg.a > 0.01 or c in ["TextButton", "ImageButton", "TextBox", "ScrollingFrame"]
 	ctl.mouse_filter = Control.MOUSE_FILTER_STOP if catches else Control.MOUSE_FILTER_IGNORE
 	if ctl is LineEdit:
@@ -411,9 +434,22 @@ func _layout_children(id: String, box: Vector2) -> void:
 
 
 func _place(id: String, ctl: Control, pos: Vector2, s: Vector2) -> void:
+	# UIAspectRatioConstraint: the too-long side shrinks, around the anchor point.
+	var ratio_id := tree.child_of_class(id, "UIAspectRatioConstraint")
+	if ratio_id != "" and s.x > 0.0 and s.y > 0.0:
+		var ratio := maxf(float(tree.prop(ratio_id, "AspectRatio")), 0.01)
+		var fit := Vector2(s.y * ratio, s.y) if s.x / s.y > ratio else Vector2(s.x, s.x / ratio)
+		var anchor: Variant = tree.prop(id, "AnchorPoint")
+		pos += (s - fit) * (anchor if anchor is Vector2 else Vector2.ZERO)
+		s = fit
 	ctl.position = pos
 	ctl.size = s
 	ctl.pivot_offset = s / 2.0
+	# UIScale: bigger or smaller around its middle, everything inside too.
+	var scale_id := tree.child_of_class(id, "UIScale")
+	ctl.scale = Vector2.ONE * maxf(float(tree.prop(scale_id, "Scale")), 0.0) if scale_id != "" else Vector2.ONE
+	if ctl.material is ShaderMaterial and (ctl.material as ShaderMaterial).shader == GRADIENT:
+		(ctl.material as ShaderMaterial).set_shader_parameter("box", s)
 	var box := s
 	if _content.has(id):
 		var canvas: Control = _content[id]

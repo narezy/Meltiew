@@ -14,8 +14,9 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | Property | Type | Default | Notes |
 |---|---|---|---|
 | Name | string | "Instance" |  |
+| Tags | string | "" |  |
 
-**Methods:** `FindFirstChild(name, recursive)`, `FindFirstChildOfClass(className)`, `FindFirstChildWhichIsA(className, recursive)`, `FindFirstAncestor(name)`, `FindFirstAncestorOfClass(className)`, `FindFirstAncestorWhichIsA(className)`, `WaitForChild(name, timeout)`, `GetChildren()`, `GetDescendants()`, `IsA(className)`, `IsDescendantOf(other)`, `IsAncestorOf(other)`, `GetFullName()`, `Destroy()`, `Remove()`, `Clone()`, `ClearAllChildren()`, `GetPropertyChangedSignal(prop)`, `SetAttribute(name, value)`, `GetAttribute(name)`
+**Methods:** `FindFirstChild(name, recursive)`, `FindFirstChildOfClass(className)`, `FindFirstChildWhichIsA(className, recursive)`, `FindFirstAncestor(name)`, `FindFirstAncestorOfClass(className)`, `FindFirstAncestorWhichIsA(className)`, `WaitForChild(name, timeout)`, `GetChildren()`, `GetDescendants()`, `IsA(className)`, `IsDescendantOf(other)`, `IsAncestorOf(other)`, `GetFullName()`, `Destroy()`, `Remove()`, `Clone()`, `ClearAllChildren()`, `GetPropertyChangedSignal(prop)`, `SetAttribute(name, value)`, `GetAttribute(name)`, `AddTag(tag)`, `RemoveTag(tag)`, `HasTag(tag)`, `GetTags()`
 
 **Events:** `Changed`, `ChildAdded`, `ChildRemoved`, `Destroying`, `AncestryChanged`
 
@@ -30,8 +31,12 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | CameraMode | [CameraMode](#cameramode) | "Classic" |  |
 | CameraMinZoom | number | 0.5 | min 0, max 100 |
 | CameraMaxZoom | number | 14 | min 0.5, max 100 |
+| SyncAll | bool | false |  |
+| Team | Instance |  |  |
+| TeamColor | Color3 | Color3.fromHex("#ffffff") |  |
+| Neutral | bool | true |  |
 
-**Methods:** `GetMouse()`, `ApplyAppearance(app)`, `ResetAppearance()`, `Kick(message)`, `LoadCharacter()`, `Teleport(pos)`
+**Methods:** `GetMouse()`, `ApplyAppearance(app)`, `ResetAppearance()`, `Kick(message)`, `LoadCharacter()`, `Glide(pos, seconds)`, `GetNetworkIdle()`, `Teleport(pos)`
 
 **Events:** `CharacterAdded`
 
@@ -63,6 +68,13 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | AutoHeal | bool | true |  |
 | HealthRegen | number | 1 | min 0 |
 | EmotesEnabled | bool | true |  |
+| Floating | bool | false |  |
+| HeadAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| TorsoAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 
 **Methods:** `TakeDamage(amount)`, `EquipTool(tool)`, `UnequipTools()`, `PlayAnimation(anim)`, `StopAnimation()`
 
@@ -145,7 +157,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | Gravity | number | 22 | min 0, max 200 |
 | FallHeight | number | -60 |  |
 
-**Methods:** `Raycast(origin, direction, params)`, `GetPartBoundsInRadius(position, radius, params)`
+**Methods:** `Raycast(origin, direction, params)`, `GetPartBoundsInRadius(position, radius, params)`, `GetPartBoundsInBox(where, size, params)`, `GetPartsInPart(part, params)`
 
 ### Lighting
 
@@ -208,6 +220,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | CameraMinZoom | number | 0.5 | min 0, max 100 |
 | CameraMaxZoom | number | 14 | min 1, max 100 |
 | AntiCheat | bool | true |  |
+| PlayerSyncRange | number | 0 | min 0, max 5000 |
 
 ### StarterPlayerScripts
 
@@ -230,6 +243,14 @@ Tools put here are copied into every player's Backpack each time their character
 **Methods:** `GetAppearanceAsync(userId)`, `GetUserAppearanceAsync(username)`, `GetPlayers()`, `GetPlayerByUserId(id)`, `GetPlayerFromCharacter(model)`
 
 **Events:** `PlayerAdded`, `PlayerRemoving`
+
+### Teams
+
+*service*
+
+Holds the place's Team objects. Players are put on an AutoAssignable team when they join (the one with the fewest players), spawn on SpawnLocations of their team's colour, and are grouped by team in the player list.
+
+**Methods:** `GetTeams(teams)`
 
 ## 3D world
 
@@ -293,6 +314,8 @@ A shape scripts build out of triangles: terrain, hills, rocks, a whole Minecraft
 | Property | Type | Default | Notes |
 |---|---|---|---|
 | Enabled | bool | true |  |
+| TeamColor | Color3 | Color3.fromHex("#ffffff") |  |
+| Neutral | bool | true |  |
 
 ### Text3D
 
@@ -394,6 +417,12 @@ A Melly that stands in your place: shopkeepers, guards, dancers. Paint it like i
 | AnimationSpeed | number | 1 | min 0, max 5 |
 | CanCollide | bool | true |  |
 | Visible | bool | true |  |
+| HeadAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| TorsoAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 
 **Methods:** `PlayAnimation(anim)`, `StopAnimation()`
 
@@ -409,6 +438,147 @@ A seat: touch it and you sit down, jump to get up. Paint it like any part, or se
 | Occupant | Instance |  | read-only |
 
 **Methods:** `Sit(humanoid)`
+
+### Highlight
+
+*can be created with `Instance.new`*
+
+Outlines and tints what it's inside: a Part, a Model, a player's character or a Rig. With **DepthMode** AlwaysOnTop it shows through walls.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| FillColor | Color3 | Color3.fromHex("#ff3b4f") |  |
+| FillTransparency | number | 0.5 | min 0, max 1 |
+| OutlineColor | Color3 | Color3.fromHex("#ffffff") |  |
+| OutlineTransparency | number | 0 | min 0, max 1 |
+| DepthMode | [HighlightDepthMode](#highlightdepthmode) | "AlwaysOnTop" |  |
+
+### ProximityPrompt
+
+*can be created with `Instance.new`*
+
+Put it in a Part: players who come close see "[E] ActionText" and press (or hold for **HoldDuration** seconds) to use it; on phones they tap it. **Triggered**(player) fires on the server, and in the player's own LocalScripts.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| ActionText | string | "Interact" |  |
+| ObjectText | string | "" |  |
+| KeyboardKeyCode | string | "E" |  |
+| HoldDuration | number | 0 | min 0, max 30 |
+| MaxActivationDistance | number | 10 | min 1, max 100 |
+
+**Events:** `Triggered`
+
+### ParticleEmitter
+
+*can be created with `Instance.new`*
+
+Sparks, smoke, snow, confetti: particles from the Part (or character) it's in. **Rate** per second; each lives **LifetimeMin**-**LifetimeMax** seconds and fades from **Color**/**Transparency**/**Size** to the *End* values. **Texture** is one of your uploaded images (a soft dot without one). **LightEmission** 1 makes them glow. `:Emit(n)` throws out a burst.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| Rate | number | 20 | min 0, max 400 |
+| LifetimeMin | number | 1 | min 0.05, max 20 |
+| LifetimeMax | number | 2 | min 0.05, max 20 |
+| SpeedMin | number | 4 | min 0, max 200 |
+| SpeedMax | number | 6 | min 0, max 200 |
+| SpreadAngle | number | 15 | min 0, max 180 |
+| EmitDirection | [EmitDirection](#emitdirection) | "Top" |  |
+| Shape | [ParticleShape](#particleshape) | "Box" |  |
+| Acceleration | Vector3 | Vector3.new(0, 0, 0) |  |
+| Drag | number | 0 | min 0, max 20 |
+| Color | Color3 | Color3.fromHex("#ffffff") |  |
+| ColorEnd | Color3 | Color3.fromHex("#ffffff") |  |
+| Transparency | number | 0 | min 0, max 1 |
+| TransparencyEnd | number | 1 | min 0, max 1 |
+| Size | number | 1 | min 0.02, max 50 |
+| SizeEnd | number | 1 | min 0, max 50 |
+| Rotation | number | 0 | min 0, max 360 |
+| RotSpeed | number | 0 | min -1000, max 1000 |
+| Texture | asset | "" |  |
+| LightEmission | number | 0 | min 0, max 1 |
+| LockedToPart | bool | false |  |
+
+**Methods:** `Emit(count)`, `Clear()`
+
+### Trail
+
+*can be created with `Instance.new`*
+
+A ribbon left behind by the Part or character it's in as it moves, fading over **Lifetime** seconds from **Width**/**Color** to the *End* values. **Offset** moves where it comes from.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| Lifetime | number | 0.6 | min 0.05, max 10 |
+| Width | number | 1 | min 0, max 20 |
+| WidthEnd | number | 0 | min 0, max 20 |
+| Color | Color3 | Color3.fromHex("#ffffff") |  |
+| ColorEnd | Color3 | Color3.fromHex("#ffffff") |  |
+| Transparency | number | 0.2 | min 0, max 1 |
+| TransparencyEnd | number | 1 | min 0, max 1 |
+| Texture | asset | "" |  |
+| LightEmission | number | 0 | min 0, max 1 |
+| Offset | Vector3 | Vector3.new(0, 0, 0) |  |
+
+### Clothing
+
+*can be created with `Instance.new`*
+
+Clothing on the character or Rig it's inside, over its body colours: one of your uploaded images laid out like the shirt template (**Texture**), or a piece from the catalog (**CatalogId**, the number in the shop). Several are worn at once, later ones on top.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Texture | asset | "" |  |
+| CatalogId | number | 0 | min 0 |
+
+### Decal
+
+*can be created with `Instance.new`*
+
+A picture stuck on one **Face** of the Part it's in (Front, Back, Top, Bottom, Left, Right), stretched over the whole face. **Texture** is one of your uploaded images.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Texture | asset | "" |  |
+| Face | [NormalId](#normalid) | "Front" |  |
+| Color3 | Color3 | Color3.fromHex("#ffffff") |  |
+| Transparency | number | 0 | min 0, max 1 |
+
+### SpotLight
+
+*can be created with `Instance.new`*
+
+A cone of light from the Part it's in, shining out of **Face**, **Angle** degrees wide and **Range** studs long.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Color | Color3 | Color3.fromHex("#ffe9b0") |  |
+| Brightness | number | 2 | min 0, max 16 |
+| Range | number | 16 | min 0.5, max 100 |
+| Angle | number | 60 | min 1, max 170 |
+| Face | [NormalId](#normalid) | "Front" |  |
+| Enabled | bool | true |  |
+| Shadows | bool | false |  |
+
+### Explosion
+
+*can be created with `Instance.new`*
+
+Put in the Workspace (by a server Script) to blow up at **Position**: characters within **BlastRadius** × **DestroyJointRadiusPercent** die, and **Hit** fires for every part in the blast `(part, distance)`. It's gone a moment later.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Position | Vector3 | Vector3.new(0, 0, 0) |  |
+| BlastRadius | number | 4 | min 0, max 100 |
+| BlastPressure | number | 500000 | min 0 |
+| DestroyJointRadiusPercent | number | 1 | min 0, max 1 |
+| Visible | bool | true |  |
+
+**Events:** `Hit`
 
 ## User interface
 
@@ -562,6 +732,20 @@ A seat: touch it and you sit down, jump to get up. Paint it like any part, or se
 | CellPadding | UDim2 | UDim2.new(0, 8, 0, 8) |  |
 | SortOrder | [SortOrder](#sortorder) | "LayoutOrder" |  |
 
+### BillboardGui
+
+*can be created with `Instance.new`*
+
+A GUI that floats over the Part or Model it's in and always faces the camera: put Frames, TextLabels and ImageLabels in it. **Size** is in pixels; **StudsOffset** lifts it; with **AlwaysOnTop** off, walls hide it.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| Size | UDim2 | UDim2.new(0, 200, 0, 50) |  |
+| StudsOffset | Vector3 | Vector3.new(0, 2, 0) |  |
+| AlwaysOnTop | bool | false |  |
+| MaxDistance | number | 100 | min 1, max 2000 |
+
 ## Scripts
 
 ### Script
@@ -670,6 +854,67 @@ How players look **in this place only**: body colors, a **Face** and any **Acces
 | KeepFace | bool | false |  |
 | KeepAccessories | bool | false |  |
 
+### DynamicImage
+
+*can be created with `Instance.new`*
+
+A picture your scripts draw, pixel by pixel (up to 128x128): `:Fill`, `:SetPixel`, `:DrawRect`, `:DrawCircle`, `:DrawLine`, `:Clear`, `:GetPixel`. Show it with `label.Image = img:GetContent()` (also a Part's or a ParticleEmitter's Texture). Drawn on the server, everyone sees it; in a LocalScript, only you.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Width | number | 64 | min 1, max 128 |
+| Height | number | 64 | min 1, max 128 |
+| Data | string | "" | read-only |
+
+**Methods:** `Fill(color, transparency)`, `Clear()`, `SetPixel(x, y, color, transparency)`, `GetPixel(x, y)`, `DrawRect(x, y, width, height, color, transparency)`, `DrawCircle(cx, cy, radius, color, transparency)`, `DrawLine(x1, y1, x2, y2, color, transparency)`, `GetContent()`
+
+### IntValue
+
+*can be created with `Instance.new`*
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Value | number | 0 |  |
+
+### Vector3Value
+
+*can be created with `Instance.new`*
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Value | Vector3 | Vector3.new(0, 0, 0) |  |
+
+### Color3Value
+
+*can be created with `Instance.new`*
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Value | Color3 | Color3.fromHex("#ffffff") |  |
+
+### ObjectValue
+
+*can be created with `Instance.new`*
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Value | Instance |  |  |
+
+### Team
+
+*can be created with `Instance.new`*
+
+A team inside the Teams service. **TeamColor** marks its players and its SpawnLocations; **AutoAssignable** teams take new players. `:GetPlayers()` lists who's on it.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| TeamColor | Color3 | Color3.fromHex("#4f8cff") |  |
+| AutoAssignable | bool | true |  |
+
+**Methods:** `GetPlayers(team)`
+
+**Events:** `PlayerAdded`, `PlayerRemoved`
+
 ## Enums
 
 ### PartShape
@@ -758,8 +1003,24 @@ How players look **in this place only**: body colors, a **Face** and any **Acces
 
 ### Face
 
-`:D`, `:)`, `:3`, `:P`, `;)`, `:O`, `xD`, `B)`, `^_^`, `owo`, `uwu`, `>_<`, `T_T`, `-_-`, `:|`, `<3`
+`:D`, `:)`, `:3`, `:P`, `;)`, `:O`, `xD`, `B)`, `^_^`, `owo`, `uwu`, `>_<`, `T_T`, `-_-`, `:|`, `<3`, `>:)`
 
 ### EmoteSlot
 
 `wave`, `dance`, `cheer`, `sit`, `clap`, `laugh`
+
+### HighlightDepthMode
+
+`AlwaysOnTop`, `Occluded`
+
+### ParticleShape
+
+`Box`, `Sphere`, `Point`
+
+### EmitDirection
+
+`Top`, `Bottom`, `Front`, `Back`, `Left`, `Right`
+
+### NormalId
+
+`Front`, `Back`, `Top`, `Bottom`, `Left`, `Right`

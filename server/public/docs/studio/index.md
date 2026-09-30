@@ -104,6 +104,14 @@ Studio saves by itself every two minutes. A dot next to the name means there are
 
 Players can like places, leave comments and report places or comments that break the rules.
 
+## Clothing
+
+**Studio → Accessories** is where shirts are made: save the template, paint over it in any program (keep it 1024×768), load your PNG, see it on a 3D Melly, give it a name and a price (free, or pieces: you get 95%) and publish, as yourself or for a community you manage. Making one costs 10 pieces or 100 orbs. Players buy them in the shop's **Clothing** tab and wear up to five at once, choosing which goes on top.
+
+## Finding things
+
+The search field above the Explorer shows only objects whose name or class has what you type, with what they're in.
+
 ## Import and export
 
 **File → Export** saves the place as a `.melt` file: one JSON file with the whole place, scripts included. **Import** opens one in the current place (or as a new place from the Studio tab). Images are referenced by ID, so they only show up for places made on the same account.

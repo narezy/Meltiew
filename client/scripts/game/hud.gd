@@ -49,7 +49,8 @@ var _blockers: Array[Control] = []
 var _cam_finger := -1
 var _pinch := {}
 var _mouse_look := false
-var _cam_btn: Button
+var _cam_btn: Button  # (gone: the leaderboard button took its place)
+var leaderboard: Leaderboard
 var _hp_row: HBoxContainer
 
 # Tools: 3 hotbar slots at the bottom and the whole inventory on demand.
@@ -195,11 +196,17 @@ func _ready() -> void:
 	tr.offset_top = 16
 	tr.alignment = BoxContainer.ALIGNMENT_END
 	_root.add_child(tr)
-	_cam_btn = _icon_button("camera")
-	_cam_btn.pressed.connect(func():
-		if player:
-			player.toggle_first_person())
-	tr.add_child(_cam_btn)
+	# The player list with the place's stats (closed until asked for: Tab or this).
+	# First person is V, or zooming all the way in.
+	var board_btn := _icon_button("users")
+	board_btn.pressed.connect(func(): leaderboard.toggle())
+	tr.add_child(board_btn)
+	leaderboard = Leaderboard.new()
+	leaderboard.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	leaderboard.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	leaderboard.offset_right = -20
+	leaderboard.offset_top = 84
+	_root.add_child(leaderboard)
 	# Voice chat: tap to turn your microphone on; it lights up while you're heard.
 	_mic_btn = _icon_button("mic_off")
 	_mic_btn.toggle_mode = true
@@ -311,13 +318,16 @@ func _ready() -> void:
 
 ## The first/third person button only shows where the place lets you switch.
 func set_view_toggle(on: bool) -> void:
-	_cam_btn.visible = on
+	if _cam_btn:
+		_cam_btn.visible = on
 
 
 func bind_player(p: LocalPlayer) -> void:
 	player = p
 	p.health_changed.connect(set_health)
-	p.camera_mode_changed.connect(func(fp): _cam_btn.modulate = UI.ACCENT if fp else Color.WHITE)
+	p.camera_mode_changed.connect(func(fp):
+		if _cam_btn:
+			_cam_btn.modulate = UI.ACCENT if fp else Color.WHITE)
 
 
 func _place(c: Control, offset: Vector2) -> void:
@@ -1034,6 +1044,9 @@ func _desktop(event: InputEvent) -> void:
 					wheel.open()
 			KEY_V:
 				player.toggle_first_person()
+			KEY_TAB:
+				leaderboard.toggle()
+				get_viewport().set_input_as_handled()
 			KEY_CTRL:
 				# Shift lock (turned on in the menu's settings): Ctrl flips it.
 				if Session.settings.get("shift_lock", false):

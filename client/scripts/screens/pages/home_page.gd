@@ -2,7 +2,7 @@ class_name HomePage
 extends ScrollContainer
 ## Home: friends who are online, and the grid of places to play.
 
-var _places_box: HFlowContainer
+var _places_box: GridContainer
 var _people_section: Control
 var _people_box: HBoxContainer
 var _friends_box: HBoxContainer
@@ -100,12 +100,18 @@ func _ready() -> void:
 	_people_section.add_child(pscroll)
 	_people_section.visible = false
 	root.add_child(_people_section)
-	_places_box = HFlowContainer.new()
-	_places_box.add_theme_constant_override("h_separation", 18)
-	_places_box.add_theme_constant_override("v_separation", 18)
+	# As many columns as fit, and the cards share the whole width (no gap on the right).
+	_places_box = GridContainer.new()
+	_places_box.add_theme_constant_override("h_separation", GAP)
+	_places_box.add_theme_constant_override("v_separation", GAP)
+	_places_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(_places_box)
+	# Measured on the page (the scroll area), not on what's inside it: the inside grows
+	# to fit its cards, and measuring that kept the grid wider than the screen.
+	resized.connect(_fit_places)
 	for i in 3:
 		_places_box.add_child(Loading.place_card_skeleton())
+	_fit_places.call_deferred()
 
 	_timer = Timer.new()
 	_timer.wait_time = 10.0
@@ -163,9 +169,46 @@ func _render_places(places: Array) -> void:
 		_places_box.add_child(UI.label(L.t("no_places_found"), 18, UI.MUTED))
 	for p in places:
 		_places_box.add_child(place_card(p, func(): _menu().open_place(str(p.id))))
+	_fit_places.call_deferred()
 
 
 ## Card used on Home: cover, name, author, rating and players online.
+const GAP := 18
+const CARD_MIN := 300.0
+
+
+func _fit_places() -> void:
+	# The scroll bar takes a strip on the right.
+	fit_grid(_places_box, size.x - get_v_scroll_bar().size.x - 4.0)
+
+
+## Lays place cards in `grid` out in as many columns as fit in `w` pixels, each card
+## as wide as its column (covers keep 16:9).
+static func fit_grid(grid: GridContainer, w: float) -> void:
+	if not is_instance_valid(grid) or w < 10.0:
+		return
+	var cols := maxi(1, int((w + GAP) / (CARD_MIN + GAP)))
+	grid.columns = cols
+	var card_w := floorf((w - GAP * (cols - 1)) / cols)
+	for c in grid.get_children():
+		if c is Control:
+			resize_card(c, card_w)
+
+
+## No fixed widths in the grid: a card that insists on its width makes the page as wide
+## as the cards, not the other way round. The columns stretch; only the cover's height
+## follows the column width.
+static func resize_card(c: Control, card_w: float) -> void:
+	c.custom_minimum_size.x = 0
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var cover: Variant = c.get_meta("cover") if c.has_meta("cover") else null
+	if cover is Control:
+		cover.custom_minimum_size = Vector2(0, roundf((card_w - 24) * 9.0 / 16.0))
+	for key in ["title", "by"]:
+		if c.has_meta(key) and c.get_meta(key) is Control:
+			(c.get_meta(key) as Control).custom_minimum_size.x = 0
+
+
 static func place_card(p: Dictionary, on_open: Callable) -> Control:
 	var c := UI.card(12, UI.CARD, 22)
 	c.custom_minimum_size.x = 330
@@ -180,6 +223,7 @@ static func place_card(p: Dictionary, on_open: Callable) -> Control:
 				cover.texture = tex)
 	cover.custom_minimum_size = Vector2(306, 172)
 	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.set_meta("cover", cover)
 	v.add_child(cover)
 	var pad := MarginContainer.new()
 	pad.add_theme_constant_override("margin_left", 6)
@@ -194,12 +238,14 @@ static func place_card(p: Dictionary, on_open: Callable) -> Control:
 	title.max_lines_visible = 2
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.custom_minimum_size.x = 294
+	c.set_meta("title", title)
 	info.add_child(title)
 	var author: Dictionary = p.get("author", {})
 	var by := UI.hbox(6)
 	by.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	by.clip_contents = true
 	by.custom_minimum_size.x = 294
+	c.set_meta("by", by)
 	by.add_child(UI.label(L.t("by"), 15, UI.MUTED))
 	by.add_child(UI.name_row(author, 15, UI.MUTED, "bold"))
 	info.add_child(by)

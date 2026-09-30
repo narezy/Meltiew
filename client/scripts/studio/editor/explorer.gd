@@ -19,6 +19,8 @@ var _syncing := false
 var _menu: PopupMenu
 var _insert_menu: PopupMenu
 var _menu_target := ""
+var _filter := ""  # search: only objects whose name or class has this, and what they're in
+var _keep := {}  # while searching: ids shown
 static var _icons := {}
 
 
@@ -28,6 +30,14 @@ func setup(d: EditDoc) -> void:
 	var head := UI.hbox(8)
 	head.add_child(UI.label(L.t("st_explorer"), 17, UI.TEXT, "black"))
 	add_child(head)
+	var search := UI.input(L.t("st_explorer_search"))
+	search.custom_minimum_size.y = 36
+	search.add_theme_font_size_override("font_size", 14)
+	search.clear_button_enabled = true
+	search.text_changed.connect(func(t: String):
+		_filter = t.strip_edges().to_lower()
+		_dirty = true)
+	add_child(search)
 	_tree = Tree.new()
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tree.hide_root = true
@@ -107,6 +117,15 @@ func _rebuild() -> void:
 	_tree.clear()
 	_items.clear()
 	var root := _tree.create_item()
+	_keep = {}
+	if _filter != "":
+		var t := doc.tree
+		for id in t.descendants(PlaceTree.ROOT):
+			if t.name_of(id).to_lower().contains(_filter) or t.cls(id).to_lower().contains(_filter):
+				var cur: String = id
+				while cur != "" and cur != PlaceTree.ROOT and not _keep.has(cur):
+					_keep[cur] = true
+					cur = t.parent_of(cur)
 	for k in doc.tree.kids(PlaceTree.ROOT):
 		_add(k, root)
 	_selection_to_tree()
@@ -120,6 +139,8 @@ func _rebuild() -> void:
 
 func _add(id: String, parent: TreeItem) -> void:
 	var t := doc.tree
+	if _filter != "" and not _keep.has(id):
+		return
 	var item := _tree.create_item(parent)
 	item.set_text(0, t.name_of(id))
 	item.set_icon(0, icon_for(t.cls(id)))
@@ -127,7 +148,7 @@ func _add(id: String, parent: TreeItem) -> void:
 	item.set_metadata(0, id)
 	# Services start folded, except Workspace.
 	var default_collapsed := parent == _tree.get_root() and t.cls(id) != "Workspace"
-	item.collapsed = _collapsed.get(id, default_collapsed)
+	item.collapsed = false if _filter != "" else _collapsed.get(id, default_collapsed)
 	_items[id] = item
 	for k in t.kids(id):
 		_add(k, item)

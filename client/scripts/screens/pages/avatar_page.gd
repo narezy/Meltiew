@@ -19,6 +19,9 @@ var _tab_pages := {}
 var _tab_buttons := {}
 var _dirty := false
 var _custom_picker: ColorPickerButton
+var _clothes: Array = []  # worn clothing ids, bottom to top
+var _cloth_items := {}  # id -> item (from /api/me/clothing)
+var _cloth_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -79,7 +82,7 @@ func _ready() -> void:
 	var tabs := HFlowContainer.new()
 	tabs.add_theme_constant_override("h_separation", 8)
 	tabs.add_theme_constant_override("v_separation", 8)
-	for t in [["colors", L.t("colors")], ["faces", L.t("faces")], ["hats", L.t("accessories")], ["profile", L.t("profile")]]:
+	for t in [["colors", L.t("colors")], ["faces", L.t("faces")], ["hats", L.t("accessories")], ["clothes", L.t("clothing")], ["profile", L.t("profile")]]:
 		var b := UI.button(t[1], "flat", 46)
 		b.theme_type_variation = "ChipButton"
 		b.toggle_mode = true
@@ -99,6 +102,7 @@ func _ready() -> void:
 	_tab_pages.colors = _build_colors_tab()
 	_tab_pages.hats = _build_hats_tab()
 	_tab_pages.faces = _build_faces_tab()
+	_tab_pages.clothes = _build_clothes_tab()
 	_tab_pages.profile = _build_profile_tab()
 	for k in _tab_pages:
 		var sc := ScrollContainer.new()
@@ -277,6 +281,127 @@ func _build_faces_tab() -> Control:
 
 ## Accessories from the server's catalog, with a picture each. Tap to put on or
 ## take off; one per slot (a new hat replaces the old one).
+## Clothing: what you wear, as layers (the top of the list is on top), and the rest of
+## what you have. Tap a piece to put it on or take it off.
+func _build_clothes_tab() -> Control:
+	var v := UI.vbox(12)
+	var hint := UI.label(L.t("cloth_hint"), 15, UI.MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(hint)
+	_cloth_box = UI.vbox(10)
+	v.add_child(_cloth_box)
+	v.add_child(_shop_button())
+	var c: Variant = Session.user.get("clothes", [])
+	_clothes = (c as Array).map(func(x): return int(x)) if c is Array else []
+	_load_clothes()
+	return v
+
+
+func _load_clothes() -> void:
+	var r := await Api.request("GET", "/api/me/clothing")
+	if not r.ok or not is_inside_tree():
+		return
+	_cloth_items = {}
+	for it in r.data.get("items", []):
+		_cloth_items[int(it.id)] = it
+	# Whatever was taken down drops off.
+	_clothes = _clothes.filter(func(id): return _cloth_items.has(id))
+	_draw_clothes()
+
+
+func _cloth_thumb(it: Dictionary, h: float) -> Control:
+	var tile := Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(str(_colors.get("torso", "#8a7cf0")))
+	sb.set_corner_radius_all(8)
+	tile.add_theme_stylebox_override("panel", sb)
+	var front := ClothingLayout.torso_front()
+	tile.custom_minimum_size = Vector2(h * front.size.x / front.size.y, h)
+	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pic := TextureRect.new()
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_SCALE
+	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(pic)
+	var wr: WeakRef = weakref(pic)
+	AssetCache.fetch(str(it.image), func(t: Texture2D):
+		var p: TextureRect = wr.get_ref()
+		if p and t:
+			var at := AtlasTexture.new()
+			at.atlas = t
+			at.region = front
+			p.texture = at)
+	return tile
+
+
+func _draw_clothes() -> void:
+	if _cloth_box == null:
+		return
+	for ch in _cloth_box.get_children():
+		ch.queue_free()
+	if _cloth_items.is_empty():
+		var none := UI.label(L.t("cloth_none"), 16, UI.MUTED)
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_cloth_box.add_child(none)
+		return
+	if not _clothes.is_empty():
+		_cloth_box.add_child(UI.label(L.t("cloth_worn"), 18, UI.MUTED, "bold"))
+	# Top layer first.
+	for i in range(_clothes.size() - 1, -1, -1):
+		var id: int = _clothes[i]
+		var row := UI.hbox(10)
+		row.add_child(_cloth_thumb(_cloth_items[id], 52))
+		var name := UI.label(str(_cloth_items[id].name), 16, UI.TEXT, "bold")
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name.clip_text = true
+		row.add_child(name)
+		for step in [[1, "▲"], [-1, "▼"]]:
+			var b := UI.button(step[1], "ghost", 40)
+			b.custom_minimum_size.x = 44
+			var to: int = i + step[0]
+			b.disabled = to < 0 or to >= _clothes.size()
+			b.pressed.connect(func():
+				var tmp: int = _clothes[to]
+				_clothes[to] = _clothes[i]
+				_clothes[i] = tmp
+				_apply_preview()
+				_draw_clothes())
+			row.add_child(b)
+		var off := UI.button("✕", "ghost", 40)
+		off.custom_minimum_size.x = 44
+		off.pressed.connect(func():
+			_clothes.erase(id)
+			_apply_preview()
+			_draw_clothes())
+		row.add_child(off)
+		_cloth_box.add_child(row)
+	var rest := _cloth_items.keys().filter(func(id): return not id in _clothes)
+	if rest.is_empty():
+		return
+	_cloth_box.add_child(UI.label(L.t("cloth_mine"), 18, UI.MUTED, "bold"))
+	var grid := HFlowContainer.new()
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	for id in rest:
+		var b := Button.new()
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.tooltip_text = str(_cloth_items[id].name)
+		var thumb := _cloth_thumb(_cloth_items[id], 96)
+		b.custom_minimum_size = thumb.custom_minimum_size
+		b.add_child(thumb)
+		b.pressed.connect(func():
+			if _clothes.size() >= 5:
+				UI.toast(L.t("cloth_max"), "error")
+				return
+			_clothes.append(id)
+			_apply_preview()
+			_draw_clothes())
+		grid.add_child(b)
+	_cloth_box.add_child(grid)
+
+
 func _build_hats_tab() -> Control:
 	var v := UI.vbox(12)
 	var head := UI.hbox(10)
@@ -385,6 +510,7 @@ func _apply_preview() -> void:
 	_stage.avatar.set_colors(_colors)
 	_stage.avatar.set_accessories(_worn)
 	_stage.avatar.set_face(_face)
+	_stage.avatar.set_clothes(_clothes)
 	for id in _face_buttons:
 		_face_buttons[id].button_pressed = id == _face
 	for id in _acc_buttons:
@@ -423,6 +549,13 @@ func _on_save() -> void:
 		return
 	_save.disabled = true
 	_save.text = L.t("saving")
+	var worn := await Api.request("PUT", "/api/me/clothing", {"worn": _clothes})
+	if not is_inside_tree():
+		return
+	if not worn.ok:
+		UI.toast(worn.message, "error")
+		_set_dirty(true)
+		return
 	var r := await Api.request("PATCH", "/api/me", {
 		"colors": _colors,
 		"accessories": _worn,
@@ -436,7 +569,9 @@ func _on_save() -> void:
 		UI.toast(r.message, "error")
 		_set_dirty(true)
 		return
-	Session.set_user(r.data.user)
+	var u: Dictionary = r.data.user.duplicate()
+	u["clothes"] = worn.data.get("worn", _clothes)
+	Session.set_user(u)
 	Sfx.play("coin")
 	UI.toast(L.t("look_saved"), "ok")
 	Busts.sync_my_render()

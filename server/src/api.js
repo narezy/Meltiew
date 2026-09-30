@@ -14,6 +14,7 @@ import { createCommunities } from './communities.js';
 import path from 'node:path';
 import { mailConfigured, normalizeEmail, newCode, hashCode, sendCode } from './mail.js';
 import { createGiveaways } from './giveaways.js';
+import { createClothing } from './clothing.js';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 export { LEGACY_HATS as HATS } from './accessories.js';
@@ -239,7 +240,18 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   // What an avatar looks like: enough for the app to draw a portrait or a character.
   function lookOf(u) {
     const worn = wornOf(u);
-    return { colors: parseColors(u.colors), hat: legacyHat(worn), accessories: worn, face: u.face || ':D', render: u.render_hash || '' };
+    return { colors: parseColors(u.colors), hat: legacyHat(worn), accessories: worn, clothes: clothesOf(u), face: u.face || ':D', render: u.render_hash || '' };
+  }
+
+  // Worn clothing ids (bottom to top). Taken-down ones are dropped by the client (their
+  // image is gone), so this doesn't have to look each one up.
+  function clothesOf(u) {
+    try {
+      const ids = JSON.parse(u.clothes || '[]');
+      return Array.isArray(ids) ? ids.filter(Number.isSafeInteger).slice(0, 5) : [];
+    } catch {
+      return [];
+    }
   }
 
   /** A small author card (places, comments) that still draws the right avatar. */
@@ -413,7 +425,9 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     }
   }, 5000);
   giveawayTimer.unref?.();
+  let clothing = null; // made below, after communities
   const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard, placeView, canSee: (p, u) => store.canSee(p, u, isFriend) });
+  clothing = createClothing({ db, economy, communities, HttpError, bad, cleanText, requireAuth, writeLimiter, mediaDir: store.mediaDir, authorCard, log: (m) => console.log(new Date().toISOString(), m) });
   // Community places: editable by members whose role has "places"; private ones visible to members.
   hub.canEditPlace = (user, row) => communities.canEditPlace(row, user);
   // A player's own look by username (places read it with Players:GetUserAppearanceAsync).
@@ -1109,6 +1123,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     animations.routes,
     communities.routes,
     giveaways.routes,
+    clothing.routes,
     createStudioRoutes({ db, hub, store, communities, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
 
@@ -1189,7 +1204,20 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
   }
 
   // The anti-cheat kicked someone: leave a note in the admin reports queue.
+  // One kick can be lag or a bug of ours; a report goes to the moderators once someone
+  // has been kicked a few times in a day, and not again that day.
+  const cheatKicks = new Map(); // user id -> { at: [times], reasons: [..], reported }
   function cheatReport(user, reason, game) {
+    const now = Date.now();
+    const k = cheatKicks.get(user.id) || { at: [], reasons: [], reported: 0 };
+    k.at = k.at.filter((t) => now - t < 86_400_000);
+    k.at.push(now);
+    k.reasons.push(reason);
+    k.reasons = k.reasons.slice(-6);
+    cheatKicks.set(user.id, k);
+    if (k.at.length < 3 || now - k.reported < 86_400_000) return;
+    k.reported = now;
+    reason = `${k.at.length} kicks today (${[...new Set(k.reasons)].join(', ')})`;
     try {
       db.prepare('INSERT INTO reports (reporter_id, target_id, reason, details, created_at, target_type, target_ref) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
         user.id, user.id, 'cheating', `Anti-cheat: ${reason} in ${game}`, Date.now(), 'user', '');

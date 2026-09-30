@@ -9,6 +9,12 @@ var _info: Label
 var _left: Label
 var _btn: Button
 var _poll := 0.0
+## Shown only where the menu allows it (the home page).
+var allowed := true:
+	set(v):
+		allowed = v
+		if is_node_ready():
+			_paint()
 var _tick := 0.0
 
 
@@ -62,7 +68,7 @@ func _load() -> void:
 
 
 func _paint() -> void:
-	visible = not _g.is_empty()
+	visible = allowed and not _g.is_empty()
 	if not visible:
 		return
 	var prize := "%s %s" % [int(_g.amount), L.t("gw_pieces" if _g.currency == "pieces" else "gw_orbs")]

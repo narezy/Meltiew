@@ -11,6 +11,10 @@ uniform bool sun_visible = true;
 uniform float stars = 0.0;
 uniform float clouds = 0.0;
 uniform float time_scale = 0.01;
+// Seconds, set a few times a second by the scene (PlaceScene): reading the built-in time
+// here would make the engine
+// redraw the sky into its reflection map every single frame.
+uniform float cloud_time = 0.0;
 
 uniform bool custom = false;
 uniform sampler2D face_up : source_color, filter_linear;
@@ -58,7 +62,7 @@ void sky() {
 			col += vec3(s) * stars;
 		}
 		if (clouds > 0.0 && h > 0.02) {
-			vec2 p = d.xz / h * 1.4 + vec2(TIME * time_scale, 0.0);
+			vec2 p = d.xz / h * 1.4 + vec2(cloud_time * time_scale, 0.0);
 			float n = noise(p) * 0.6 + noise(p * 2.3) * 0.3 + noise(p * 5.1) * 0.1;
 			float c = smoothstep(0.55, 0.8, n) * smoothstep(0.02, 0.25, h) * clouds;
 			col = mix(col, vec3(1.0), c * 0.85);

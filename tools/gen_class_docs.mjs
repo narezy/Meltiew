@@ -24,6 +24,15 @@ for (let i = 0; i < luau.length; i++) {
   const alias = luau.slice(i).find((l) => l.startsWith(`Methods.${head[1]}.`) && l.includes(' = Methods.'));
   if (alias) list.push({ name: alias.match(/\.(\w+) = /)[1], args: ['name'] });
 }
+// Methods.Class.Name = function(self, a, b), added outside the table.
+for (const line of luau) {
+  const m = line.match(/^Methods\.(\w+)\.(\w+) = function\(([^)]*)\)/);
+  if (!m) continue;
+  const list = (methods[m[1]] ??= []);
+  if (!list.some((x) => x.name === m[2])) {
+    list.push({ name: m[2], args: m[3].split(',').map((s) => s.trim()).filter((a, k) => a && k > 0 && a !== '_') });
+  }
+}
 
 const fmtDefault = (v) => {
   if (v === null || v === undefined) return '';

@@ -13,3 +13,6 @@ native/**/*.o
 native/**/*.os
 native/**/*.obj
 native/.sconsign*.dblite
+
+# Apple builds from native/build_apple.py: objects and per-arch libraries
+native/build_apple/

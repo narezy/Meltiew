@@ -60,6 +60,9 @@ var _face_mat: StandardMaterial3D
 var _face_id := ":D"
 var _current := ""
 var _look_colors := {}
+var _clothes: Array = []  # catalog ids, bottom to top
+var _cloth_tex := {}  # id -> Texture2D, as they load
+var _extra_cloth: Array = []  # textures on top (studio preview, a place's Clothing)
 
 
 func _ready() -> void:
@@ -75,6 +78,8 @@ func _ready() -> void:
 	EmoteAnims.install(anim_player)
 	anim_player.animation_finished.connect(_on_anim_finished)
 	var body: MeshInstance3D = _model.find_child("Body", true, false)
+	# The rest pose baked in, so clothing pictures land on the right spots (ClothingLayout).
+	body.mesh = ClothingLayout.dressable(body.mesh)
 	_body_mat = ShaderMaterial.new()
 	_body_mat.shader = BODY_SHADER
 	body.set_surface_override_material(0, _body_mat)
@@ -111,6 +116,7 @@ func _ready() -> void:
 	var pending: Array = _worn_pending if _worn_pending is Array else []
 	_worn_pending = null
 	set_accessories(pending)
+	_paint_clothes()
 	play("idle")
 
 
@@ -118,6 +124,50 @@ func apply_user(u: Dictionary) -> void:
 	set_colors(Session.colors_of(u))
 	set_accessories(Session.worn_of(u))
 	set_face(str(u.get("face", ":D")))
+	var c: Variant = u.get("clothes", [])
+	set_clothes(c if c is Array else [])
+
+
+## Clothing from the catalog, bottom to top (ids). Pictures load in the background;
+## one that can't be had (taken down) is simply left out.
+func set_clothes(ids: Array) -> void:
+	_clothes = []
+	for id in ids.slice(0, ClothingLayout.DRESSED.size()):
+		_clothes.append(int(id))
+	var want := _clothes.duplicate()
+	_cloth_tex = {}
+	for id in want:
+		AssetCache.fetch(ClothingLayout.image_ref(id), func(tex: Texture2D):
+			if _clothes != want:
+				return  # changed again meanwhile
+			_cloth_tex[id] = tex
+			_paint_clothes())
+	_paint_clothes()
+
+
+func get_clothes() -> Array:
+	return _clothes.duplicate()
+
+
+## More layers on top of the catalog ones: a picture being made in the studio, or a
+## place's Clothing on a character or a rig.
+func set_extra_clothes(textures: Array) -> void:
+	_extra_cloth = textures.filter(func(t): return t is Texture2D)
+	_paint_clothes()
+
+
+func _paint_clothes() -> void:
+	if _body_mat == null:
+		return
+	var layers: Array = []
+	for id in _clothes:
+		if _cloth_tex.get(id) is Texture2D:
+			layers.append(_cloth_tex[id])
+	layers.append_array(_extra_cloth)
+	layers = layers.slice(maxi(0, layers.size() - 5))
+	for i in 5:
+		_body_mat.set_shader_parameter("cloth%d" % i, layers[i] if i < layers.size() else null)
+	_body_mat.set_shader_parameter("cloth_count", layers.size())
 
 
 func set_face(id: String) -> void:

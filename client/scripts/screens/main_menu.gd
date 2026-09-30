@@ -19,6 +19,7 @@ var _nav_buttons := {}
 var _nav_icons := {}
 var _content: MarginContainer
 var _pages: MarginContainer
+var _banner: GiveawayBanner
 var _page: Control
 var _page_id := ""
 var _badges := {}
@@ -58,7 +59,8 @@ func _ready() -> void:
 	# The owner's giveaway (when there is one) above whichever page is open.
 	var col := UI.vbox(12)
 	_content.add_child(col)
-	col.add_child(GiveawayBanner.new())
+	_banner = GiveawayBanner.new()
+	col.add_child(_banner)
 	_pages = MarginContainer.new()
 	_pages.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_pages)
@@ -336,6 +338,8 @@ func open_page(id: String) -> void:
 	_page_id = id
 	if id != "place":
 		last_page = id
+	if _banner:
+		_banner.allowed = id == "home"
 	_highlight(id)
 	if _page:
 		_page.queue_free()

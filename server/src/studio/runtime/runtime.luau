@@ -526,13 +526,43 @@ local deferred = {}
 local threadScript = setmetatable({}, { __mode = "k" }) -- co -> script instance (for errors)
 local currentScript = nil
 
+-- Runaway scripts. One that starts tasks without end (a "fork bomb") would recurse
+-- through the app's own stack until it crashed, or eat all the memory. Tasks resumed
+-- from inside tasks nest at most MAX_DEPTH deep (deeper ones run a moment later), and
+-- in one call from the host a script's tasks are resumed at most BUDGET times: past that
+-- that script is stopped, and says so in the output. Everything else goes on.
+local guard = { depth = 0, count = {}, total = 0, MAX_DEPTH = 40, BUDGET = 10000, stopped = {} }
+
 local function resume(co, ...)
+	local script = threadScript[co]
+	if script and guard.stopped[script] then
+		pcall(coroutine.close, co)
+		return false
+	end
+	local key = script or "runtime"
+	local n = (guard.count[key] or 0) + 1
+	guard.count[key] = n
+	guard.total += 1
+	if n > guard.BUDGET or guard.total > guard.BUDGET * 8 then
+		if script and n > guard.BUDGET then
+			guard.stopped[script] = true
+			report("stopped: this script started more than " .. guard.BUDGET .. " tasks at once", script)
+		end
+		pcall(coroutine.close, co)
+		return false
+	end
+	if guard.depth >= guard.MAX_DEPTH then
+		deferred[#deferred + 1] = { co = co, args = table.pack(...) }
+		return true
+	end
+	guard.depth += 1
 	local prev = currentScript
-	currentScript = threadScript[co]
+	currentScript = script
 	local ok, err = coroutine.resume(co, ...)
 	currentScript = prev
+	guard.depth -= 1
 	if not ok then
-		report(debug.traceback(co, tostring(err)), threadScript[co])
+		report(debug.traceback(co, tostring(err)), script)
 	end
 	return ok
 end
@@ -1065,6 +1095,10 @@ local function isCharacter(m)
 	return false
 end
 
+-- Filled in further down (they need the players): an Explosion going off, and putting a
+-- new player on a team.
+local later = {}
+
 local function setParent(inst, parent)
 	local d = D[inst]
 	if d.destroyed then
@@ -1118,6 +1152,16 @@ local function setParent(inst, parent)
 	firePropChanged(inst, "Parent")
 	if parent and started then
 		startScriptsIn(inst)
+	end
+	if d.class.name == "Explosion" and role == "server" and not d.exploded and parent then
+		local cur = parent
+		while cur and cur ~= services.Workspace do
+			cur = D[cur].parent
+		end
+		if cur then
+			d.exploded = true
+			task.defer(later.explode, inst)
+		end
 	end
 	if d.class.name == "Tool" and old ~= parent then
 		if isCharacter(old) then
@@ -2441,6 +2485,178 @@ Methods.Workspace = {
 	end,
 }
 
+do
+-- A part's world bounding box: centre and half size.
+local function partBounds(part)
+	local p = D[part].props
+	local m = rotMatrix(p.Rotation)
+	local h = p.Size / 2
+	local e = {}
+	for i = 1, 3 do
+		e[i] = math.abs(m[i * 3 - 2]) * h.X + math.abs(m[i * 3 - 1]) * h.Y + math.abs(m[i * 3]) * h.Z
+	end
+	return p.Position, v3(e[1], e[2], e[3])
+end
+
+local function boxesTouch(c1, h1, c2, h2)
+	return math.abs(c1.X - c2.X) <= h1.X + h2.X and math.abs(c1.Y - c2.Y) <= h1.Y + h2.Y and math.abs(c1.Z - c2.Z) <= h1.Z + h2.Z
+end
+
+-- Parts whose bounding box touches a box at `where` (a Vector3, or anything with a
+-- Position) of `size`.
+Methods.Workspace.GetPartBoundsInBox = function(_, where, size, params)
+	local center = typeOf(where) == "Vector3" and where or (type(where) == "table" and where.Position)
+	if typeOf(center) ~= "Vector3" or typeOf(size) ~= "Vector3" then
+		error("GetPartBoundsInBox needs a position and a Vector3 size", 2)
+	end
+	local half = size / 2
+	local out = {}
+	for _, part in queryParts(params) do
+		local c, h = partBounds(part)
+		if boxesTouch(center, half, c, h) then
+			out[#out + 1] = part
+		end
+	end
+	return out
+end
+
+-- Other parts whose bounding box touches this part's.
+Methods.Workspace.GetPartsInPart = function(_, part, params)
+	if not isInstance(part) or not D[part].class.isA.BasePart then
+		error("GetPartsInPart needs a Part", 2)
+	end
+	local c1, h1 = partBounds(part)
+	local out = {}
+	for _, other in queryParts(params) do
+		if other ~= part then
+			local c2, h2 = partBounds(other)
+			if boxesTouch(c1, h1, c2, h2) then
+				out[#out + 1] = other
+			end
+		end
+	end
+	return out
+end
+end
+
+---------------------------------------------------------------------------
+-- Tags (CollectionService): kept in each instance's Tags property, so they're saved
+-- with the place and seen by every app.
+---------------------------------------------------------------------------
+local CollectionService = {}
+do
+local tagSignals = {} -- tag -> { added = Signal, removed = Signal }
+
+local function tagsOf(inst)
+	local out = {}
+	for t in string.gmatch(tostring(D[inst].props.Tags or ""), "[^,]+") do
+		t = string.match(t, "^%s*(.-)%s*$")
+		if t ~= "" then
+			out[#out + 1] = t
+		end
+	end
+	return out
+end
+
+local function tagSignal(tag, which)
+	tagSignals[tag] = tagSignals[tag] or { added = Signal.new("InstanceAdded"), removed = Signal.new("InstanceRemoved") }
+	return tagSignals[tag][which]
+end
+
+local function checkTag(inst, tag, fn)
+	if not isInstance(inst) then
+		error(fn .. " needs an Instance", 3)
+	end
+	tag = tostring(tag or "")
+	if tag == "" or string.find(tag, ",", 1, true) then
+		error(fn .. ": a tag is a non-empty name without commas", 3)
+	end
+	return tag
+end
+
+local function addTag(inst, tag)
+	tag = checkTag(inst, tag, "AddTag")
+	local tags = tagsOf(inst)
+	if table.find(tags, tag) then
+		return
+	end
+	table.insert(tags, tag)
+	setProp(inst, "Tags", table.concat(tags, ","))
+	if tagSignals[tag] then
+		tagSignals[tag].added:_fire(inst)
+	end
+end
+
+local function removeTag(inst, tag)
+	tag = checkTag(inst, tag, "RemoveTag")
+	local tags = tagsOf(inst)
+	local i = table.find(tags, tag)
+	if not i then
+		return
+	end
+	table.remove(tags, i)
+	setProp(inst, "Tags", table.concat(tags, ","))
+	if tagSignals[tag] then
+		tagSignals[tag].removed:_fire(inst)
+	end
+end
+
+Methods.Instance.AddTag = function(inst, tag)
+	addTag(inst, tag)
+end
+Methods.Instance.RemoveTag = function(inst, tag)
+	removeTag(inst, tag)
+end
+Methods.Instance.HasTag = function(inst, tag)
+	return table.find(tagsOf(inst), tostring(tag)) ~= nil
+end
+Methods.Instance.GetTags = function(inst)
+	return tagsOf(inst)
+end
+
+function CollectionService:AddTag(inst, tag)
+	addTag(inst, tag)
+end
+function CollectionService:RemoveTag(inst, tag)
+	removeTag(inst, tag)
+end
+function CollectionService:HasTag(inst, tag)
+	return isInstance(inst) and table.find(tagsOf(inst), tostring(tag)) ~= nil
+end
+function CollectionService:GetTags(inst)
+	return isInstance(inst) and tagsOf(inst) or {}
+end
+-- Everything in the game with this tag (not destroyed, not parentless).
+function CollectionService:GetTagged(tag)
+	tag = tostring(tag)
+	local out = {}
+	for _, inst in descendants(DataModel, {}) do
+		if table.find(tagsOf(inst), tag) then
+			out[#out + 1] = inst
+		end
+	end
+	return out
+end
+function CollectionService:GetInstanceAddedSignal(tag)
+	return tagSignal(tostring(tag), "added")
+end
+function CollectionService:GetInstanceRemovedSignal(tag)
+	return tagSignal(tostring(tag), "removed")
+end
+function CollectionService:GetAllTags()
+	local seen, out = {}, {}
+	for _, inst in descendants(DataModel, {}) do
+		for _, t in tagsOf(inst) do
+			if not seen[t] then
+				seen[t] = true
+				out[#out + 1] = t
+			end
+		end
+	end
+	return out
+end
+end
+
 ---------------------------------------------------------------------------
 -- Small services: Debris, HttpService (JSON), StarterGui core UI switches
 ---------------------------------------------------------------------------
@@ -2692,11 +2908,32 @@ local function starterValue(key)
 	return sp and D[sp].props[key]
 end
 
-local function spawnPosition()
+-- A spawn for this player: one of their team's colour (or a neutral one), if there is one.
+local function spawnPosition(player)
 	local spawns = {}
+	local teamed = {}
+	local pp = player and D[player] and D[player].props
 	for _, v in descendants(services.Workspace, {}) do
-		if D[v].class.name == "SpawnLocation" and D[v].props.Enabled then
+		local sd = D[v]
+		if sd.class.name == "SpawnLocation" and sd.props.Enabled then
 			spawns[#spawns + 1] = v
+			if pp and not pp.Neutral and (sd.props.Neutral == false) and sd.props.TeamColor == pp.TeamColor then
+				teamed[#teamed + 1] = v
+			end
+		end
+	end
+	if #teamed > 0 then
+		spawns = teamed
+	elseif pp and not pp.Neutral then
+		-- No spawn of their colour: the neutral ones.
+		local neutral = {}
+		for _, v in spawns do
+			if D[v].props.Neutral ~= false then
+				neutral[#neutral + 1] = v
+			end
+		end
+		if #neutral > 0 then
+			spawns = neutral
 		end
 	end
 	if #spawns == 0 then
@@ -2746,7 +2983,7 @@ local function loadCharacter(player)
 	rp.CanCollide = false
 	rp.Anchored = true
 	rp.CastShadow = false
-	local pos = spawnPosition()
+	local pos = spawnPosition(player)
 	rp.Position = pos
 	D[root].parent = model
 	table.insert(D[model].children, root)
@@ -3498,6 +3735,7 @@ local specialServices = {
 	MarketplaceService = MarketplaceService,
 	DataStoreService = DataStoreService,
 	BadgeService = BadgeService,
+	CollectionService = CollectionService,
 }
 Methods.DataModel = {
 	GetService = function(_, name)
@@ -3637,6 +3875,119 @@ local function humanoidOf(player)
 	return model and D[model] and Methods.Instance.FindFirstChildOfClass(model, "Humanoid")
 end
 
+---------------------------------------------------------------------------
+-- Teams: a player's Team sets their TeamColor (and makes them not Neutral); new players
+-- go on the AutoAssignable team with the fewest players.
+---------------------------------------------------------------------------
+Methods.Team = {
+	GetPlayers = function(team)
+		local out = {}
+		for _, p in playersByUser do
+			if D[p].props.Team == team then
+				out[#out + 1] = p
+			end
+		end
+		return out
+	end,
+}
+Methods.Teams = {
+	GetTeams = function(teams)
+		local out = {}
+		for _, ch in D[teams].children do
+			if D[ch].class.name == "Team" then
+				out[#out + 1] = ch
+			end
+		end
+		return out
+	end,
+}
+propHooks.Player = {
+	Team = function(p)
+		local d = D[p]
+		local team = d.props.Team
+		local before = d.team
+		if team ~= nil and not (D[team] and D[team].class.name == "Team") then
+			team = nil
+			d.props.Team = nil
+		end
+		d.team = team
+		if team then
+			setProp(p, "TeamColor", D[team].props.TeamColor)
+			setProp(p, "Neutral", false)
+		else
+			setProp(p, "Neutral", true)
+		end
+		if before ~= team then
+			if before and D[before] then
+				fireEvent(before, "PlayerRemoved", p)
+			end
+			if team then
+				fireEvent(team, "PlayerAdded", p)
+			end
+		end
+	end,
+}
+propHooks.IntValue = {
+	Value = function(inst)
+		local v = D[inst].props.Value
+		if type(v) == "number" and v ~= math.round(v) then
+			setProp(inst, "Value", math.round(v))
+		end
+	end,
+}
+
+function later.autoTeam(player)
+	local teams = services.Teams
+	if not teams then
+		return
+	end
+	local best, fewest = nil, math.huge
+	for _, t in D[teams].children do
+		if D[t].class.name == "Team" and D[t].props.AutoAssignable then
+			local n = #Methods.Team.GetPlayers(t)
+			if n < fewest then
+				best, fewest = t, n
+			end
+		end
+	end
+	if best then
+		setProp(player, "Team", best)
+	end
+end
+
+-- An Explosion in the Workspace (server): every part in the blast hears Hit, characters
+-- close enough die; it cleans itself up a moment later. Apps draw the blast.
+function later.explode(inst)
+	local d = D[inst]
+	if not d or d.destroyed then
+		return
+	end
+	local p = d.props
+	local pos = p.Position
+	local r = math.max(tonumber(p.BlastRadius) or 0, 0)
+	local killR = r * math.clamp(tonumber(p.DestroyJointRadiusPercent) or 0, 0, 1)
+	for _, part in queryParts(nil) do
+		local dist = (D[part].props.Position - pos).Magnitude
+		if dist <= r then
+			fireEvent(inst, "Hit", part, dist)
+		end
+	end
+	if killR > 0 then
+		for _, player in playersByUser do
+			local root = characterRoot(player)
+			local hum = humanoidOf(player)
+			if root and hum and D[root] and (D[root].props.Position - pos).Magnitude <= killR then
+				setProp(hum, "Health", 0)
+			end
+		end
+	end
+	task.delay(1.5, function()
+		if D[inst] and not D[inst].destroyed then
+			destroy(inst)
+		end
+	end)
+end
+
 -- server: a player joined / left
 function handlers.player_add(e)
 	local p = create("Player")
@@ -3657,6 +4008,9 @@ function handlers.player_add(e)
 	local bp = create("Backpack")
 	D[bp].name = "Backpack"
 	setParent(bp, p)
+	if role == "server" then
+		later.autoTeam(p)
+	end
 	setParent(p, services.Players)
 	fireEvent(services.Players, "PlayerAdded", p)
 	-- An Appearance in StarterPlayer dresses everyone who joins (unless a script already did).
@@ -4076,6 +4430,9 @@ end
 
 local function hostCall(fn)
 	return function(arg)
+		guard.count = {}
+		guard.total = 0
+		guard.depth = 0
 		fn(arg ~= "" and json.decode(arg) or nil)
 		runDeferred()
 		return flush()

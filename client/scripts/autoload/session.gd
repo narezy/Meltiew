@@ -29,6 +29,9 @@ var settings := {
 	"ui_scale": 0.0,
 	# Bumped when the graphics presets change, to re-pick the default.
 	"gfx_v": 2,
+	# Frame limit: "auto" (phones: the screen's own rate; computers: none), "display"
+	# (vsync), or a number (0 = none). Nothing is ever capped unless chosen here.
+	"fps": "auto",
 	# Voice chat: hear other players, and which microphone to use ("Default" = the system's).
 	"voice_hear": true,
 	"mic_device": "Default",
@@ -93,6 +96,25 @@ func save_settings() -> void:
 func apply_settings() -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(float(settings.volume), 0.0001)))
+	apply_fps(in_game)
+
+
+## Whether a game is on screen (menus just follow the screen: no need to draw more).
+var in_game := false
+
+## The frame limit from the settings. By default phones run at their screen's full
+## rate (90, 120, 144 Hz) and computers without a limit; a lower limit is a choice.
+func apply_fps(game: bool) -> void:
+	in_game = game
+	var f := str(settings.get("fps", "auto"))
+	if f == "auto":
+		f = "display" if OS.has_feature("mobile") else "0"
+	if f == "display" or not game:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+		Engine.max_fps = int(f) if game == false and f != "display" and int(f) > 0 else 0
+		return
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = int(f)
 
 
 ## What someone wears: `accessories` from newer servers, else the single old `hat`.
@@ -114,7 +136,9 @@ static func look_hash(u: Dictionary) -> String:
 	worn.sort()
 	parts.append("+".join(worn))
 	parts.append(str(u.get("face", ":D")))
-	parts.append("v4")
+	var clothes: Variant = u.get("clothes", [])
+	parts.append(",".join((clothes as Array).map(func(x): return str(x))) if clothes is Array else "")
+	parts.append("v5")
 	return "|".join(parts).md5_text().substr(0, 16)
 
 

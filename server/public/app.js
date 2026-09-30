@@ -4,17 +4,22 @@ const DOWNLOADS = {
   android: DL_BASE + 'meltiew.apk',
   windows: DL_BASE + 'meltiew-windows.zip',
   linux: DL_BASE + 'meltiew-linux.zip',
+  macos: DL_BASE + 'meltiew-macos.zip',
 };
 const DOWNLOAD_URL = DOWNLOADS.android;
 const PLATFORMS = [
   ['android', 'Android', 'APK · Android 7+'],
   ['windows', 'Windows', 'ZIP · 64-bit'],
   ['linux', 'Linux', 'ZIP · x86_64'],
+  ['macos', 'macOS', 'ZIP · Apple Silicon & Intel · beta'],
 ];
 function myPlatform() {
   const ua = navigator.userAgent.toLowerCase();
   if (ua.includes('android')) return 'android';
   if (ua.includes('windows')) return 'windows';
+  // (an iPhone says "like Mac OS X" too)
+  if (ua.includes('iphone') || ua.includes('ipad')) return DOWNLOADS.ios ? 'ios' : 'android';
+  if (ua.includes('macintosh') || ua.includes('mac os x')) return 'macos';
   if (ua.includes('linux') || ua.includes('x11')) return 'linux';
   return 'android';
 }
@@ -1851,7 +1856,7 @@ async function giveawayBanner() {
   let g = null;
   try { g = (await api('GET', '/api/giveaway')).giveaway; } catch { /* no banner */ }
   clearInterval(gwTimer);
-  if (!g) { el.innerHTML = ''; return; }
+  if (!g || location.pathname !== '/') { el.innerHTML = ''; return; }
   const prize = `${g.amount.toLocaleString()} ${t(g.currency === 'pieces' ? 'gw_pieces' : 'gw_orbs')}`;
   const left = () => {
     const s = Math.max(0, Math.floor((g.ends_at - Date.now()) / 1000));
@@ -1887,7 +1892,9 @@ async function render() {
   document.documentElement.lang = state.lang;
   renderNav(path);
   pollCounts();
-  giveawayBanner();
+  // The giveaway banner only on the home page.
+  if (path === '/') giveawayBanner();
+  else { clearInterval(gwTimer); $('#gw')?.replaceChildren(); }
   const root = $('#app');
   root.innerHTML = '<div class="loader"><i></i></div>';
   try {
