@@ -110,6 +110,7 @@ export const MESSAGES = {
   server_gone: ['That server has closed', 'Сервер уже закрылся'],
   place_updated: ['This place just got updated! Moving you to a fresh server...', 'Плейс обновился! Переносим тебя на свежий сервер...'],
   server_full: ['Server is full ({n}/{n})', 'Сервер заполнен ({n}/{n})'],
+  ip_limit: ['Too many accounts are playing from your network right now', 'С твоей сети сейчас играет слишком много аккаунтов'],
   duplicate: ['You joined from another device', 'Ты зашёл(ла) в игру с другого устройства'],
 };
 

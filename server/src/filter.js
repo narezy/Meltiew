@@ -74,5 +74,12 @@ export function hasProfanity(text) {
 const MARK_RUNS = /(\p{M}{3})\p{M}+/gu;
 
 export function tameMarks(text) {
-  return String(text ?? '').replace(MARK_RUNS, '$1');
+  return String(text ?? '')
+    .replace(MARK_RUNS, '$1')
+    // Specials and private-use characters: boxes and blanks used to flood the chat.
+    .replace(/[\uE000-\uF8FF\uFFF0-\uFFFF]|[\u{F0000}-\u{10FFFF}]/gu, '')
+    // Any run of spaces (wide ones included) is one space; one character repeated
+    // on and on is cut to a few.
+    .replace(/[\s\u3000\u2000-\u200B\u2800\u3164\uFFA0]+/gu, ' ')
+    .replace(/(.)\1{7,}/gu, '$1$1$1$1$1$1');
 }

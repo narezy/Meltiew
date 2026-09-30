@@ -4,11 +4,18 @@ import { wornOf, legacyHat, accessoryExists, cleanWorn } from './accessories.js'
 import { msg } from './i18n.js';
 import { MoveGuard, PLAYGROUND_LIMITS } from './anticheat.js';
 import { Occluders, eyes, canSee } from './occlusion.js';
+import { tooLoud } from './voiceguard.js';
 import fs from 'node:fs';
 
 // The playground's solid shapes (client/tools/export_playground.tscn writes them), so
 // the fly check knows what players stand on there too.
-const PLAYGROUND_SOLIDS = new Occluders(JSON.parse(fs.readFileSync(new URL('./playground_solids.json', import.meta.url), 'utf8')), 2);
+const PLAYGROUND_BOXES = JSON.parse(fs.readFileSync(new URL('./playground_solids.json', import.meta.url), 'utf8'));
+const PLAYGROUND_SOLIDS = new Occluders(PLAYGROUND_BOXES, 2);
+// What hides players there (the anti-wallhack): its still blocks big in two directions.
+const PLAYGROUND_OCC = new Occluders(
+  PLAYGROUND_BOXES.filter((b) => !(b[15] & 4) && [b[3], b[4], b[5]].sort((x, y) => x - y)[1] * 2 >= 1.5),
+  2,
+);
 // Its trampolines: taking off from around them, a bounce goes up to PLAYGROUND_LIMITS.jump.
 const TRAMPOLINES = [22, 20];
 const TRAMPOLINE_RADIUS = 11;
@@ -848,13 +855,19 @@ export class GameHub {
     if (!server || !me || server.chat === false || !conn.rules.chat || server.muted?.has(conn.user.id)) return;
     const d = typeof m.d === 'string' ? m.d : '';
     if (!d || d.length > 2400 || !/^[A-Za-z0-9+/=]+$/.test(d)) return;
-    // At most ~15 packets a second (it sends 10).
+    // At most 12 packets a second (it sends 10).
     const now = Date.now();
     if (!me.voiceAt || now - me.voiceAt > 1000) {
       me.voiceAt = now;
       me.voiceN = 0;
     }
-    if (++me.voiceN > 15) return;
+    if (++me.voiceN > 12) return;
+    // Blasting clipped noise (a "soundpad" at double volume) isn't passed on.
+    if (tooLoud(d)) {
+      me.loudN = (me.loudN || 0) + 1;
+      if (me.loudN === 30) this.log(`voice: ${conn.user.username} keeps sending clipped audio`);
+      return;
+    }
     // Where it's coming from, for listeners who don't see the speaker (behind a wall).
     const data = JSON.stringify({ t: 'voice', id: conn.user.id, d, p: me.p.map((v) => +v.toFixed(1)) });
     for (const [id, p] of server.players) {
@@ -1098,6 +1111,7 @@ export class GameHub {
    * for players hidden behind the place's walls (see occlusion.js).
    */
   sendStates(server, now) {
+    if (!server.vm && server.game === 'playground' && this.anticheat) server.occ ??= PLAYGROUND_OCC;
     if (server.occ && (!server.visAt || now - server.visAt >= VISIBILITY_EVERY_MS)) {
       server.visAt = now;
       this.updateVisibility(server, now);
@@ -1150,7 +1164,8 @@ export class GameHub {
   updateVisibility(server, now) {
     const occ = server.occ;
     for (const [rid, r] of server.players) {
-      const lim = server.limits?.[String(rid)];
+      // The playground has no place rules: everyone is checked, from the default camera.
+      const lim = server.vm ? server.limits?.[String(rid)] : { check: true, zoom: 16 };
       if (!lim || lim.check === false || lim.all || isOwner(r.conn.user)) {
         r.hidden = null;
         continue;

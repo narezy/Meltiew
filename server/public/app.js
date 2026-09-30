@@ -1272,7 +1272,7 @@ async function placePage(root, id) {
             <div class="meter grow"><i style="width:${pct}%;background:var(--online)"></i></div></div>
           <button class="btn big" data-play="auto" ${game}>▶ ${t('play')}</button>
           <span class="muted" style="font-size:14px">${t('play_hint')}</span>
-          ${studio && !mine ? `<div class="row more"><button class="link danger" id="report-place">${t('report_place')}</button></div>` : ''}
+          ${studio && !mine ? `<div class="row more"><button class="link danger" id="report-place">${t('report_place')}</button>${isStaff() ? `<button class="btn small danger" id="staff-del-place">🗑 ${t('delete')}</button>` : ''}</div>` : ''}
         </div></div>
       <div class="card" style="margin-top:20px"><h3>${t('about')}</h3><p style="margin:6px 0;white-space:pre-line">${esc(field(p, 'description')) || `<span class="muted">${t('no_description')}</span>`}</p>
         <span class="muted">${esc(t('created', created))}${studio && p.updated_at ? ' · ' + esc(t('updated', ago(p.updated_at))) : ''}</span></div>
@@ -1290,6 +1290,12 @@ async function placePage(root, id) {
       catch (e) { toast(e.message, 'error'); }
     }));
     $('#report-place')?.addEventListener('click', () => reportDialog(p.author, { place_id: p.id }));
+    // Staff: take down someone else's place that breaks the rules.
+    $('#staff-del-place')?.addEventListener('click', async () => {
+      if (!confirm(`${t('delete_place_q')}\n\n${field(p, 'name')} · @${p.author.username}`)) return;
+      try { await api('DELETE', `/api/studio/places/${encodeURIComponent(p.id)}`); toast(t('saved')); go('/'); }
+      catch (e) { toast(e.message, 'error'); }
+    });
     if (studio && mine) ownerPanel($('#owner'), p, draw);
     if (studio) passesBlock($('#passes'), p, mine).catch(() => {});
     if (studio) badgesBlock($('#badges'), p, mine).catch(() => {});

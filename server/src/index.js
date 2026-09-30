@@ -112,6 +112,8 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
 
   // Room for big studio remote-event arguments (a video's frames, a drawing...).
   const wss = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 * 1024 });
+  const MAX_SOCKETS_PER_IP = 3;
+  const ipSockets = new Map(); // address -> its open game sockets
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://local');
     if (url.pathname !== '/ws') {
@@ -133,9 +135,27 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
         setTimeout(() => ws.close(4003, 'update'), 1500).unref?.();
         return;
       }
+      // A few people at home share an address; a cheat logging in a crowd of bot
+      // accounts from one computer doesn't get past this many at once.
+      const ip = clientIp(req);
+      const fromIp = ipSockets.get(ip) || new Set();
+      const others = [...fromIp].filter((w) => w.userId !== auth.user.id).length;
+      if (others >= MAX_SOCKETS_PER_IP && auth.user.role !== 'owner' && !/^(127\.|::1$|::ffff:127\.)/.test(ip)) {
+        log(`ws refused ${auth.user.username} from ${ip}: ${others} accounts already on`);
+        ws.send(JSON.stringify({ t: 'kicked', code: 'ip_limit', m: msg('ip_limit', lang) }));
+        setTimeout(() => ws.close(4004, 'ip_limit'), 1500).unref?.();
+        return;
+      }
+      ws.userId = auth.user.id;
+      fromIp.add(ws);
+      ipSockets.set(ip, fromIp);
+      ws.on('close', () => {
+        fromIp.delete(ws);
+        if (!fromIp.size && ipSockets.get(ip) === fromIp) ipSockets.delete(ip);
+      });
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
-      log(`ws open ${auth.user.username} from ${clientIp(req)}`);
+      log(`ws open ${auth.user.username} from ${ip}`);
       // Apps from 1.6.2 say how big their receive buffer is; older ones have 256 KB.
       const buffer = Math.min(64 * 1024 * 1024, parseInt(url.searchParams.get('buf'), 10) || OLD_APP_BUFFER);
       hub.attach(ws, auth.user, lang, { luau: url.searchParams.get('luau') === '1', buffer });

@@ -303,7 +303,8 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
       log('rollypay callback with a bad signature');
       throw new HttpError(401, 'bad_signature');
     }
-    if (req.headers['x-test-mode'] === 'true' && !c.test) return { ok: true, ignored: 'test' };
+    // Sandbox payments (header or body flag) never credit anything unless we're in test mode.
+    if ((req.headers['x-test-mode'] === 'true' || body.test === true) && !c.test) return { ok: true, ignored: 'test' };
     const pay = q.pay.get(String(body.order_id || ''));
     if (!pay) return { ok: true, ignored: 'unknown' };
     const status = String(body.status || '');
