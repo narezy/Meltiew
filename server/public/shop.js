@@ -24,6 +24,8 @@ const SHOP_T = {
     try_on: 'Try on', take_off: 'Take off', wear: 'Wear', owned: 'Yours', buy: 'Buy', bought: 'Bought!',
     accessories: 'Accessories', faces_tab: 'Faces', free: 'Free', your_look: 'Your look', save_look: 'Save look',
     look_saved: 'Look saved', only_owned: 'Buy the items you are trying on first',
+    clothing_tab: 'Clothes', take_free: 'Take it', no_clothing_shop: 'No clothes yet. Anyone can make one in Studio.',
+    only_owned_clothes: 'Clothes you only tried on were not saved',
     daily_bonus: '+{0} orbs for coming today!', daily_note: 'Every day you visit: +{0} orbs. Three new quests each day.',
     claim: 'Claim +{0}', claimed: 'Claimed', go: 'Go',
     q_playground10: 'Play on the Playground for 10 minutes', q_friend: 'Play in any place together with a friend',
@@ -61,6 +63,8 @@ const SHOP_T = {
     try_on: 'Примерить', take_off: 'Снять', wear: 'Надеть', owned: 'Есть', buy: 'Купить', bought: 'Куплено!',
     accessories: 'Аксессуары', faces_tab: 'Лица', free: 'Бесплатно', your_look: 'Твой образ', save_look: 'Сохранить образ',
     look_saved: 'Образ сохранён', only_owned: 'Сначала купи вещи, которые примеряешь',
+    clothing_tab: 'Одежда', take_free: 'Забрать', no_clothing_shop: 'Одежды пока нет. Сделать её может кто угодно в Студии.',
+    only_owned_clothes: 'То, что только примерял, не сохранилось',
     daily_bonus: '+{0} опыта за сегодняшний заход!', daily_note: 'Каждый день за заход: +{0} опыта. Каждый день три новых задания.',
     claim: 'Забрать +{0}', claimed: 'Получено', go: 'Перейти',
     q_playground10: 'Поиграй на площадке 10 минут', q_friend: 'Поиграй в любом плейсе вместе с другом',
@@ -230,8 +234,20 @@ const SHOP_ROUTES = {
     await refreshMe();
     let shop = await api('GET', '/api/shop');
     let tab = 'accessories';
+    // Shirts: what there is to buy, and what of it is already yours.
+    let clothing = { items: [], mine: new Set() };
+    const loadClothing = async () => {
+      const [all, mine] = await Promise.all([
+        api('GET', '/api/clothing?sort=new'),
+        api('GET', '/api/me/clothing').catch(() => ({ items: [] })),
+      ]);
+      const seen = new Map(all.items.map((c) => [c.id, c]));
+      for (const c of mine.items) if (!seen.has(c.id)) seen.set(c.id, c);
+      clothing = { items: [...seen.values()], mine: new Set(mine.items.map((c) => c.id)) };
+    };
+    await loadClothing();
     // What's on the preview: starts as what you wear.
-    let look = { ...state.me, accessories: [...wornOf(state.me)] };
+    let look = { ...state.me, accessories: [...wornOf(state.me)], clothes: [...(state.me.clothes || [])] };
     const catalog = await loadAccessories();
     const slotOf = (id) => catalog.items?.find((i) => i.id === id)?.slot;
     root.innerHTML = `<h1>${t('shop')}</h1>
@@ -239,7 +255,7 @@ const SHOP_ROUTES = {
         <div class="card shop-preview stack"><div class="viewer" id="tryon">${bust(state.me)}</div>
           <div class="row wrap-row">${walletChip()}</div>
           <button class="btn" id="savelook">${t('save_look')}</button></div>
-        <div class="stack"><div class="tabs">${['accessories', 'faces_tab'].map((k) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${t(k)}</button>`).join('')}</div>
+        <div class="stack"><div class="tabs">${['accessories', 'faces_tab', 'clothing_tab'].map((k) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${t(k)}</button>`).join('')}</div>
           <div class="shop-grid" id="grid"></div></div></div>`;
     const preview = async () => {
       const el = $('#tryon');
@@ -249,7 +265,44 @@ const SHOP_ROUTES = {
       await mellyViewer(el, look);
     };
     const name = (it) => (it.name ? it.name[state.lang] || it.name.en : it.id);
+    // A shirt's picture is the whole template; the card shows the front of the torso,
+    // which is the part people recognise it by.
+    const clothTile = (c) => `<div class="cloth-tile" style="background-image:url('${esc(c.image)}')"></div>`;
+    const drawClothing = () => {
+      $('#grid').innerHTML = clothing.items.length ? clothing.items.map((c) => {
+        const mine = clothing.mine.has(c.id) || c.creator?.id === state.me.id;
+        const on = look.clothes.includes(c.id);
+        const action = mine
+          ? `<span class="pill">${t('owned')}</span>`
+          : c.price > 0
+            ? `<div class="buy-row"><button class="btn small" data-cbuy="${c.id}">${PIECE_SVG(16)}${c.price}</button></div>`
+            : `<button class="btn small" data-cbuy="${c.id}">${t('take_free')}</button>`;
+        return `<div class="card shop-item ${on ? 'on' : ''}">
+          <div class="pic">${clothTile(c)}</div><b>${esc(c.name)}</b>
+          <span class="muted" style="font-size:13px">${esc(c.creator?.display_name || '')}</span>
+          ${action}<button class="btn small ghost" data-cwear="${c.id}">${on ? t('take_off') : mine ? t('wear') : t('try_on')}</button></div>`;
+      }).join('') : `<div class="empty grow">${t('no_clothing_shop')}</div>`;
+      $('#grid').querySelectorAll('[data-cwear]').forEach((b) => b.addEventListener('click', () => {
+        const id = Number(b.dataset.cwear);
+        look.clothes = look.clothes.includes(id) ? look.clothes.filter((x) => x !== id) : [...look.clothes, id].slice(-5);
+        drawClothing();
+        preview();
+      }));
+      $('#grid').querySelectorAll('[data-cbuy]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          const r = await api('POST', `/api/clothing/${b.dataset.cbuy}/buy`);
+          state.me.wallet = r.wallet;
+          await loadClothing();
+          toast(t('bought'));
+          renderNav(location.pathname);
+          $('.shop-preview .wrap-row').innerHTML = walletChip();
+          drawClothing();
+        } catch (e) { toast(e.message, 'error'); b.disabled = false; }
+      }));
+    };
     const draw = () => {
+      if (tab === 'clothing_tab') return drawClothing();
       const items = tab === 'accessories' ? shop.accessories : shop.faces;
       $('#grid').innerHTML = items.map((it) => {
         const worn = tab === 'accessories' ? look.accessories.includes(it.id) : look.face === it.id;
@@ -292,7 +345,14 @@ const SHOP_ROUTES = {
     }));
     $('#savelook').addEventListener('click', async () => {
       try {
+        // Only what's yours can be saved; the rest was a fitting room.
+        const keep = look.clothes.filter((id) => clothing.mine.has(id)
+          || clothing.items.some((c) => c.id === id && c.creator?.id === state.me.id));
+        if (keep.length !== look.clothes.length) toast(t('only_owned_clothes'));
+        const { worn } = await api('PUT', '/api/me/clothing', { worn: keep });
+        look.clothes = worn;
         const r = await api('PATCH', '/api/me', { accessories: look.accessories, face: look.face });
+        r.user.clothes = worn;
         state.me = r.user;
         toast(t('look_saved'));
         try { await uploadMyBust(); renderNav(location.pathname); } catch {}

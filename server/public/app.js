@@ -112,6 +112,17 @@ const T = {
     delete: 'Delete', delete_place_q: 'Delete this place? This can\'t be undone.', delete_image_q: 'Delete this image? Places using it will lose it.',
     asset_usage: '{0} of {1} images, {2} of {3} MB', copy_id: 'Copy ID', copied: 'Copied', no_images: 'No images yet. Upload a PNG or JPG up to 2 MB.',
     image_too_big: 'The image is bigger than 2 MB', uploaded: 'Uploaded',
+    cancel: 'Cancel',
+    my_sounds: 'My sounds', sound_usage: '{0} of {1} sounds, {2} of {3} MB', no_sounds: 'No sounds yet. Upload an OGG, MP3 or WAV.',
+    sound_too_big: 'The sound is bigger than 3 MB', delete_sound_q: 'Delete this sound? Places using it will lose it.',
+    my_animations: 'My animations', no_animations: 'No animations yet. They are recorded in the app, in Studio.',
+    anim_line: '{0} s · {1}', anim_loop: 'loops', anim_once: 'plays once', delete_animation_q: 'Delete this animation? Places using it will lose it.',
+    my_clothing: 'My clothes', cl_template: 'Template', cl_new: 'Make one', no_clothing: 'Nothing made yet.',
+    cl_hint: 'Paint the template in any program and load the PNG back: 1024x768, the torso, arms and legs unfolded.',
+    cl_name: 'Name', cl_price_field: 'Price in pieces (0 is free)', cl_pay_orbs: 'Pay with orbs',
+    cl_make_cost: 'Making one costs 10 pieces or 100 orbs. It sells for pieces, and 95% of that is yours.',
+    cl_publish: 'Publish', cl_made: 'Published', cl_price_n: '{0} pieces', cl_sales: 'sold {0}',
+    cl_set_price: 'Price', cl_price_ask: 'Price in pieces, 0 for free', delete_clothing_q: 'Take this off sale? People who bought it stop wearing it.',
     vis_private: 'Only me', vis_friends: 'Friends', vis_public: 'Everyone', who_can_play: 'Who can play', comments_on: 'Comments',
     your_place: 'Your place', edit_in_studio: 'To change the place itself, open it in Studio in the app.', visits_30: 'Visits, last 30 days',
     st_visits: 'Visits', st_players: 'Players', st_returning: 'Came back', st_playtime: 'Total playtime', st_session: 'Average session', st_now: 'Playing now',
@@ -199,6 +210,17 @@ const T = {
     delete: 'Удалить', delete_place_q: 'Удалить плейс? Вернуть не получится.', delete_image_q: 'Удалить картинку? Плейсы, где она стоит, её потеряют.',
     asset_usage: '{0} из {1} картинок, {2} из {3} МБ', copy_id: 'Копировать ID', copied: 'Скопировано', no_images: 'Картинок пока нет. Загрузи PNG или JPG до 2 МБ.',
     image_too_big: 'Картинка больше 2 МБ', uploaded: 'Загружено',
+    cancel: 'Отмена',
+    my_sounds: 'Мои звуки', sound_usage: '{0} из {1} звуков, {2} из {3} МБ', no_sounds: 'Звуков пока нет. Загрузи OGG, MP3 или WAV.',
+    sound_too_big: 'Звук больше 3 МБ', delete_sound_q: 'Удалить звук? У плейсов, где он стоит, он пропадёт.',
+    my_animations: 'Мои анимации', no_animations: 'Анимаций пока нет. Их записывают в приложении, в Студии.',
+    anim_line: '{0} с · {1}', anim_loop: 'зациклена', anim_once: 'один раз', delete_animation_q: 'Удалить анимацию? У плейсов, где она стоит, она пропадёт.',
+    my_clothing: 'Моя одежда', cl_template: 'Шаблон', cl_new: 'Сделать', no_clothing: 'Пока ничего не сделано.',
+    cl_hint: 'Разрисуй шаблон в любой программе и загрузи PNG обратно: 1024x768, торс, руки и ноги в развёртке.',
+    cl_name: 'Название', cl_price_field: 'Цена в кусочках (0 — бесплатно)', cl_pay_orbs: 'Заплатить опытом',
+    cl_make_cost: 'Изготовление стоит 10 кусочков или 100 опыта. Продаётся за кусочки, 95% цены твои.',
+    cl_publish: 'Выложить', cl_made: 'Выложено', cl_price_n: '{0} кусочков', cl_sales: 'продано {0}',
+    cl_set_price: 'Цена', cl_price_ask: 'Цена в кусочках, 0 — бесплатно', delete_clothing_q: 'Снять с продажи? У тех, кто купил, одежда снимется.',
     vis_private: 'Только я', vis_friends: 'Друзья', vis_public: 'Все', who_can_play: 'Кто может играть', comments_on: 'Комментарии',
     your_place: 'Твой плейс', edit_in_studio: 'Сам плейс меняется в Студии в приложении.', visits_30: 'Визиты за 30 дней',
     st_visits: 'Визиты', st_players: 'Игроки', st_returning: 'Вернулись', st_playtime: 'Всего наиграно', st_session: 'Средняя сессия', st_now: 'Играют сейчас',
@@ -934,6 +956,108 @@ function tubeGeometry(THREE, points, r0, r1) {
 // What someone wears: `accessories` from the API, else the old single hat.
 const wornOf = (u) => (Array.isArray(u.accessories) ? u.accessories : u.hat && u.hat !== 'none' ? [u.hat] : []);
 
+// Clothing pictures, worn bottom to top. The body shader in the game (melly_body.gdshader)
+// finds every point of a shirt from where that point of the body is in the rest pose; the
+// same arithmetic lives below, so a shirt looks here exactly like it does in the app.
+const CLOTH_MAX = 5;
+async function clothTextures(THREE, u) {
+  const ids = Array.isArray(u.clothes) ? u.clothes.slice(0, CLOTH_MAX) : [];
+  if (!ids.length) return [];
+  const loader = new THREE.TextureLoader();
+  const out = await Promise.all(ids.map(async (id) => {
+    try {
+      const tex = await loader.loadAsync(`/api/clothing/${encodeURIComponent(id)}/image`);
+      tex.flipY = false;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      // No mips: across a fold of the template the UV jumps, and a mip would smear the seam.
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearFilter;
+      return tex;
+    } catch { return null; }
+  }));
+  return out.filter(Boolean);
+}
+
+const CLOTH_GLSL = `
+uniform int clothCount;
+uniform sampler2D cloth0;
+uniform sampler2D cloth1;
+uniform sampler2D cloth2;
+uniform sampler2D cloth3;
+uniform sampler2D cloth4;
+varying vec3 vRest;
+varying float vPart;
+
+void partBox(int p, out vec3 mn, out vec3 sz, out vec2 o) {
+  if (p == 0) { mn = vec3(-0.83, 2.0, -0.39); sz = vec3(1.66, 2.0, 0.78); o = vec2(16.0, 16.0); }
+  else if (p == 2) { mn = vec3(0.79118, 1.88, -0.37986); sz = vec3(0.83764, 2.0, 0.75972); o = vec2(16.0, 382.0); }
+  else if (p == 3) { mn = vec3(-1.62882, 1.88, -0.37986); sz = vec3(0.83764, 2.0, 0.75972); o = vec2(512.0, 16.0); }
+  else if (p == 4) { mn = vec3(0.03004, 0.0, -0.42723); sz = vec3(0.79992, 2.0, 0.85446); o = vec2(688.0, 382.0); }
+  else { mn = vec3(-0.82996, 0.0, -0.42723); sz = vec3(0.79992, 2.0, 0.85446); o = vec2(346.0, 382.0); }
+}
+
+vec2 clothUv(int p, vec3 pos) {
+  vec3 mn, sz; vec2 o;
+  partBox(p, mn, sz, o);
+  vec3 d = (pos - (mn + sz * 0.5)) / (sz * 0.5);
+  vec3 f = clamp((pos - mn) / sz, 0.003, 0.997);
+  float fw = floor(sz.x * 96.0 + 0.5);
+  float fh = floor(sz.y * 96.0 + 0.5);
+  float fd = floor(sz.z * 96.0 + 0.5);
+  vec3 a = abs(d);
+  vec2 px;
+  if (a.z >= a.x && a.z >= a.y) {
+    px = d.z > 0.0
+      ? o + vec2(fd, fd) + vec2(f.x * fw, (1.0 - f.y) * fh)
+      : o + vec2(2.0 * fd + fw, fd) + vec2((1.0 - f.x) * fw, (1.0 - f.y) * fh);
+  } else if (a.x >= a.y) {
+    px = d.x < 0.0
+      ? o + vec2(0.0, fd) + vec2(f.z * fd, (1.0 - f.y) * fh)
+      : o + vec2(fd + fw, fd) + vec2((1.0 - f.z) * fd, (1.0 - f.y) * fh);
+  } else {
+    px = d.y > 0.0
+      ? o + vec2(fd, 0.0) + vec2(f.x * fw, f.z * fd)
+      : o + vec2(fd, fd + fh) + vec2(f.x * fw, (1.0 - f.z) * fd);
+  }
+  return px / vec2(1024.0, 768.0);
+}
+
+vec3 clothOver(vec3 under, vec4 c) { return mix(under, c.rgb, c.a); }
+
+vec3 dressed(vec3 under) {
+  int p = int(vPart + 0.5);
+  if (p == 1 || clothCount == 0) return under;
+  vec2 uv = clothUv(p, vRest);
+  vec3 col = under;
+  col = clothOver(col, texture2D(cloth0, uv));
+  if (clothCount > 1) col = clothOver(col, texture2D(cloth1, uv));
+  if (clothCount > 2) col = clothOver(col, texture2D(cloth2, uv));
+  if (clothCount > 3) col = clothOver(col, texture2D(cloth3, uv));
+  if (clothCount > 4) col = clothOver(col, texture2D(cloth4, uv));
+  return col;
+}
+`;
+
+let blankTex = null;
+function dressMaterials(THREE, materials, textures) {
+  if (!blankTex) {
+    blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
+    blankTex.needsUpdate = true;
+  }
+  for (const mat of materials) {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.clothCount = { value: textures.length };
+      for (let i = 0; i < CLOTH_MAX; i++) shader.uniforms['cloth' + i] = { value: textures[i] || blankTex };
+      shader.vertexShader = `attribute float aPart;\nvarying vec3 vRest;\nvarying float vPart;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRest = position;\n  vPart = aPart;');
+      shader.fragmentShader = CLOTH_GLSL + shader.fragmentShader
+        .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = dressed(diffuseColor.rgb);');
+    };
+    mat.customProgramCacheKey = () => 'cloth' + textures.length;
+    mat.needsUpdate = true;
+  }
+}
+
 async function buildMelly(u) {
   const { THREE, GLTFLoader } = await loadThree();
   const gltf = await new GLTFLoader().loadAsync('/models/melly.glb');
@@ -943,6 +1067,8 @@ async function buildMelly(u) {
   const faceTex = await new THREE.TextureLoader().loadAsync(`/img/faces/${FACE_SLUGS[u.face] || 'grin'}.png`);
   faceTex.flipY = false;
   faceTex.colorSpace = THREE.SRGBColorSpace;
+  const clothes = await clothTextures(THREE, u);
+  const bodies = [];
   const bones = {};
   model.traverse((o) => {
     if (o.isBone) bones[o.name] = o;
@@ -957,16 +1083,22 @@ async function buildMelly(u) {
     const wt = g.attributes.skinWeight;
     const base = g.attributes.color;
     const out = new Float32Array(idx.count * 3);
+    const parts = new Float32Array(idx.count);
     for (let i = 0; i < idx.count; i++) {
       let best = 0;
       for (let k = 1; k < 4; k++) if (wt.getComponent(i, k) > wt.getComponent(i, best)) best = k;
-      const c = tints[idx.getComponent(i, best)] || tints[0];
+      const part = idx.getComponent(i, best);
+      const c = tints[part] || tints[0];
       const shade = base ? base.getX(i) : 1;
       out[i * 3] = c.r * shade; out[i * 3 + 1] = c.g * shade; out[i * 3 + 2] = c.b * shade;
+      parts[i] = part;
     }
     g.setAttribute('color', new THREE.BufferAttribute(out, 3));
+    g.setAttribute('aPart', new THREE.BufferAttribute(parts, 1));
     o.material = new THREE.MeshLambertMaterial({ vertexColors: true });
+    bodies.push(o.material);
   });
+  if (clothes.length) dressMaterials(THREE, bodies, clothes);
   const catalog = await loadAccessories();
   const worn = [];
   for (const id of wornOf(u)) {
@@ -1490,7 +1622,15 @@ async function studioPage(root) {
     <h2>${t('my_places')}</h2><div class="stack" id="sp"><div class="loader"><i></i></div></div>
     <div class="row section-head" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('my_images')}</h2>
       <label class="btn">${t('upload')}<input type="file" id="up" accept="image/png,image/jpeg" hidden></label></div>
-    <div id="au" class="muted" style="margin:8px 0 14px"></div><div class="assets" id="as"></div>`;
+    <div id="au" class="muted" style="margin:8px 0 14px"></div><div class="assets" id="as"></div>
+    <div class="row section-head" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('my_sounds')}</h2>
+      <label class="btn">${t('upload')}<input type="file" id="ups" accept=".ogg,.mp3,.wav,audio/ogg,audio/mpeg,audio/wav" hidden></label></div>
+    <div id="su" class="muted" style="margin:8px 0 14px"></div><div class="assets" id="snd"></div>
+    <h2 style="margin-top:30px">${t('my_animations')}</h2><div class="stack" id="anims"></div>
+    <div class="row section-head" style="margin-top:30px"><h2 class="grow" style="margin:0">${t('my_clothing')}</h2>
+      <a class="btn ghost" href="/img/clothing_template.png" download>${t('cl_template')}</a>
+      <label class="btn">+ ${t('cl_new')}<input type="file" id="upc" accept="image/png" hidden></label></div>
+    <p class="muted" style="margin:0 0 14px">${t('cl_hint')}</p><div class="assets" id="cloth"></div>`;
   const vis = ['private', 'friends', 'public'];
   const loadPlaces = async () => {
     const { places } = await api('GET', '/api/studio/places');
@@ -1529,20 +1669,133 @@ async function studioPage(root) {
       catch (e) { toast(e.message, 'error'); }
     }));
   };
+  // Sounds live beside images: same quota line, same copyable asset:// reference.
+  const loadSounds = async () => {
+    const { assets, usage } = await api('GET', '/api/assets?kind=sound');
+    $('#su').textContent = t('sound_usage', usage.count, usage.max_count, (usage.bytes / 1048576).toFixed(1), Math.round(usage.max_bytes / 1048576));
+    $('#snd').innerHTML = assets.length ? assets.map((a) => `<div class="card asset">
+        <audio controls preload="none" src="/api/assets/${esc(a.id)}"></audio><b title="${esc(a.name)}">${esc(a.name)}</b>
+        <div class="row" style="gap:6px"><button class="btn small ghost grow" data-copy="asset://${esc(a.id)}">${t('copy_id')}</button>
+          <button class="btn small ghost" data-dels="${esc(a.id)}" aria-label="${t('delete')}">✕</button></div></div>`).join('')
+      : `<div class="empty">${t('no_sounds')}</div>`;
+    bindCopy($('#snd'));
+    $('#snd').querySelectorAll('[data-dels]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_sound_q'))) return;
+      try { await api('DELETE', `/api/assets/${b.dataset.dels}`); loadSounds(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  };
+
+  // Animations are recorded in the app; here they are listed, referenced and deleted.
+  const loadAnims = async () => {
+    const { animations } = await api('GET', '/api/animations');
+    $('#anims').innerHTML = animations.length ? animations.map((a) => `<div class="card row studio-row">
+        <div class="grow"><h3 style="margin:0">${esc(a.name)}</h3>
+          <span class="muted" style="font-size:14px">${esc(t('anim_line', a.length.toFixed(1), t(a.loop ? 'anim_loop' : 'anim_once')))}</span></div>
+        <button class="btn small ghost" data-copy="${esc(a.ref)}">${t('copy_id')}</button>
+        <button class="link danger" data-delan="${a.id}">${t('delete')}</button></div>`).join('')
+      : `<div class="empty">${t('no_animations')}</div>`;
+    bindCopy($('#anims'));
+    $('#anims').querySelectorAll('[data-delan]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_animation_q'))) return;
+      try { await api('DELETE', `/api/animations/${b.dataset.delan}`); loadAnims(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  };
+
+  // Clothes you made: the card shows the front of the torso, the way the shop shows it.
+  const loadCloth = async () => {
+    const { items } = await api('GET', '/api/studio/clothing');
+    $('#cloth').innerHTML = items.length ? items.map((c) => `<div class="card asset">
+        <div class="cloth-tile" style="background-image:url('${esc(c.image)}')"></div>
+        <b title="${esc(c.name)}">${esc(c.name)}</b>
+        <span class="muted" style="font-size:13px">${c.price ? esc(t('cl_price_n', c.price)) : t('free')} · ${esc(t('cl_sales', c.sales))}</span>
+        <div class="row" style="gap:6px"><button class="btn small ghost grow" data-cprice="${c.id}" data-now="${c.price}">${t('cl_set_price')}</button>
+          <button class="btn small ghost" data-cdel="${c.id}" aria-label="${t('delete')}">✕</button></div></div>`).join('')
+      : `<div class="empty">${t('no_clothing')}</div>`;
+    $('#cloth').querySelectorAll('[data-cprice]').forEach((b) => b.addEventListener('click', () => {
+      const bg = modal(`<h3>${t('cl_set_price')}</h3><p class="muted" style="margin:0">${t('cl_price_ask')}</p>
+        <form class="stack" id="prf"><input name="price" type="number" min="0" step="1" value="${esc(b.dataset.now)}" autofocus>
+          <div class="row" style="gap:8px"><button class="btn grow" type="submit">${t('save')}</button>
+            <button class="btn ghost" type="button" data-close>${t('cancel')}</button></div></form>`);
+      $('#prf', bg).addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+          await api('PATCH', `/api/studio/clothing/${b.dataset.cprice}`, { price: Math.max(0, Number(new FormData(ev.target).get('price')) || 0) });
+          bg.remove();
+          loadCloth();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+    }));
+    $('#cloth').querySelectorAll('[data-cdel]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(t('delete_clothing_q'))) return;
+      try { await api('DELETE', `/api/studio/clothing/${b.dataset.cdel}`); loadCloth(); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
+  };
+
+  const readFile = (file) => new Promise((ok) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(',')[1]);
+    r.readAsDataURL(file);
+  });
+
   $('#up').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) return toast(t('image_too_big'), 'error');
-    const b64 = await new Promise((ok) => {
-      const r = new FileReader();
-      r.onload = () => ok(String(r.result).split(',')[1]);
-      r.readAsDataURL(file);
-    });
-    try { await api('POST', '/api/assets', { name: file.name.replace(/\.[^.]+$/, ''), image: b64 }); toast(t('uploaded')); loadAssets(); }
+    try { await api('POST', '/api/assets', { name: file.name.replace(/\.[^.]+$/, ''), image: await readFile(file) }); toast(t('uploaded')); loadAssets(); }
     catch (err) { toast(err.message, 'error'); }
   });
-  await Promise.all([loadPlaces(), loadAssets()]);
+
+  $('#ups').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) return toast(t('sound_too_big'), 'error');
+    try { await api('POST', '/api/assets', { name: file.name.replace(/\.[^.]+$/, ''), sound: await readFile(file) }); toast(t('uploaded')); loadSounds(); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+
+  // Making a shirt: the picture is the template, painted anywhere; the rest is a name,
+  // what it sells for, and what the making itself is paid with.
+  $('#upc').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const image = await readFile(file);
+    const bg = modal(`<h3>${t('cl_new')}</h3><p class="muted" style="margin:0">${t('cl_make_cost')}</p>
+      <form class="stack" id="clf"><input name="name" maxlength="40" required placeholder="${esc(t('cl_name'))}">
+        <input name="price" type="number" min="0" step="1" value="0" placeholder="${esc(t('cl_price_field'))}">
+        <label class="row" style="gap:8px"><input type="checkbox" name="orbs"> ${t('cl_pay_orbs')}</label>
+        <div class="row" style="gap:8px"><button class="btn grow" type="submit">${t('cl_publish')}</button>
+          <button class="btn ghost" type="button" data-close>${t('cancel')}</button></div></form>`);
+    $('#clf', bg).addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const f = new FormData(ev.target);
+      const button = $('button[type=submit]', bg);
+      button.disabled = true;
+      try {
+        await api('POST', '/api/studio/clothing', {
+          name: f.get('name'), price: Math.max(0, Number(f.get('price')) || 0),
+          currency: f.get('orbs') ? 'orbs' : 'pieces', image,
+        });
+        bg.remove();
+        toast(t('cl_made'));
+        loadCloth();
+      } catch (err) { toast(err.message, 'error'); button.disabled = false; }
+    });
+  });
+
+  await Promise.all([loadPlaces(), loadAssets(), loadSounds(), loadAnims(), loadCloth()]);
+}
+
+// Copy buttons: every list above has a reference worth copying into a script.
+function bindCopy(box) {
+  box.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast(t('copied')); } catch { prompt('', b.dataset.copy); }
+  }));
 }
 
 // Studio docs: markdown files next to the site, rendered with marked.

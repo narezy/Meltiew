@@ -483,3 +483,9 @@ button.pill.on { background: var(--accent); color: #1d1a26; }
 .accent { color: var(--accent); }
 b.danger { color: var(--danger); }
 b.mint { color: var(--mint); }
+
+/* A shirt's card picture: the front of the torso, cut out of the template. */
+.cloth-tile { width: 106px; height: 128px; margin: 0 auto; border-radius: 10px;
+  background-repeat: no-repeat; background-size: 683px 512px; background-position: -61px -61px;
+  background-color: #2a2340; image-rendering: auto; }
+.assets .asset audio { width: 100%; }
