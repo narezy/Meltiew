@@ -388,6 +388,20 @@
      "type": "bool",
      "default": true
     },
+    "StepHeight": {
+     "type": "number",
+     "default": 0.65,
+     "min": 0,
+     "max": 6,
+     "doc": "How high a ledge the character walks onto without jumping (0: never)."
+    },
+    "StepSpeed": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0.2,
+     "max": 10,
+     "doc": "How quickly stepping up goes: 2 steps twice as often and rises twice as fast (stairs without pauses)."
+    },
     "MaxHealth": {
      "type": "number",
      "default": 100.0,
@@ -637,6 +651,20 @@
     "CanJump": {
      "type": "bool",
      "default": true
+    },
+    "StepHeight": {
+     "type": "number",
+     "default": 0.65,
+     "min": 0,
+     "max": 6,
+     "doc": "How high a ledge the character walks onto without jumping (0: never)."
+    },
+    "StepSpeed": {
+     "type": "number",
+     "default": 1.0,
+     "min": 0.2,
+     "max": 10,
+     "doc": "How quickly stepping up goes: 2 steps twice as often and rises twice as fast (stairs without pauses)."
     },
     "AutoHeal": {
      "type": "bool",

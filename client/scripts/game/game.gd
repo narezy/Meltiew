@@ -526,6 +526,8 @@ func _sync_place(delta: float) -> void:
 		player.walk_speed = float(t.prop(hum, "WalkSpeed"))
 		player.sprint_speed = float(t.prop(hum, "SprintSpeed"))
 		player.jump_velocity = float(t.prop(hum, "JumpPower"))
+		player.step_height = float(t.prop(hum, "StepHeight"))
+		player.step_speed = float(t.prop(hum, "StepSpeed"))
 		player.can_jump = t.prop(hum, "CanJump")
 		player.can_sprint = t.prop(hum, "CanSprint") != false
 		player.max_stamina = float(t.prop(hum, "MaxStamina"))

@@ -23,7 +23,7 @@ const GRAVITY := 22.0
 const MAX_FALL := 50.0
 const COYOTE_TIME := 0.12
 ## Ledges up to this high are walked onto without jumping (stairs, kerbs, low blocks).
-const STEP_HEIGHT := 0.65
+const STEP_HEIGHT := 0.65  # the default; a place's Humanoid.StepHeight sets step_height
 const CLIMB_SPEED := 6.0
 const JUMP_BUFFER := 0.14
 const TURN_SPEED := 9.0
@@ -53,6 +53,10 @@ var seated := false
 
 # Tunables a studio place can change (Humanoid / Workspace properties).
 var walk_speed := MAX_SPEED
+## Humanoid.StepHeight: the highest ledge walked onto without a jump (0: none).
+var step_height := STEP_HEIGHT
+## Humanoid.StepSpeed: 1 = normal; 2 steps twice as often and glides up twice as fast.
+var step_speed := 1.0
 var sprint_speed := SPRINT_SPEED
 var jump_velocity := JUMP_VELOCITY
 var gravity := GRAVITY
@@ -227,12 +231,12 @@ func zoom_camera(amount: float) -> void:
 	_set_first_person(cam_distance < 1.2)
 
 
-## Walks onto a ledge up to STEP_HEIGHT without jumping, only while walking into it
+## Walks onto a ledge up to step_height (Humanoid.StepHeight) without jumping, only while walking into it
 ## on purpose: the way ahead is blocked by a wall-like edge (never a slope), it's clear
 ## a step higher, and there's flat ground to stand on up there. The body goes up at
 ## once but Melly and the camera glide after it, so it reads as a quick step.
 func _step_up(step: Vector3, wants: Vector3) -> void:
-	if _step_cooldown > 0.0 or step.length() < 0.0005:
+	if _step_cooldown > 0.0 or step.length() < 0.0005 or step_height <= 0.01:
 		return
 	var along := Vector3(step.x, 0, step.z).normalized()
 	if wants.length() < 0.2 or wants.normalized().dot(along) < 0.5:
@@ -243,7 +247,7 @@ func _step_up(step: Vector3, wants: Vector3) -> void:
 	var n := hit.get_normal()
 	if n.y > 0.35 or Vector3(n.x, 0, n.z).normalized().dot(-along) < 0.5:
 		return
-	var up := Vector3(0, STEP_HEIGHT, 0)
+	var up := Vector3(0, step_height, 0)
 	if test_move(global_transform, up):
 		return
 	var raised := global_transform.translated(up)
@@ -254,7 +258,7 @@ func _step_up(step: Vector3, wants: Vector3) -> void:
 	var probe := raised.translated(ahead)
 	if not test_move(probe, -up, col):
 		return
-	var rise := STEP_HEIGHT - col.get_travel().length()
+	var rise := step_height - col.get_travel().length()
 	if rise < 0.08 or col.get_normal().y < 0.85:
 		return
 	var from := global_position
@@ -266,7 +270,7 @@ func _step_up(step: Vector3, wants: Vector3) -> void:
 	reset_physics_interpolation()
 	avatar.position = _step_offset
 	avatar.reset_physics_interpolation()
-	_step_cooldown = 0.2
+	_step_cooldown = 0.2 / maxf(step_speed, 0.2)
 	velocity.y = maxf(velocity.y, 0.0)
 
 
@@ -493,7 +497,7 @@ func _physics_process(delta: float) -> void:
 	_climb_cooldown -= delta
 	_step_cooldown -= delta
 	if _step_offset != Vector3.ZERO:
-		_step_offset = _step_offset.move_toward(Vector3.ZERO, delta * (2.0 + _step_offset.length() * 9.0))
+		_step_offset = _step_offset.move_toward(Vector3.ZERO, delta * (2.0 + _step_offset.length() * 9.0) * step_speed)
 		avatar.position = _step_offset
 	if flying:
 		_fly(delta)

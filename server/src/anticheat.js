@@ -203,8 +203,11 @@ export class MoveGuard {
     const free = limits.floating || limits.climb || inGrace;
     // (the playground: a normal jump except off its trampolines, see game.js)
     const jump = Math.max(limits.airJump ?? limits.jump, this.air?.jump || 0);
-    const apex = (jump * jump) / (2 * g) + APEX_SLACK;
     const base = this.base || { p: pos.slice(), t: now };
+    // Steps up (Humanoid.StepHeight / StepSpeed): a few of them can come between two updates
+    // on a staircase. The usual step fits in the slack; a place's high, quick steps add more.
+    const steps = (limits.step ?? 0.65) * (1 + (limits.stepRate ?? 5) * Math.max(0.07, (now - base.t) / 1000)) + 0.5;
+    const apex = (jump * jump) / (2 * g) + Math.max(APEX_SLACK, steps);
     if (limits.grounded || free) {
       // Standing higher than a jump from where they took off can reach: they flew up
       // there (even in one quick hop between two updates).

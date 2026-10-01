@@ -3211,7 +3211,7 @@ local function loadCharacter(player)
 	table.insert(D[model].children, root)
 	local hum = create("Humanoid")
 	local hp = D[hum].props
-	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen", "Traction", "Bhop", "BhopMaxSpeed" } do
+	for _, k in { "WalkSpeed", "SprintSpeed", "JumpPower", "CanJump", "AutoHeal", "HealthRegen", "EmotesEnabled", "MaxHealth", "CanSprint", "MaxStamina", "StaminaDrain", "StaminaRegen", "Traction", "Bhop", "BhopMaxSpeed", "StepHeight", "StepSpeed" } do
 		local v = starterValue(k)
 		if v ~= nil then
 			hp[k] = v
@@ -4911,6 +4911,9 @@ G.__limits = function()
 			walk = hp and hp.WalkSpeed or 5,
 			sprint = hp and math.max(hp.CanSprint ~= false and math.max(hp.SprintSpeed, hp.WalkSpeed) or hp.WalkSpeed, hp.Bhop and hp.BhopMaxSpeed or 0) or 7,
 			jump = hp and (hp.CanJump and hp.JumpPower or 0) or 8.2,
+			-- stepping onto ledges without jumping: how high, and how many steps a second
+			step = hp and hp.StepHeight or 0.65,
+			stepRate = (hp and hp.StepSpeed or 1) / 0.2,
 			gravity = ws.Gravity or 22,
 			-- climbing Climbable parts goes up at 6 studs a second
 			rise = 7,

@@ -258,6 +258,27 @@ function describe_fly() {
     assert.deepEqual(run(g2, path, 2000).bad, []);
   });
 
+  test('fly: a place\'s high, quick steps (Humanoid.StepHeight / StepSpeed) are walked up', () => {
+    // Steps 4 high and 1.5 deep: walked up one per update, without jumping.
+    const stairs = new Occluders([[0, -1, 0, 200, 1, 200, ...I, 2],
+      ...[0, 1, 2, 3, 4].map((k) => [40 + k * 1.5, (k + 1) * 2, 40, 0.75, (k + 1) * 2, 3, ...I, 2])], 2);
+    const climb = (extra) => {
+      const g = new MoveGuard([38, 0, 40], 0);
+      const bad = [];
+      let t = 2000;
+      for (let k = 0; k < 5; k++) {
+        t += STEP;
+        const p = [40 + k * 1.5, (k + 1) * 4, 40];
+        const standing = stairs.standing(p);
+        const r = g.check(p, { ...S, grounded: standing, standing, floating: false, climb: false, ...extra }, t);
+        if (r && !r.silent) bad.push(r.reason);
+      }
+      return bad;
+    };
+    assert.ok(climb({}).includes('fly'), 'with the usual steps, rising 4 studs at once is flying');
+    assert.deepEqual(climb({ step: 4, stepRate: 10 }), []);
+  });
+
   test('fly: air jumps (jumping again in mid-air to go up) are caught', () => {
     const g = new MoveGuard([0, 0, 0], 0);
     // Jump, and jump again every time the arc starts to fall.

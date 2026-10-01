@@ -104,7 +104,7 @@ end)
 
 A character is a Model named after the player with a `HumanoidRootPart` (where they stand; its `Position` updates as they move) and a `Humanoid`.
 
-**Humanoid** controls the character: `WalkSpeed`, `SprintSpeed`, `JumpPower`, `CanJump`, `Health`, `MaxHealth`, `AutoHeal` + `HealthRegen` (health per second) and `EmotesEnabled`. Change them on the server.
+**Humanoid** controls the character: `WalkSpeed`, `SprintSpeed`, `JumpPower`, `CanJump`, `StepHeight`, `StepSpeed`, `Health`, `MaxHealth`, `AutoHeal` + `HealthRegen` (health per second) and `EmotesEnabled`. Change them on the server.
 
 Sprinting (Shift on a computer, the run button on a phone) uses up stamina, shown as a bar under health. `CanSprint = false` turns sprinting off. `MaxStamina` is how much there is (0 = endless, and the bar hides), `StaminaDrain` how much a second of sprinting costs and `StaminaRegen` how much comes back each second after a short rest. Set them on StarterPlayer for everyone, or on one Humanoid:
 
@@ -125,7 +125,16 @@ humanoid.Traction = 12      -- fast, but turns on the spot
 ```lua
 humanoid.Bhop = true
 humanoid.BhopMaxSpeed = 40
-``` `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
+```
+
+Characters walk up small ledges without jumping, like stairs. `StepHeight` is how high a ledge can be (0.65 studs by default; 0 turns it off), `StepSpeed` how quickly it goes: at 1 there's a short pause between steps, at 2 or more a staircase is walked up in one go. The anti-cheat knows both, so high steps aren't taken for flying.
+
+```lua
+humanoid.StepHeight = 1.5   -- big blocky stairs
+humanoid.StepSpeed = 3      -- straight up them, no stops
+```
+
+`humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
 
 Defaults for every new character come from **StarterPlayer**: the same humanoid settings plus `RespawnTime`, `ChatEnabled`, `CameraMode` (`Classic` or `LockFirstPerson`) and `CameraMaxZoom`.
 

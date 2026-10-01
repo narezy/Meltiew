@@ -65,6 +65,8 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | StaminaRegen | number | 15 | min 0 |
 | JumpPower | number | 8.2 | min 0 |
 | CanJump | bool | true |  |
+| StepHeight | number | 0.65 | min 0, max 6 |
+| StepSpeed | number | 1 | min 0.2, max 10 |
 | AutoHeal | bool | true |  |
 | HealthRegen | number | 1 | min 0 |
 | EmotesEnabled | bool | true |  |
@@ -210,6 +212,8 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | StaminaRegen | number | 15 | min 0 |
 | JumpPower | number | 8.2 | min 0, max 60 |
 | CanJump | bool | true |  |
+| StepHeight | number | 0.65 | min 0, max 6 |
+| StepSpeed | number | 1 | min 0.2, max 10 |
 | MaxHealth | number | 100 | min 1, max 100000 |
 | AutoHeal | bool | true |  |
 | HealthRegen | number | 1 | min 0 |
