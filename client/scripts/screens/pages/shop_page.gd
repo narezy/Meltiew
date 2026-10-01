@@ -12,6 +12,8 @@ var _look_clothes: Array = []  # clothing ids being tried on, bottom to top
 var _grid: GridContainer
 var _tab_buttons := {}
 var _wear: Button
+var _cols := 2
+var _grid_empty := false  # a message instead of cards: one full-width column
 
 
 func _ready() -> void:
@@ -84,7 +86,9 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 10)
 	sc.add_child(_grid)
 	# As many columns as fit; the cards stretch to fill the row.
-	sc.resized.connect(func(): _grid.columns = maxi(2, int((sc.size.x - 14.0) / 150.0)))
+	sc.resized.connect(func():
+		_cols = maxi(2, int((sc.size.x - 14.0) / 150.0))
+		_grid.columns = 1 if _grid_empty else _cols)
 
 	_preview()
 	_load()
@@ -134,9 +138,12 @@ func _draw() -> void:
 		c.queue_free()
 	for it in _items[_tab]:
 		_grid.add_child(_cloth_card(it) if _tab == "clothing" else _card(_tab, it))
-	if _tab == "clothing" and _items.clothing.is_empty():
+	_grid_empty = _tab == "clothing" and _items.clothing.is_empty()
+	_grid.columns = 1 if _grid_empty else _cols
+	if _grid_empty:
 		var empty := UI.label(L.t("clothing_empty"), 16, UI.MUTED)
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_grid.add_child(empty)
 	_update_wear()
 

@@ -1162,7 +1162,9 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
       url.pathname === '/api/health' ||
       url.pathname.startsWith('/api/avatar/') ||
       url.pathname.startsWith('/api/assets/') ||
-      url.pathname.startsWith('/api/media/');
+      url.pathname.startsWith('/api/media/') ||
+      // Pictures the app loads with a bare request (AssetCache): clothing, passes, badges.
+      (req.method === 'GET' && /^\/api\/(clothing|passes|badges)\/[^/]+\/image$/.test(url.pathname));
     if (!ungated && !gate.allowsHttp(req.headers['x-client'], req.headers['x-client-version'], req.headers['user-agent'])) {
       return send(426, {
         error: 'update_required',
