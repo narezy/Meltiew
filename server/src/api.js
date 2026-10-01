@@ -12,8 +12,10 @@ import { createBadges } from './badges.js';
 import { createAnimations } from './animations.js';
 import { createCommunities } from './communities.js';
 import path from 'node:path';
-import { mailConfigured, normalizeEmail, newCode, hashCode, sendCode } from './mail.js';
+import os from 'node:os';
+import { mailConfigured, normalizeEmail, newCode, hashCode, sendCode, sendMail } from './mail.js';
 import { createGiveaways } from './giveaways.js';
+import { createSupport } from './support.js';
 import { createClothing } from './clothing.js';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -82,7 +84,7 @@ export function clientIp(req) {
   return fwd || req.socket.remoteAddress || '?';
 }
 
-export function createApi({ db, hub, renderDir, store, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
+export function createApi({ db, hub, renderDir, store, supportDir, owner = process.env.MELTIEW_OWNER || 'nrz' }) {
   fs.mkdirSync(renderDir, { recursive: true });
   const gate = createVersionGate(db);
   const launches = new Map(); // userId -> { server, game, at }
@@ -425,6 +427,25 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     }
   }, 5000);
   giveawayTimer.unref?.();
+  // Support tickets and letters to support@ (support.js); Postfix drops letters off in
+  // <supportDir>/in, picked up every few seconds.
+  const support = createSupport({
+    db,
+    dir: supportDir || path.join(os.tmpdir(), `meltiew-support-${process.pid}`),
+    HttpError, bad, cleanText, requireAuth, requireStaff, authenticate, writeLimiter,
+    sendMail: (m) => sendMail(m),
+    mailOn: () => mailConfigured(),
+    address: process.env.MELTIEW_SUPPORT_ADDRESS || 'support@narez.xyz',
+    log: (m) => console.log(new Date().toISOString(), m),
+  });
+  const supportTimer = setInterval(() => {
+    try {
+      support.pickUp();
+    } catch (err) {
+      console.error('support pick-up failed:', err);
+    }
+  }, 5000);
+  supportTimer.unref?.();
   let clothing = null; // made below, after communities
   const communities = createCommunities({ db, economy, HttpError, bad, cleanText, requireAuth, writeLimiter, authorCard, placeView, canSee: (p, u) => store.canSee(p, u, isFriend) });
   clothing = createClothing({ db, economy, communities, HttpError, bad, cleanText, requireAuth, writeLimiter, mediaDir: store.mediaDir, authorCard, log: (m) => console.log(new Date().toISOString(), m) });
@@ -940,6 +961,8 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
         dm_unread: n('SELECT COUNT(*) AS n FROM messages m WHERE m.to_id = ? AND m.read = 0 AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.user_id = ? AND b.blocked_id = m.from_id)', user.id, user.id),
         dm_requests: n("SELECT COUNT(*) AS n FROM dm_requests WHERE to_id = ? AND status = 'pending'", user.id),
         friend_requests: n("SELECT COUNT(*) AS n FROM friendships WHERE to_id = ? AND status = 'pending'", user.id),
+        // The admin panel's badge: support requests waiting for an answer.
+        ...(user.role === 'owner' || user.role === 'admin' ? { support_open: support.openCount() } : {}),
       };
     },
 
@@ -1123,6 +1146,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
     animations.routes,
     communities.routes,
     giveaways.routes,
+    support.routes,
     clothing.routes,
     createStudioRoutes({ db, hub, store, communities, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang }),
   );
@@ -1188,7 +1212,7 @@ export function createApi({ db, hub, renderDir, store, owner = process.env.MELTI
         const body = req.method === 'GET' ? {} : await readJson(req, limit);
         const out = await r.handler(req, body, url, params);
         if (out && out.__raw) {
-          res.writeHead(200, { 'content-type': out.__raw.type, 'cache-control': out.__raw.cache, 'access-control-allow-origin': '*' });
+          res.writeHead(200, { 'content-type': out.__raw.type, 'cache-control': out.__raw.cache, 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff', ...out.__raw.headers });
           return res.end(out.__raw.body);
         }
         if (out && out.__redirect) {

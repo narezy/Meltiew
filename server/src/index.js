@@ -72,6 +72,8 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
   // Studio place files, covers and uploaded images live next to the database.
   const studioDir = dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-studio-${process.pid}`) : path.join(path.dirname(dbFile), 'studio');
   const store = new PlaceStore(db, studioDir);
+  // Support letters and their attachments (private: never served as media).
+  const supportDir = dbFile === ':memory:' ? path.join(os.tmpdir(), `meltiew-support-${process.pid}`) : path.join(path.dirname(dbFile), 'support');
   const placeRow = db.prepare("SELECT * FROM places WHERE id = ? AND kind = 'studio' AND deleted = 0");
   let api;
   let datastore;
@@ -95,7 +97,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
       },
     },
   });
-  api = createApi({ db, hub, renderDir: renders, store, owner });
+  api = createApi({ db, hub, renderDir: renders, store, supportDir, owner });
   datastore = createDataStore(db);
   hub.economy = api.economy;
   hub.badges = api.badges;

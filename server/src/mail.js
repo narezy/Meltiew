@@ -1,4 +1,4 @@
-// Email: sign-up codes. A tiny SMTP client. Two setups, from the service's env:
+// Email: sign-up codes and support answers. A tiny SMTP client. Two setups, from the service's env:
 //   our own Postfix on this machine (it signs with DKIM for narez.xyz):
 //     MELTIEW_SMTP_HOST=127.0.0.1 MELTIEW_SMTP_PORT=25 MELTIEW_MAIL_FROM=noreply@narez.xyz
 //   or a provider over implicit TLS with a login (port 465):
@@ -115,18 +115,26 @@ function body(text, html) {
   return [`Content-Type: multipart/alternative; boundary="${edge}"`, '', `--${edge}`, ...part('text/plain', text), `--${edge}`, ...part('text/html', html), `--${edge}--`];
 }
 
-/** One email over SMTP (plain text, and HTML when given); resolves when it's accepted. */
-export function sendMail({ to, subject, text, html }, env = process.env) {
+// A display name as a header allows it: plain if it's ASCII, encoded otherwise.
+const headerName = (s) => (/^[\x20-\x7e]*$/.test(s) ? `"${s.replace(/["\\]/g, '')}"` : `=?UTF-8?B?${b64(s)}?=`);
+
+/**
+ * One email over SMTP (plain text, and HTML when given); resolves when it's accepted.
+ * Sent as the service's address unless `from` is given (support answers as support@);
+ * `headers` are extra lines, like In-Reply-To.
+ */
+export function sendMail({ to, subject, text, html, from: fromAddr, name = 'Meltiew', messageId, headers = [] }, env = process.env) {
   const host = env.MELTIEW_SMTP_HOST;
   const port = Number(env.MELTIEW_SMTP_PORT) || 465;
   const user = env.MELTIEW_SMTP_USER;
-  const from = env.MELTIEW_MAIL_FROM || user;
+  const from = fromAddr || env.MELTIEW_MAIL_FROM || user;
   const message = [
-    `From: Meltiew <${from}>`,
+    `From: ${headerName(name)} <${from}>`,
     `To: <${to}>`,
     `Subject: =?UTF-8?B?${b64(subject)}?=`,
     `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <${crypto.randomUUID()}@${from.split('@')[1] || 'meltiew'}>`,
+    `Message-ID: ${messageId || `<${crypto.randomUUID()}@${from.split('@')[1] || 'meltiew'}>`}`,
+    ...headers.filter((h) => /^[\x20-\x7e]+$/.test(h)),
     'MIME-Version: 1.0',
     ...body(text, html),
   ].join('\r\n');

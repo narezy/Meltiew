@@ -366,6 +366,7 @@ async function pollCounts() {
     counts.friends = n.friend_requests;
     counts.messages = n.dm_unread + n.dm_requests;
     counts.social = counts.friends + counts.messages;
+    counts.support = n.support_open || 0;
     paintBadges();
   } catch {}
 }
@@ -379,7 +380,8 @@ function renderNav(path) {
     : href === '/studio' ? path.startsWith('/studio') || path.startsWith('/docs')
     : href === '/communities' ? path.startsWith('/communities') || path.startsWith('/c/')
     : href === '/shop' ? path.startsWith('/shop') || path.startsWith('/wallet') || path.startsWith('/quests') : path.startsWith(href));
-  const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>' : '');
+  const count = (key) => (key === 'friends' ? '<b class="count" data-count="social" hidden></b>'
+    : key === 'admin_panel' ? '<b class="count" data-count="support" hidden></b>' : '');
   $('#nav').innerHTML = `
     <a class="brand" href="/" data-link><img src="/img/logo.svg" alt=""><span>meltiew</span></a>
     <div class="nav-links">${links.map(([href, key]) => `<a href="${href}" data-link class="${on(href) ? 'on' : ''}">${t(key)}${count(key)}</a>`).join('')}</div>
@@ -1949,7 +1951,7 @@ async function adminPage(root) {
   const owner = state.me.role === 'owner';
   let tab = sessionStorage.getItem('admin_tab') || 'overview';
   root.innerHTML = `<h1>${t('admin_panel')}</h1>
-    <div class="tabs">${['overview', 'reports', 'users', 'servers', 'places_admin', 'adm_economy', 'adm_tickets'].map((k) => `<button data-tab="${k}">${t(k)}</button>`).join('')}</div>
+    <div class="tabs">${['overview', 'reports', 'users', 'servers', 'places_admin', 'adm_economy', 'adm_tickets'].map((k) => `<button data-tab="${k}">${t(k)}${k === 'adm_tickets' ? ' <b class="count" data-count="support" hidden></b>' : ''}</button>`).join('')}</div>
     <div id="admin" class="stack" style="margin-top:18px"></div>`;
   const box = $('#admin');
   const tabs = root.querySelectorAll('[data-tab]');

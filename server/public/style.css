@@ -489,3 +489,9 @@ b.mint { color: var(--mint); }
   background-repeat: no-repeat; background-size: 683px 512px; background-position: -61px -61px;
   background-color: #2a2340; image-rendering: auto; }
 .assets .asset audio { width: 100%; }
+
+/* Admin support inbox */
+.ticket-row { width: 100%; text-align: left; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.ticket-row.open { box-shadow: inset 4px 0 0 var(--accent); }
+.ticket-row:hover { filter: brightness(1.08); }
+.ticket-snip { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }

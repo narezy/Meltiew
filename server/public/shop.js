@@ -48,6 +48,13 @@ const SHOP_T = {
     adm_legal: 'Legal details (shown on the Terms, Privacy and Support pages)', adm_operator: 'Operator (name or company)',
     adm_inn: 'INN (if any)', adm_email: 'Support email', adm_tg: 'Support Telegram (@username)', adm_payments: 'Payments',
     adm_total: '{0} paid, {1} ₽', adm_reply: 'Reply', adm_close: 'Reply and close', adm_no_tickets: 'No requests',
+    adm_mail_hint: 'Requests from the site and letters to {0}.', adm_by_mail: 'email', adm_emailed: 'sent by email',
+    adm_reply_mail: 'The answer goes by email to {0}.', adm_reply_site: 'No email: the answer shows on their Support page.',
+    adm_reply_nowhere: 'No account and no email: they won\'t see the answer.', adm_send: 'Reply and close',
+    adm_close_only: 'Close without answering', adm_reopen: 'Open again', adm_spam: 'Spam',
+    adm_spam_q: 'Block {0} and delete this request? Letters from that address won\'t come in any more.',
+    adm_delete_q: 'Delete this request and its files?', adm_sent_mail: 'Sent by email',
+    adm_mail_failed: 'Saved, but the email didn\'t go out: {0}',
   },
   ru: {
     shop: 'Магазин', wallet: 'Кусочки', quests: 'Задания', pieces: 'Кусочки', orbs: 'Опыт',
@@ -87,6 +94,13 @@ const SHOP_T = {
     adm_legal: 'Реквизиты (видны на страницах соглашения, политики и поддержки)', adm_operator: 'Оператор (ФИО или организация)',
     adm_inn: 'ИНН (если есть)', adm_email: 'Почта поддержки', adm_tg: 'Telegram поддержки (@username)', adm_payments: 'Платежи',
     adm_total: 'Оплачено {0}, {1} ₽', adm_reply: 'Ответить', adm_close: 'Ответить и закрыть', adm_no_tickets: 'Обращений нет',
+    adm_mail_hint: 'Обращения с сайта и письма на {0}.', adm_by_mail: 'почта', adm_emailed: 'ушло на почту',
+    adm_reply_mail: 'Ответ уйдёт на почту {0}.', adm_reply_site: 'Почты нет: ответ появится у человека на странице поддержки.',
+    adm_reply_nowhere: 'Ни аккаунта, ни почты: человек ответ не увидит.', adm_send: 'Ответить и закрыть',
+    adm_close_only: 'Закрыть без ответа', adm_reopen: 'Открыть снова', adm_spam: 'Спам',
+    adm_spam_q: 'Заблокировать {0} и удалить обращение? Письма с этого адреса больше не будут приходить.',
+    adm_delete_q: 'Удалить обращение вместе с файлами?', adm_sent_mail: 'Отправлено на почту',
+    adm_mail_failed: 'Сохранено, но письмо не ушло: {0}',
   },
 };
 
@@ -518,19 +532,95 @@ async function adminEconomy(box) {
   });
 }
 
+// Support inbox: requests from the site and letters to support@, each a conversation.
+// Answers go out by email when there's an address; files open through the API (they
+// need the staff login, so they're fetched and shown from memory).
+async function apiBlob(path) {
+  const res = await fetch(path, { headers: { 'x-client': 'web', ...(state.token ? { authorization: 'Bearer ' + state.token } : {}) } });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.blob();
+}
+
+const fileSize = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+
+// Quoted history ("> ...") dimmed, the rest as is.
+const letterHtml = (body) => esc(body).split('\n').map((l) => (l.startsWith('&gt;') ? `<span class="muted">${l}</span>` : l)).join('\n');
+
 async function adminTickets(box) {
-  const { tickets } = await api('GET', '/api/admin/tickets');
-  box.innerHTML = tickets.length ? tickets.map((k) => `<form class="card stack" data-ticket="${k.id}">
-    <div class="row"><b class="grow">${esc(k.subject)}</b><span class="pill">${esc(k.status)}</span></div>
-    <span class="muted">${esc(k.username || '—')}${k.contact ? ' · ' + esc(k.contact) : ''} · ${esc(ago(k.created_at))}</span>
-    <p style="white-space:pre-line;margin:0">${esc(k.body)}</p>
-    <textarea name="reply" rows="3" placeholder="${t('adm_reply')}">${esc(k.reply || '')}</textarea>
-    <button class="btn small">${t('adm_close')}</button></form>`).join('') : `<div class="empty">${t('adm_no_tickets')}</div>`;
-  box.querySelectorAll('[data-ticket]').forEach((f) => f.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try { await api('POST', `/api/admin/tickets/${f.dataset.ticket}`, { reply: f.reply.value, status: 'closed' }); toast(t('saved')); adminTickets(box); }
-    catch (err) { toast(err.message, 'error'); }
+  const { tickets, address } = await api('GET', '/api/admin/tickets');
+  const who = (k) => esc(k.name || k.username || k.contact || '—');
+  box.innerHTML = `<span class="muted">${t('adm_mail_hint', address)}</span>
+    ${tickets.length ? tickets.map((k) => `<button class="card stack ticket-row ${k.status === 'open' ? 'open' : ''}" data-open="${k.id}">
+      <div class="row" style="gap:8px"><b class="grow">${esc(k.subject)}</b>
+        ${k.source === 'email' ? `<span class="pill">✉ ${t('adm_by_mail')}</span>` : ''}
+        <span class="pill">${t(k.status === 'open' ? 'ticket_open' : 'ticket_closed')}</span></div>
+      <span class="muted">${who(k)}${k.mail_to && k.mail_to !== k.name ? ' · ' + esc(k.mail_to) : ''} · ${esc(ago(k.updated_at))}</span>
+      <span class="muted ticket-snip">${esc(k.last || '')}</span></button>`).join('') : `<div class="empty">${t('adm_no_tickets')}</div>`}`;
+  box.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => adminTicket(box, b.dataset.open)));
+}
+
+async function adminTicket(box, id) {
+  const { ticket: k, messages } = await api('GET', `/api/admin/tickets/${id}`);
+  const person = esc(k.name || k.username || k.contact || '—');
+  const open = k.status === 'open';
+  box.innerHTML = `<div class="row"><button class="btn small ghost" id="tk-back">${t('back')}</button></div>
+    <div class="card stack"><div class="row" style="gap:8px;flex-wrap:wrap"><h3 class="grow" style="margin:0">${esc(k.subject)}</h3>
+      <span class="pill">${t(open ? 'ticket_open' : 'ticket_closed')}</span></div>
+      <span class="muted">${person}${k.username ? ` · <a href="/u/${encodeURIComponent(k.username)}" data-link>@${esc(k.username)}</a>` : ''}${k.mail_to ? ' · ' + esc(k.mail_to) : ''}${k.contact && k.contact !== k.mail_to ? ' · ' + esc(k.contact) : ''}</span></div>
+    ${messages.map((m) => `<div class="card stack ${m.dir === 'out' ? 'reply' : ''}">
+      <span class="muted" style="font-size:14px">${m.dir === 'out' ? esc(m.author || 'Meltiew') : person} · ${esc(ago(m.created_at))}${m.emailed ? ' · ✉ ' + t('adm_emailed') : ''}</span>
+      <div style="white-space:pre-wrap;overflow-wrap:anywhere">${letterHtml(m.body)}</div>
+      ${m.files.length ? `<div class="row" style="flex-wrap:wrap;gap:8px">${m.files.map((f) => `<button class="btn small ghost" data-file="${m.id}/${f.n}" data-name="${esc(f.name)}">📎 ${esc(f.name)} <span class="muted">${fileSize(f.size)}</span></button>`).join('')}</div>
+        <div class="row" style="flex-wrap:wrap;gap:8px">${m.files.filter((f) => f.image).map((f) => `<img data-img="${m.id}/${f.n}" alt="${esc(f.name)}" style="max-width:min(100%,360px);max-height:360px;border-radius:12px;display:none">`).join('')}</div>` : ''}</div>`).join('')}
+    <form class="card stack" id="tk-form">
+      <textarea name="reply" rows="5" maxlength="8000" placeholder="${t('adm_reply')}"></textarea>
+      <span class="muted" style="font-size:14px">${k.mail_to ? t('adm_reply_mail', esc(k.mail_to)) : k.user_id ? t('adm_reply_site') : t('adm_reply_nowhere')}</span>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <button class="btn">${t('adm_send')}</button>
+        <button type="button" class="btn ghost" id="tk-status">${t(open ? 'adm_close_only' : 'adm_reopen')}</button>
+        <span class="grow"></span>
+        ${k.mail_to ? `<button type="button" class="btn ghost" id="tk-spam">${t('adm_spam')}</button>` : ''}
+        <button type="button" class="btn danger" id="tk-del">${t('delete')}</button></div></form>`;
+  const back = () => adminTickets(box);
+  $('#tk-back').addEventListener('click', back);
+  // Pictures show under their letter; other files download.
+  box.querySelectorAll('[data-img]').forEach(async (img) => {
+    const [mid, n] = img.dataset.img.split('/');
+    try { img.src = URL.createObjectURL(await apiBlob(`/api/admin/tickets/${k.id}/files/${mid}/${n}`)); img.style.display = ''; } catch {}
+  });
+  box.querySelectorAll('[data-file]').forEach((b) => b.addEventListener('click', async () => {
+    try {
+      const url = URL.createObjectURL(await apiBlob(`/api/admin/tickets/${k.id}/files/${b.dataset.file}`));
+      const a = Object.assign(document.createElement('a'), { href: url, download: b.dataset.name });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) { toast(e.message, 'error'); }
   }));
+  $('#tk-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const reply = e.target.reply.value.trim();
+    if (!reply) return;
+    const btn = e.submitter;
+    if (btn) btn.disabled = true;
+    try {
+      const r = await api('POST', `/api/admin/tickets/${k.id}`, { reply, status: 'closed' });
+      if (r.mail_error) toast(t('adm_mail_failed', r.mail_error), 'error');
+      else toast(r.emailed ? t('adm_sent_mail') : t('saved'));
+      pollCounts();
+      adminTicket(box, k.id);
+    } catch (err) { toast(err.message, 'error'); if (btn) btn.disabled = false; }
+  });
+  $('#tk-status').addEventListener('click', async () => {
+    try { await api('POST', `/api/admin/tickets/${k.id}`, { status: open ? 'closed' : 'open' }); pollCounts(); back(); } catch (e) { toast(e.message, 'error'); }
+  });
+  $('#tk-spam')?.addEventListener('click', async () => {
+    if (!confirm(t('adm_spam_q', k.mail_to))) return;
+    try { await api('POST', `/api/admin/tickets/${k.id}/spam`); toast(t('done')); pollCounts(); back(); } catch (e) { toast(e.message, 'error'); }
+  });
+  $('#tk-del').addEventListener('click', async () => {
+    if (!confirm(t('adm_delete_q'))) return;
+    try { await api('DELETE', `/api/admin/tickets/${k.id}`); pollCounts(); back(); } catch (e) { toast(e.message, 'error'); }
+  });
 }
 
 // --- legal pages -------------------------------------------------------------------------

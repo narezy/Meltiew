@@ -1,6 +1,6 @@
 // Meltiew economy: pieces (bought with money), orbs (earned by playing), the item
 // shop, daily quests, gamepasses in places, payments through RollyPay, the legal
-// pages' details and support tickets.
+// pages' details (support tickets: support.js).
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -97,12 +97,6 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
     payTotals: db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(CAST(amount AS REAL)), 0) AS rub FROM payments WHERE status = 'paid'"),
     config: db.prepare('SELECT value FROM config WHERE key = ?'),
     setConfig: db.prepare('INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
-    ticketInsert: db.prepare('INSERT INTO tickets (user_id, contact, subject, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
-    ticketsMine: db.prepare('SELECT * FROM tickets WHERE user_id = ? ORDER BY id DESC LIMIT 30'),
-    ticketsAll: db.prepare("SELECT t.*, u.username FROM tickets t LEFT JOIN users u ON u.id = t.user_id ORDER BY (t.status = 'open') DESC, t.id DESC LIMIT 200"),
-    ticket: db.prepare('SELECT * FROM tickets WHERE id = ?'),
-    ticketReply: db.prepare('UPDATE tickets SET reply = ?, status = ?, updated_at = ? WHERE id = ?'),
-    ticketsOpenBy: db.prepare("SELECT COUNT(*) AS n FROM tickets WHERE user_id = ? AND status = 'open'"),
     place: db.prepare('SELECT * FROM places WHERE id = ? AND deleted = 0'),
     communityLive: db.prepare('SELECT id FROM communities WHERE id = ? AND deleted = 0'),
     bankAdd: db.prepare('UPDATE communities SET bank = bank + ? WHERE id = ?'),
@@ -527,43 +521,10 @@ export function createEconomy({ db, hub, mediaDir, HttpError, bad, cleanText, re
       return { pass: passView(pass, user.id), wallet: wallet(user.id) };
     },
 
-    // Legal pages and support
+    // Legal pages
     'GET /api/legal': () => legal(),
 
-    'POST /api/support': (req, body) => {
-      const auth = authenticate(req);
-      const key = 'ticket:' + (auth ? auth.user.id : req.socket.remoteAddress);
-      if (!writeLimiter.allow(key) || !writeLimiter.allow(key + ':2')) throw new HttpError(429, 'slow_down');
-      if (auth && q.ticketsOpenBy.get(auth.user.id).n >= 5) throw bad('too_many_tickets');
-      const subject = cleanText(body.subject, 120);
-      const text = String(body.body ?? '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 4000);
-      const contact = cleanText(body.contact, 120);
-      if (subject.length < 3 || text.length < 5) throw bad('ticket_short');
-      if (!auth && contact.length < 3) throw bad('ticket_contact');
-      const now = Date.now();
-      q.ticketInsert.run(auth ? auth.user.id : null, contact, subject, text, 'open', now, now);
-      return { ok: true };
-    },
-
-    'GET /api/support': (req) => {
-      const { user } = requireAuth(req);
-      return { tickets: q.ticketsMine.all(user.id) };
-    },
-
     // Admin
-    'GET /api/admin/tickets': (req) => {
-      requireStaff(req);
-      return { tickets: q.ticketsAll.all() };
-    },
-
-    'POST /api/admin/tickets/:id': (req, body, _u, params) => {
-      requireStaff(req);
-      const t = q.ticket.get(Number(params.id));
-      if (!t) throw new HttpError(404, 'not_found');
-      q.ticketReply.run(String(body.reply ?? t.reply ?? '').slice(0, 4000), body.status === 'open' ? 'open' : 'closed', Date.now(), t.id);
-      return { ticket: q.ticket.get(t.id) };
-    },
-
     'GET /api/admin/payments': (req) => {
       const { user } = requireStaff(req);
       const c = payConfig();
