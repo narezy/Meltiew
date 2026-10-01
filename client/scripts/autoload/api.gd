@@ -3,6 +3,9 @@ extends Node
 ## Usage: var r := await Api.request("GET", "/api/me"); if r.ok: ...
 
 const DEFAULT_URL := "https://meltiew.narez.xyz"
+## The same site on a spare port. A provider that cuts the server off usually cuts
+## port 443 to its address and leaves the rest alone, so this is the way back in.
+const SPARE_URL := "https://meltiew.narez.xyz:8443"
 const TIMEOUT_SEC := 12.0
 
 signal unauthorized
@@ -11,6 +14,8 @@ signal update_required(message: String, url: String)
 
 ## Override with `-- --server=http://127.0.0.1:7350` for local testing.
 var BASE_URL := DEFAULT_URL
+## Whether the spare port has already been tried for the request in hand.
+var _spare_tried := false
 
 
 func _ready() -> void:
@@ -53,6 +58,16 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var code: int = res[1]
 	var raw: PackedByteArray = res[3]
 	if result != HTTPRequest.RESULT_SUCCESS:
+		# Nothing came back at all. If this is the usual address, the spare port is
+		# worth one try before telling anyone the network is down.
+		if BASE_URL == DEFAULT_URL and not _spare_tried:
+			_spare_tried = true
+			BASE_URL = SPARE_URL
+			var again: Dictionary = await request(method, path, body)
+			if not again.ok and again.get("error", "") == "network":
+				BASE_URL = DEFAULT_URL  # the spare is no better: back to the usual one
+				_spare_tried = false
+			return again
 		return _fail(0, "network", L.t("err_network"))
 	var data: Variant = JSON.parse_string(raw.get_string_from_utf8())
 	if typeof(data) != TYPE_DICTIONARY:
