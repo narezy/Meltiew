@@ -85,6 +85,7 @@ func _drive() -> void:
 	VR.hands.left.stick("primary", Vector2(0, 1))
 	await get_tree().create_timer(1.0).timeout
 	VR.hands.left.stick("primary", Vector2.ZERO)
+	print("eyes %.2f above the feet (want %.2f)" % [VR.camera.global_position.y - game.player.global_position.y, LocalPlayer.EYE_HEIGHT])
 	print("walked %.1f studs; head over the feet: %.2f" % [game.player.global_position.distance_to(p0),
 		Vector2(VR.camera.global_position.x - game.player.global_position.x, VR.camera.global_position.z - game.player.global_position.z).length()])
 	# Turn with the right stick.
@@ -97,8 +98,8 @@ func _drive() -> void:
 	# Hide the panel (Y) and reach out with both hands.
 	VR.hands.left.press("by_button", true)
 	VR.hands.left.press("by_button", false)
-	VR.hands.left.position = VR.camera.position + Vector3(-0.3, -0.1, -0.5)
-	VR.hands.right.position = VR.camera.position + Vector3(0.3, 0.4, -0.3)
+	VR.hands.left.position = VR.camera.position + Vector3(-0.3, -0.35, -0.45)
+	VR.hands.right.position = VR.camera.position + Vector3(0.35, -0.5, -0.2)
 	await get_tree().create_timer(0.5).timeout
 	await _shot("4_hands")
 	get_tree().quit()

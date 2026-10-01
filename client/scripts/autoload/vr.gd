@@ -49,6 +49,13 @@ var _game: Node
 var _yaw := 0.0  # turning with the stick, on top of the headset's own
 var _turned := false
 var _menu_env: Environment
+## Added to the headset's height so the eyes are at the character's eyes: runtimes without
+## a floor (WiVRn, seated) put the head at 0. Set on entering the game and on recentering.
+var _lift := 0.0
+var _last_head := Vector3.INF
+var _world_wait := 0.0
+var _world_hit: Variant = null  # where the pointing hand meets the world (VR mouse)
+var _calibrate_in := -1.0
 
 
 func _ready() -> void:
@@ -124,7 +131,7 @@ func _start() -> void:
 	vp.add_child(origin)
 	camera = Camera3D.new() if sim else XRCamera3D.new()
 	if sim:
-		camera.position = Vector3(0, 1.6, 0)
+		camera.position = Vector3(0, 0.1, 0)  # like WiVRn: no floor, the head near 0
 	camera.near = 0.05
 	camera.far = 600.0
 	origin.add_child(camera)
@@ -139,7 +146,7 @@ func _start() -> void:
 		var c: Node3D
 		if sim:
 			c = SimHand.new()
-			c.position = Vector3(-0.25 if side == "left" else 0.25, 1.2, -0.3)
+			c.position = Vector3(-0.25 if side == "left" else 0.25, -0.3, -0.3)
 		else:
 			var xc := XRController3D.new()
 			xc.tracker = side + "_hand"
@@ -154,6 +161,9 @@ func _start() -> void:
 	_make_panel()
 	_make_laser()
 	_place_panel.call_deferred(true)
+	# Holding the headset's recenter button: the height is measured again too.
+	if xr and xr.has_signal("pose_recentered"):
+		xr.connect("pose_recentered", func(): _calibrate_in = 0.3)
 
 
 func _make_panel() -> void:
@@ -228,7 +238,12 @@ func _update_panel() -> void:
 		q.size = want
 	if not panel_shown:
 		return
-	# In the game it drifts after where you look (unless you're pointing at it).
+	# In the game it comes along as you walk (same distance from your head)...
+	var head := camera.global_position
+	if _game and _last_head != Vector3.INF:
+		panel.global_position += head - _last_head
+	_last_head = head
+	# ...and drifts after where you look (unless you're pointing at it).
 	if _game and not _pointing:
 		var to_panel := panel.global_position - camera.global_position
 		to_panel.y = 0.0
@@ -242,7 +257,7 @@ func _update_panel() -> void:
 func _update_pointer() -> void:
 	_pointing = false
 	var hand = hands.get(_pointer)
-	if hand == null or not panel_shown or not hand.get_has_tracking_data():
+	if hand == null or not hand.get_has_tracking_data() or (not panel_shown and _game == null):
 		_laser.visible = false
 		_dot.visible = false
 		return
@@ -252,7 +267,7 @@ func _update_pointer() -> void:
 	var denom: float = dir.dot(n)
 	var hit := Vector3.ZERO
 	var size := (panel.mesh as QuadMesh).size
-	if absf(denom) > 0.0001:
+	if absf(denom) > 0.0001 and panel_shown:
 		var t: float = (panel.global_position - from).dot(n) / denom
 		if t > 0.0:
 			hit = from + dir * t
@@ -268,13 +283,15 @@ func _update_pointer() -> void:
 					m.global_position = px
 					m.button_mask = MOUSE_BUTTON_MASK_LEFT if _clicking else 0
 					get_tree().root.push_input(m, true)
-	var length: float = from.distance_to(hit) if _pointing else 0.6
+	var length: float = from.distance_to(hit) if _pointing else (from.distance_to(_world_hit) if _world_hit is Vector3 else 0.6)
 	_laser.visible = true
 	_laser.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD), from + dir * length / 2.0)
 	_laser.scale = Vector3(1, 1, length)
-	_dot.visible = _pointing
+	_dot.visible = _pointing or _world_hit is Vector3
 	if _pointing:
 		_dot.global_position = hit
+	elif _world_hit is Vector3:
+		_dot.global_position = _world_hit
 
 
 ## (Positions are the app's own screen coordinates: push_input(..., true), whatever the
@@ -347,8 +364,12 @@ func _game_button(name: String, side: String, down: bool) -> void:
 		["left", "primary_click"]:
 			if down:
 				p.sprint_toggle = not p.sprint_toggle
-		["right", "trigger_click"]:
-			_game.hud.tool_used.emit(down)
+		["right", "trigger_click"], ["left", "trigger_click"]:
+			# The trigger into the world: a click where the hand points (and the tool).
+			if side == _pointer or down:
+				_pointer = side
+				var hand = hands[side]
+				_game.vr_click(down, hand.global_position, -(hand.global_basis.z as Vector3).normalized())
 		["right", "by_button"]:
 			if down and _game.hud.wheel:
 				_game.hud.wheel.open()
@@ -367,8 +388,8 @@ func _on_stick(name: String, value: Vector2, side: String) -> void:
 	var host: Node = _game.get("place_host") if _game else null
 	if host:
 		host.pad_axis("Thumbstick1" if side == "left" else "Thumbstick2", Vector3(value.x, value.y, 0))
-	# Pointing at the panel: the stick of that hand scrolls it.
-	if _pointing and side == _pointer:
+	# Pointing at a menu: the stick of that hand scrolls it.
+	if _pointing and side == _pointer and _menu_open():
 		return
 	if side == "right" and _game and not (host and host.is_bound("Thumbstick2")):
 		# Turning in steps (smooth turning makes many people sick).
@@ -377,6 +398,12 @@ func _on_stick(name: String, value: Vector2, side: String) -> void:
 			_turn(-TURN_STEP if value.x > 0.0 else TURN_STEP)
 		elif absf(value.x) < 0.3:
 			_turned = false
+
+
+## A menu on the panel (the main menu, the game menu): sticks scroll it instead of walking
+## and turning. The game's HUD alone doesn't count.
+func _menu_open() -> bool:
+	return _game == null or (_game.menu != null and _game.menu.visible) or (_game.hud.wheel != null and _game.hud.wheel.visible)
 
 
 ## Turns you around your own head (not around the play area's middle).
@@ -394,13 +421,21 @@ func _process(delta: float) -> void:
 	_update_pointer()
 	# The pointing hand's stick scrolls lists on the panel.
 	_scroll_wait -= delta
-	if _pointing and _scroll_wait <= 0.0:
+	if _pointing and _scroll_wait <= 0.0 and _menu_open():
 		var s: Vector2 = hands[_pointer].get_vector2("primary")
 		if absf(s.y) > 0.5:
 			_wheel(s.y > 0.0)
 			_scroll_wait = 0.12
 	if _game:
 		_drive(delta)
+		# Not on the panel: the pointing hand is the mouse in the world.
+		_world_wait -= delta
+		if not _pointing and _world_wait <= 0.0:
+			_world_wait = 0.05
+			var hand = hands[_pointer]
+			_world_hit = _game.vr_point(hand.global_position, -(hand.global_basis.z as Vector3).normalized()) if hand.get_has_tracking_data() else null
+		elif _pointing:
+			_world_hit = null
 
 
 # --- in the game ------------------------------------------------------------------------
@@ -412,11 +447,14 @@ func attach(game: Node) -> void:
 	_yaw = 0.0
 	game.player.vr = true
 	game.player.avatar.set_head_hidden(true)
+	_calibrate_in = 0.5
 	show_panel(true)
 
 
 func detach() -> void:
 	_game = null
+	_last_head = Vector3.INF
+	_world_hit = null
 	if not active:
 		return
 	camera.environment = _menu_env
@@ -432,15 +470,19 @@ func _drive(_delta: float) -> void:
 	# The floor at the character's feet, the head right over it: you walk the character,
 	# stepping around the room just turns and leans.
 	var feet: Vector3 = p.get_global_transform_interpolated().origin
+	if _calibrate_in > 0.0:
+		_calibrate_in -= _delta
+		if _calibrate_in <= 0.0:
+			_lift = LocalPlayer.EYE_HEIGHT - camera.position.y
 	var head_in_origin := origin.global_transform.basis * Vector3(camera.position.x, 0, camera.position.z)
-	origin.global_position = feet - head_in_origin
+	origin.global_position = feet - head_in_origin + Vector3(0, _lift, 0)
 	# Where you look is where the stick walks; the game's own camera sits in your head
 	# (sounds are heard from there, scripts see it as workspace.CurrentCamera).
 	var fwd := -camera.global_basis.z
 	p.cam_yaw = atan2(-fwd.x, -fwd.z)
 	p.cam_pitch = clampf(asin(clampf(fwd.y, -1.0, 1.0)), -1.4, 1.4)
 	p.vr_head = camera.global_transform
-	var stick: Vector2 = hands.left.get_vector2("primary") if not (_pointing and _pointer == "left") else Vector2.ZERO
+	var stick: Vector2 = hands.left.get_vector2("primary") if not (_pointing and _pointer == "left" and _menu_open()) else Vector2.ZERO
 	if stick.length() < 0.15:
 		stick = Vector2.ZERO
 	_strength("move_forward", maxf(stick.y, 0.0))

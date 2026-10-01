@@ -397,6 +397,7 @@ func set_head_hidden(hidden: bool) -> void:
 
 
 class VRPose extends SkeletonModifier3D:
+	const ARM_LENGTH := 2.0  # shoulder to hand in the model (skeleton space)
 	var avatar: Node3D
 	var arms := {}  # side -> bone index
 	var head := -1
@@ -423,10 +424,22 @@ class VRPose extends SkeletonModifier3D:
 			if want.length() < 0.01:
 				continue
 			# The arm hangs down in the rest pose: that's where it points from the shoulder.
-			var along := (pose.basis * (sk.get_bone_global_rest(b).basis.inverse() * Vector3.DOWN)).normalized()
+			var local := sk.get_bone_global_rest(b).basis.inverse() * Vector3.DOWN
+			var along := (pose.basis * local).normalized()
 			var turn := Quaternion(along, want.normalized())
-			var aimed := Basis(Quaternion.IDENTITY.slerp(turn, _amount[side])) * pose.basis
-			sk.set_bone_global_pose(b, Transform3D(aimed, pose.origin))
+			var aimed := Basis(Quaternion.IDENTITY.slerp(turn, _amount[side])) * pose.basis.orthonormalized()
+			# And it stretches (a little) so the hand is where the controller is.
+			var reach := clampf(want.length() / ARM_LENGTH, 0.6, 1.6)
+			var stretch := lerpf(1.0, reach, _amount[side])
+			var axis := local.abs()
+			var scale := Vector3.ONE
+			if axis.x >= axis.y and axis.x >= axis.z:
+				scale.x = stretch
+			elif axis.y >= axis.z:
+				scale.y = stretch
+			else:
+				scale.z = stretch
+			sk.set_bone_global_pose(b, Transform3D(aimed * Basis.from_scale(scale), pose.origin))
 
 	var _last := {"left": Vector3.ZERO, "right": Vector3.ZERO}
 

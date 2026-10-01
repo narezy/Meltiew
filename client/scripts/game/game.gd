@@ -636,8 +636,36 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _click_at(screen: Vector2) -> void:
 	var cam := player.camera
-	var from := cam.project_ray_origin(screen)
-	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(screen) * 120.0, PlaceScene.LAYER_WORLD | PlaceScene.LAYER_GHOST)
+	_click_ray(cam.project_ray_origin(screen), cam.project_ray_normal(screen))
+
+
+## VR: a controller pointed into the world is the mouse there (Mouse.Hit / Target for
+## scripts). Returns where it hits (or null), for drawing the laser.
+func vr_point(from: Vector3, dir: Vector3) -> Variant:
+	if place_host == null:
+		return null
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 500.0, PlaceScene.LAYER_WORLD | PlaceScene.LAYER_GHOST)
+	q.exclude = [player.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var at: Vector3 = hit.position if not hit.is_empty() else from + dir * 500.0
+	place_host.mouse_state(get_viewport().get_visible_rect().size / 2.0, from, dir, at, PlaceScene.id_of(hit.collider) if not hit.is_empty() else "")
+	return hit.position if not hit.is_empty() else null
+
+
+## VR: the trigger pointed into the world: a mouse click there (scripts, tools, ClickDetectors).
+func vr_click(down: bool, from: Vector3, dir: Vector3) -> void:
+	if place_host == null:
+		_use_tool(down)
+		return
+	vr_point(from, dir)
+	place_host.pointer_event("MouseButton1", down, get_viewport().get_visible_rect().size / 2.0)
+	_use_tool(down)
+	if not down:
+		_click_ray(from, dir)
+
+
+func _click_ray(from: Vector3, dir: Vector3) -> void:
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 120.0, PlaceScene.LAYER_WORLD | PlaceScene.LAYER_GHOST)
 	q.exclude = [player.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
@@ -732,7 +760,7 @@ func _update_mouse(screen: Vector2) -> void:
 func _tick_place(delta: float) -> void:
 	var h := place_host
 	_mouse_timer -= delta
-	if _mouse_timer <= 0.0:
+	if _mouse_timer <= 0.0 and not VR.active:  # (in VR the controller is the mouse: vr_point)
 		_mouse_timer = 0.05
 		_update_mouse(_pointer_pos(get_viewport().get_mouse_position()))
 	var cam_id := h.camera()
