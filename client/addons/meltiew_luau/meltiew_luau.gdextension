@@ -9,4 +9,5 @@ reloadable = false
 linux.x86_64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.linux.x86_64.so"
 windows.x86_64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.windows.x86_64.dll"
 android.arm64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.android.arm64.so"
+ios.arm64 = "res://addons/meltiew_luau/bin/libmeltiew_luau.ios.arm64.a"
 macos = "res://addons/meltiew_luau/bin/libmeltiew_luau.macos.dylib"

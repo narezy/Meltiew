@@ -16,3 +16,6 @@ native/.sconsign*.dblite
 
 # Apple builds from native/build_apple.py: objects and per-arch libraries
 native/build_apple/
+
+# Built by native/build_apple.py ios (48 MB, mostly godot-cpp; rebuilt, not kept)
+client/addons/meltiew_luau/bin/libmeltiew_luau.ios.arm64.a

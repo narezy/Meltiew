@@ -3,6 +3,8 @@
 libc/libc++ for macOS, no SDK needed) and llvm-lipo:
 
     python3 build_apple.py macos          # universal dylib (arm64 + x86_64)
+    IOS_SDK=/path/iPhoneOS.sdk python3 build_apple.py ios   # static library (arm64),
+        # with the system's clang and Apple's iPhoneOS SDK (from Xcode)
 
 godot-cpp's bindings must be generated first (third_party/godot-cpp/gen); scons does
 that itself, or:
@@ -24,6 +26,7 @@ BUILD = HERE / "build_apple"
 
 TARGETS = {
     "macos": [("aarch64-macos.11.0", "arm64"), ("x86_64-macos.10.13", "x86_64")],
+    "ios": [("arm64-apple-ios16.0", "ios-arm64")],
 }
 
 
@@ -48,9 +51,13 @@ def compile_one(src, obj, target):
     # (An empty object is what an interrupted run leaves: build it again.)
     if obj.exists() and obj.stat().st_size > 0 and obj.stat().st_mtime > src.stat().st_mtime:
         return None
-    cmd = ["zig", "c++", "-target", target, "-std=c++17", "-O2", "-fPIC", "-fvisibility=hidden",
-           "-DNDEBUG", "-DGDEXTENSION", "-DTHREADS_ENABLED", "-DMACOS_ENABLED", "-DUNIX_ENABLED",
-           "-c", str(src), "-o", str(obj)] + includes()
+    if "ios" in target:
+        cc = ["clang++", "-target", target, "-isysroot", os.environ["IOS_SDK"], "-stdlib=libc++", "-DIOS_ENABLED"]
+    else:
+        cc = ["zig", "c++", "-target", target, "-DMACOS_ENABLED"]
+    cmd = cc + ["-std=c++17", "-O2", "-fPIC", "-fvisibility=hidden",
+                "-DNDEBUG", "-DGDEXTENSION", "-DTHREADS_ENABLED", "-DUNIX_ENABLED",
+                "-c", str(src), "-o", str(obj)] + includes()
     r = subprocess.run(cmd, capture_output=True, text=True)
     return None if r.returncode == 0 else f"{src}: {r.stderr[-2000:]}"
 
@@ -67,6 +74,12 @@ def build_arch(target, arch):
     if errors:
         print("\n".join(errors[:5]))
         sys.exit(1)
+    if "ios" in target:
+        # iOS links extensions into the app itself: a static library.
+        lib = BUILD / arch / "libmeltiew_luau.a"
+        lib.unlink(missing_ok=True)
+        subprocess.run(["llvm-ar", "rcs", str(lib)] + [str(o) for o in objs], check=True)
+        return lib
     lib = BUILD / arch / "libmeltiew_luau.dylib"
     # dead_strip drops the godot-cpp classes nothing uses; -x the local symbols.
     cmd = ["zig", "c++", "-target", target, "-shared", "-o", str(lib)] + [str(o) for o in objs] + \
@@ -81,6 +94,11 @@ def main():
     platform = sys.argv[1] if len(sys.argv) > 1 else "macos"
     libs = [build_arch(t, a) for t, a in TARGETS[platform]]
     OUT.mkdir(parents=True, exist_ok=True)
+    if platform == "ios":
+        out = OUT / "libmeltiew_luau.ios.arm64.a"
+        out.write_bytes(libs[0].read_bytes())
+        print("built", out)
+        return
     out = OUT / "libmeltiew_luau.macos.dylib"
     subprocess.run(["llvm-lipo", "-create", *map(str, libs), "-output", str(out)], check=True)
     print("built", out)

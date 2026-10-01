@@ -5,6 +5,7 @@ const DOWNLOADS = {
   windows: DL_BASE + 'meltiew-windows.zip',
   linux: DL_BASE + 'meltiew-linux.zip',
   macos: DL_BASE + 'meltiew-macos.zip',
+  ios: DL_BASE + 'meltiew-ios.ipa',
 };
 const DOWNLOAD_URL = DOWNLOADS.android;
 const PLATFORMS = [
@@ -12,6 +13,7 @@ const PLATFORMS = [
   ['windows', 'Windows', 'ZIP · 64-bit'],
   ['linux', 'Linux', 'ZIP · x86_64'],
   ['macos', 'macOS', 'ZIP · Apple Silicon & Intel · beta'],
+  ['ios', 'iPhone / iPad', 'IPA · SideStore / AltStore · iOS 16+ · beta'],
 ];
 function myPlatform() {
   const ua = navigator.userAgent.toLowerCase();
@@ -19,6 +21,8 @@ function myPlatform() {
   if (ua.includes('windows')) return 'windows';
   // (an iPhone says "like Mac OS X" too)
   if (ua.includes('iphone') || ua.includes('ipad')) return DOWNLOADS.ios ? 'ios' : 'android';
+  // (and iPadOS says "Macintosh", but a Mac has no touch screen)
+  if (ua.includes('macintosh') && navigator.maxTouchPoints > 1) return 'ios';
   if (ua.includes('macintosh') || ua.includes('mac os x')) return 'macos';
   if (ua.includes('linux') || ua.includes('x11')) return 'linux';
   return 'android';
@@ -84,6 +88,7 @@ const T = {
     ban_reason: 'Ban reason (optional)', close_server: 'Close', no_live: 'No live servers', banned_tag: 'BANNED',
     save: 'Save', name_en: 'Name (EN)', name_ru: 'Name (RU)', desc_en: 'Description (EN)', desc_ru: 'Description (RU)',
     download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Also on', desktop_note: 'Unzip and run Meltiew. Same account, same friends.',
+    ios_note: 'iPhone and iPad: open the .ipa in SideStore or AltStore (iOS 16+, iPhone XS or newer).',
     last_seen: 'last seen {0}',
     messages: 'Messages', chats: 'Chats', dm_requests: 'Requests', no_chats: 'No chats yet. Open a profile and say hi!',
     no_dm_requests: 'No message requests', pick_chat: 'Pick a chat on the left', type_message: 'Message...',
@@ -170,6 +175,7 @@ const T = {
     ban_reason: 'Причина бана (необязательно)', close_server: 'Закрыть', no_live: 'Живых серверов нет', banned_tag: 'БАН',
     save: 'Сохранить', name_en: 'Название (EN)', name_ru: 'Название (RU)', desc_en: 'Описание (EN)', desc_ru: 'Описание (RU)',
     download_for: 'Скачать для {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
+    ios_note: 'iPhone и iPad: открой .ipa в SideStore или AltStore (iOS 16+, iPhone XS и новее).',
     last_seen: 'был(а) {0}',
     messages: 'Сообщения', chats: 'Чаты', dm_requests: 'Запросы', no_chats: 'Чатов пока нет. Открой чей-нибудь профиль и напиши!',
     no_dm_requests: 'Запросов на переписку нет', pick_chat: 'Выбери чат слева', type_message: 'Сообщение...',
@@ -441,7 +447,7 @@ const pages = {
     root.innerHTML = `<div class="hero"><div>
         <h1>${t('download_title')}</h1><p>${t('download_text')}</p>
         ${downloadButtons()}
-        <p class="muted">${t('desktop_note')}</p></div>
+        <p class="muted">${t('desktop_note')}<br>${t('ios_note')}</p></div>
         <img class="cover" src="/img/cover.png" alt=""></div>`;
   },
 
