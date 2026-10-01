@@ -6,10 +6,11 @@ extends Node3D
 ## instead of a thousand. Parts keep their own physics bodies; only drawing merges.
 
 const CELL := 32.0
-## Areas rebuilt per frame at most (the rest wait for the next frame).
-const REBUILDS_PER_FRAME := 6
+## Time per frame for rebuilding areas (at least one each frame); the rest wait. A map
+## loading in all at once then costs a few smooth frames, not one long freeze.
+const REBUILD_BUDGET_USEC := 2000
 
-var _parts := {}  # id -> {arrays, xform, color, key}
+var _parts := {}  # id -> {arrays, mesh, xform, color, key, baked: [verts, normals, colors, indices]}
 var _cells := {}  # key -> {ids: {id: true}, mi: MeshInstance3D}
 var _dirty := {}  # key -> true
 var _materials := {}  # "kind|shadow" -> StandardMaterial3D
@@ -32,7 +33,7 @@ func put(id: String, mesh: Mesh, xform: Transform3D, color: Color, kind: String,
 	if not old.is_empty() and old.key != key:
 		_forget(id, old.key)
 	var arrays: Array = old.arrays if not old.is_empty() and old.mesh == mesh else mesh.surface_get_arrays(0)
-	_parts[id] = {"arrays": arrays, "mesh": mesh, "xform": xform, "color": color, "key": key}
+	_parts[id] = {"arrays": arrays, "mesh": mesh, "xform": xform, "color": color, "key": key, "baked": _bake(arrays, xform, color)}
 	if not _cells.has(key):
 		var mi := MeshInstance3D.new()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -67,15 +68,26 @@ func _material(kind: String, shadow: bool) -> StandardMaterial3D:
 	return _materials[k]
 
 
+## A part's shape where it stands, in its color: what a rebuild only has to append.
+static func _bake(a: Array, xf: Transform3D, color: Color) -> Array:
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var c := PackedColorArray()
+	c.resize(v.size())
+	c.fill(color)
+	var idx: Variant = a[Mesh.ARRAY_INDEX]
+	if not (idx is PackedInt32Array and not idx.is_empty()):
+		idx = PackedInt32Array(range(v.size()))
+	return [xf * v, Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * (a[Mesh.ARRAY_NORMAL] as PackedVector3Array), c, idx]
+
+
 func _process(_delta: float) -> void:
 	if _dirty.is_empty():
 		return
-	var done := 0
+	var start := Time.get_ticks_usec()
 	for key in _dirty.keys():
 		_rebuild(key)
 		_dirty.erase(key)
-		done += 1
-		if done >= REBUILDS_PER_FRAME:
+		if Time.get_ticks_usec() - start > REBUILD_BUDGET_USEC:
 			break
 
 
@@ -93,25 +105,16 @@ func _rebuild(key: String) -> void:
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 	for id in cell.ids:
-		var d: Dictionary = _parts[id]
-		var a: Array = d.arrays
-		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
-		var n: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
-		var xf: Transform3D = d.xform
+		var b: Array = _parts[id].baked
 		var base := verts.size()
-		verts.append_array(xf * v)
-		normals.append_array(Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * n)
-		var c := PackedColorArray()
-		c.resize(v.size())
-		c.fill(d.color)
-		colors.append_array(c)
-		var idx: Variant = a[Mesh.ARRAY_INDEX]
-		if idx is PackedInt32Array and not idx.is_empty():
-			for i in idx:
-				indices.append(i + base)
-		else:
-			for i in v.size():
-				indices.append(base + i)
+		verts.append_array(b[0])
+		normals.append_array(b[1])
+		colors.append_array(b[2])
+		var idx: PackedInt32Array = b[3]
+		var at := indices.size()
+		indices.resize(at + idx.size())
+		for k in idx.size():
+			indices[at + k] = idx[k] + base
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts

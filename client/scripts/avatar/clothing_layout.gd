@@ -75,9 +75,31 @@ static func dressable(src: Mesh) -> Mesh:
 			arr[Mesh.ARRAY_TEX_UV] = uv
 			arr[Mesh.ARRAY_TEX_UV2] = uv2
 		var blends: Array = src.surface_get_blend_shape_arrays(s) if src is ArrayMesh else []
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, blends)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, blends, _lods_of(src, s))
 		out.surface_set_material(s, src.surface_get_material(s))
 	_meshes[src] = out
+	return out
+
+
+## The simpler versions of a surface made on import (drawn for far away players): copied
+## over, or every Melly in a crowd would be drawn in full detail.
+static func _lods_of(src: Mesh, s: int) -> Dictionary:
+	var out := {}
+	var sd: Dictionary = RenderingServer.mesh_get_surface(src.get_rid(), s)
+	var count := int(sd.get("index_count", 0))
+	if count == 0:
+		return out
+	var wide := (sd.index_data as PackedByteArray).size() / count >= 4
+	for l in sd.get("lods", []):
+		var data: PackedByteArray = l.index_data
+		var idx := PackedInt32Array()
+		if wide:
+			idx = data.to_int32_array()
+		else:
+			idx.resize(data.size() / 2)
+			for i in idx.size():
+				idx[i] = data.decode_u16(i * 2)
+		out[float(l.edge_length)] = idx
 	return out
 
 

@@ -226,7 +226,7 @@ func _ready() -> void:
 	_stats_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_stats_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_stats_label.offset_top = 12
-	_stats_label.offset_bottom = 36
+	_stats_label.offset_bottom = 58
 	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_stats_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_stats_label.add_theme_constant_override("outline_size", 6)
@@ -852,9 +852,9 @@ func _send_chat() -> void:
 	_chat_input.release_focus()
 
 
-func set_stats(fps: int, ping: int) -> void:
+func set_stats(fps: int, ping: int, detail := "") -> void:
 	_stats_label.visible = bool(Session.settings.show_fps)
-	_stats_label.text = L.t("stats", [fps, ("%d ms" % ping) if ping >= 0 else "—"])
+	_stats_label.text = L.t("stats", [fps, ("%d ms" % ping) if ping >= 0 else "—"]) + ("\n" + detail if detail != "" else "")
 
 
 func show_overlay(text: String, buttons: Array = []) -> void:

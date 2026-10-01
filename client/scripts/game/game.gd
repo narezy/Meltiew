@@ -156,7 +156,7 @@ func _apply_quality() -> void:
 		return
 	_applied_quality = q
 	var vp := get_viewport()
-	var mobile := OS.has_feature("mobile")
+	var mobile := Session.phone
 	# The frame limit from the settings (phones default to 60).
 	Session.apply_fps(true)
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
@@ -173,6 +173,9 @@ func _apply_quality() -> void:
 			vp.scaling_3d_scale = 1.0
 			vp.msaa_3d = Viewport.MSAA_2X if mobile else Viewport.MSAA_4X
 			player.camera.far = 700.0
+	_base_scale = vp.scaling_3d_scale
+	_render_scale = _base_scale
+	_shadow_dropped = false
 	world.apply_quality(q)
 
 
@@ -951,10 +954,64 @@ func _process(delta: float) -> void:
 	if _ping_timer <= 0.0 and _joined:
 		_ping_timer = 3.0
 		net.send({"t": "ping", "c": Time.get_ticks_msec()})
+	_frame_ms += delta * 1000.0
+	_frame_n += 1
 	_stats_timer -= delta
 	if _stats_timer <= 0.0:
 		_stats_timer = 0.5
-		hud.set_stats(int(Engine.get_frames_per_second()), _ping_ms)
+		_measure_frames()
+
+
+# --- frame time and resolution -------------------------------------------------
+
+var _frame_ms := 0.0
+var _frame_n := 0
+var _measuring := false
+var _render_scale := 1.0  # the 3D resolution now (phones lower it when the GPU can't keep up)
+var _base_scale := 1.0  # the quality setting's resolution
+var _gpu_heavy := 0
+var _shadow_dropped := false
+var _gpu_light := 0
+
+
+## Twice a second: the numbers under the FPS counter, and on phones, the 3D resolution.
+## When the GPU can't draw 60 frames a second, the world is drawn a bit smaller (down to
+## 60%) and stretched; the interface stays sharp. It goes back up when there's room.
+func _measure_frames() -> void:
+	var vp_rid := get_viewport().get_viewport_rid()
+	var phone := Session.phone
+	var want := bool(Session.settings.show_fps) or phone
+	if want != _measuring:
+		_measuring = want
+		RenderingServer.viewport_set_measure_render_time(vp_rid, want)
+	var frame := _frame_ms / maxf(1.0, _frame_n)
+	_frame_ms = 0.0
+	_frame_n = 0
+	var gpu := RenderingServer.viewport_get_measured_render_time_gpu(vp_rid) if _measuring else 0.0
+	if phone and gpu > 0.0:
+		var target := 60.0 if Engine.max_fps <= 0 else minf(60.0, float(Engine.max_fps))
+		var budget := 1000.0 / target
+		_gpu_heavy = _gpu_heavy + 1 if gpu > budget * 0.9 else 0
+		_gpu_light = _gpu_light + 1 if gpu < budget * 0.55 else 0
+		var next := _render_scale
+		if _gpu_heavy >= 3:
+			# At the lowest resolution already: the sun's shadow goes (it's drawn apart).
+			if _render_scale <= 0.61 and not _shadow_dropped and world.has_method("drop_sun_shadow"):
+				_shadow_dropped = true
+				world.drop_sun_shadow()
+			next = maxf(0.6, _render_scale - 0.1)
+			_gpu_heavy = 0
+		elif _gpu_light >= 6 and _render_scale < _base_scale:
+			next = minf(_base_scale, _render_scale + 0.05)
+			_gpu_light = 0
+		if not is_equal_approx(next, _render_scale):
+			_render_scale = next
+			get_viewport().scaling_3d_scale = next
+	var detail := ""
+	if bool(Session.settings.show_fps):
+		detail = L.t("stats_detail", ["%.1f" % frame, "%.1f" % gpu if gpu > 0.0 else "—", roundi(_render_scale * 100.0),
+			int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))])
+	hud.set_stats(int(Engine.get_frames_per_second()), _ping_ms, detail)
 
 
 # --- actions ----------------------------------------------------------------

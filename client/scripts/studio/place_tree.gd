@@ -166,11 +166,18 @@ func move(id: String, parent: String) -> void:
 func remove(id: String) -> void:
 	if not nodes.has(id) or id == ROOT:
 		return
-	for k in kids(id).duplicate():
-		remove(k)
 	var parent := parent_of(id)
 	if parent != "" and nodes.has(parent):
 		nodes[parent].kids.erase(id)
+	_drop(id, parent)
+
+
+## Forgets an instance and everything under it, children first. Each child isn't taken
+## out of its parent's list one by one: the whole list goes (a map of thousands of parts
+## would take seconds otherwise).
+func _drop(id: String, parent: String) -> void:
+	for k in kids(id):
+		_drop(k, id)
 	nodes.erase(id)
 	removed.emit(id, parent)
 

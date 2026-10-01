@@ -28,6 +28,10 @@ var my_user := 0
 var phys_owner := {}
 var _phys_targets := {}  # part id -> Transform3D reported by its owner
 var _phys_sent := {}  # part id -> Transform3D this app last reported
+var _lighting_dirty := false
+var _lighting_wait := 0.0
+var _lighting_ids := {}  # Sky and other instances whose removal changes the lighting
+var _rigid := {}  # part id -> RigidBody3D: the unanchored parts (checked 12 times a second)
 var _phys_clock := 0.0
 
 var _sounds := {}  # Sound id -> the player node while it plays
@@ -63,6 +67,7 @@ var _sun: DirectionalLight3D
 var _env: Environment
 var _sky_mat: ShaderMaterial
 var _quality := "high"
+var _no_sun_shadow := false  # dropped while the phone's GPU couldn't keep up
 var _noise := {}
 var highlights := PlaceHighlights.new(self)
 var effects: PlaceEffects
@@ -78,6 +83,10 @@ func _ready() -> void:
 	_sky_mat.shader = SKY_SHADER
 	var sky := Sky.new()
 	sky.sky_material = _sky_mat
+	if Session.phone:
+		# The sky's reflections: small and updated over a few frames on phones.
+		sky.radiance_size = Sky.RADIANCE_SIZE_64
+		sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
 	_env = Environment.new()
 	_env.background_mode = Environment.BG_SKY
 	_env.sky = sky
@@ -102,12 +111,23 @@ func bind(t: PlaceTree) -> void:
 	if ws != "":
 		for id in tree.descendants(ws):
 			_build(id)
+	var lid := tree.service("Lighting")
+	if lid != "":
+		for id in tree.descendants(lid):
+			if _is_lighting(id):
+				_lighting_ids[id] = true
 	_apply_lighting()
 
 
 func apply_quality(q: String) -> void:
 	_quality = q
+	_no_sun_shadow = false
 	_apply_lighting()
+	for id in _lights:
+		if is_instance_valid(_lights[id]):
+			_style_light(id)
+	for id in _parts:
+		_style_shadow(id)
 
 
 func in_world(id: String) -> bool:
@@ -169,7 +189,8 @@ func _on_added(id: String) -> void:
 	if in_world(id):
 		_build(id)
 	elif _is_lighting(id):
-		_apply_lighting()
+		_lighting_ids[id] = true
+		_lighting_dirty = true
 
 
 func _on_removed(id: String, _parent: String) -> void:
@@ -179,9 +200,9 @@ func _on_removed(id: String, _parent: String) -> void:
 		_rebatch_under(_parent)
 	_destroy(id)
 	_pmesh_data.erase(id)
-	if tree.cls(id) == "" and (_is_sky_class(id)):
-		pass
-	_apply_lighting()
+	# Only a Sky (or the like) going away changes the light; not every part of a map.
+	if _lighting_ids.erase(id):
+		_lighting_dirty = true
 
 
 func _on_reparented(id: String, _old: String) -> void:
@@ -191,7 +212,9 @@ func _on_reparented(id: String, _old: String) -> void:
 	if in_world(id):
 		for x in ids:
 			_build(x)
-	_apply_lighting()
+	if _is_lighting(id) or _lighting_ids.has(id):
+		_lighting_ids[id] = true
+		_lighting_dirty = true
 
 
 func _on_changed(id: String, key: String) -> void:
@@ -229,16 +252,14 @@ func _on_changed(id: String, key: String) -> void:
 		elif key == "Playing" and tree.prop(id, "Playing") != true:
 			stop_sound(id)
 	if _is_lighting(id):
-		_apply_lighting()
+		# A day-night script may change ClockTime every frame: the sky (and its
+		# reflections) is redrawn ten times a second at most.
+		_lighting_dirty = true
 
 
 func _is_lighting(id: String) -> bool:
 	var c := tree.cls(id)
 	return c == "Lighting" or c == "Sky" or c == "Workspace"
-
-
-func _is_sky_class(id: String) -> bool:
-	return tree.cls(id) == "Sky"
 
 
 # --- building ----------------------------------------------------------------------
@@ -280,11 +301,12 @@ func _destroy(id: String) -> void:
 	if _parts.has(id):
 		var body: Node = _parts[id].body
 		# Lights hanging on this part go with it; forget them first.
-		for lid in _lights.keys():
-			if not is_instance_valid(_lights[lid]) or _lights[lid].get_parent() == body:
-				_lights.erase(lid)
+		for c in body.get_children():
+			if c is Light3D and c.has_meta("place_id"):
+				_lights.erase(str(c.get_meta("place_id")))
 		body.queue_free()
 		_parts.erase(id)
+		_rigid.erase(id)
 		_targets.erase(id)
 		_held.erase(id)
 		if _batcher:
@@ -360,6 +382,7 @@ func _build_part(id: String) -> void:
 		var sz: Vector3 = tree.prop(id, "Size")
 		rb.mass = clampf(sz.x * sz.y * sz.z * 0.7, 0.3, 400.0)
 		body = rb
+		_rigid[id] = rb
 	body.set_meta("place_id", id)
 	var mesh := MeshInstance3D.new()
 	body.add_child(mesh)
@@ -465,6 +488,11 @@ func _process(_delta: float) -> void:
 	# redraws the sky's reflection map (every frame, if the shader read the time itself).
 	_cloud_clock += _delta
 	_cloud_step -= _delta
+	_lighting_wait -= _delta
+	if _lighting_dirty and _lighting_wait <= 0.0:
+		_lighting_dirty = false
+		_lighting_wait = 0.1
+		_apply_lighting()
 	if _cloud_step <= 0.0:
 		_cloud_step = 0.2
 		_sky_mat.set_shader_parameter("cloud_time", _cloud_clock)
@@ -654,8 +682,10 @@ func _style_part(id: String) -> void:
 			var sm := SphereMesh.new()
 			sm.radius = d / 2.0
 			sm.height = d
-			sm.radial_segments = 24
-			sm.rings = 12
+			# Small balls (beads, lamps, eyes) don't need a fine mesh: maps have hundreds.
+			var seg := _round_segments(d)
+			sm.radial_segments = seg
+			sm.rings = seg / 2
 			mesh.mesh = sm
 			var ss := SphereShape3D.new()
 			ss.radius = d / 2.0
@@ -665,7 +695,7 @@ func _style_part(id: String) -> void:
 			cm.top_radius = minf(size.x, size.z) / 2.0
 			cm.bottom_radius = cm.top_radius
 			cm.height = size.y
-			cm.radial_segments = 24
+			cm.radial_segments = _round_segments(cm.top_radius * 2.0)
 			cm.rings = 0
 			mesh.mesh = cm
 			var cs := CylinderShape3D.new()
@@ -691,7 +721,7 @@ func _style_part(id: String) -> void:
 	var transparency: float = tree.prop(id, "Transparency")
 	# Invisible parts (like a character's root) are skipped by the renderer.
 	mesh.visible = transparency < 0.999 or editing
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tree.prop(id, "CastShadow") and transparency < 0.5 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_style_shadow(id, false)
 	mesh.material_override = _material(id, transparency)
 	if c == "SpawnLocation":
 		_spawn_decal(id, mesh, size)
@@ -1028,6 +1058,37 @@ const FACE_NORMALS := {"Front": Vector3.FORWARD, "Back": Vector3.BACK, "Top": Ve
 	"Bottom": Vector3.DOWN, "Left": Vector3.LEFT, "Right": Vector3.RIGHT}
 
 
+## A phone that can't keep up even at the lowest resolution: no sun shadow (until the
+## quality is changed again).
+func drop_sun_shadow() -> void:
+	_no_sun_shadow = true
+	_sun.shadow_enabled = false
+
+
+## Whether a part casts a shadow: its CastShadow, unless see-through. Phones below "high"
+## leave out the small things (the shadow pass draws every caster again).
+func _style_shadow(id: String, rebatch := true) -> void:
+	var e: Dictionary = _parts.get(id, {})
+	if e.is_empty():
+		return
+	var mesh: MeshInstance3D = e.mesh
+	var on: bool = tree.prop(id, "CastShadow") and float(tree.prop(id, "Transparency")) < 0.5
+	if on and Session.phone and _quality != "high" and not editing:
+		var size: Vector3 = tree.prop(id, "Size")
+		on = maxf(size.x, maxf(size.y, size.z)) >= 1.5
+	var mode := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if mesh.cast_shadow == mode:
+		return
+	mesh.cast_shadow = mode
+	if rebatch:
+		_batch(id)
+
+
+## Segments around a ball or cylinder of this width: finer for big ones.
+static func _round_segments(width: float) -> int:
+	return 10 if width < 1.0 else 12 if width < 3.0 else 16 if width < 8.0 else 24
+
+
 ## Turned so that its -Z points along `n` (lights) — flip for things facing out (+Z).
 static func _facing(n: Vector3) -> Basis:
 	var up := Vector3.FORWARD if absf(n.y) > 0.9 else Vector3.UP
@@ -1051,11 +1112,19 @@ func _style_light(id: String) -> void:
 	light.light_color = tree.prop(id, "Color")
 	light.light_energy = float(tree.prop(id, "Brightness"))
 	light.visible = tree.prop(id, "Enabled")
+	# Far lamps fade out and stop costing anything: every lamp lighting a piece of the
+	# map is worked out for each of its pixels (phones feel dozens of them).
+	var phone := Session.phone
+	light.distance_fade_enabled = not editing
+	light.distance_fade_begin = (45.0 if phone else 110.0) if _quality != "high" else (70.0 if phone else 160.0)
+	light.distance_fade_length = 15.0
+	light.distance_fade_shadow = light.distance_fade_begin * 0.5
 	if light is SpotLight3D:
 		var spot := light as SpotLight3D
 		spot.spot_range = float(tree.prop(id, "Range"))
 		spot.spot_angle = clampf(float(tree.prop(id, "Angle")) / 2.0, 0.5, 89.0)
-		spot.shadow_enabled = tree.prop(id, "Shadows") == true
+		# A shadow-casting lamp draws the scene once more; phones only on "high".
+		spot.shadow_enabled = tree.prop(id, "Shadows") == true and (_quality == "high" or not Session.phone)
 		# From the middle of its face, shining out of it.
 		var n: Vector3 = FACE_NORMALS.get(str(tree.prop(id, "Face")), Vector3.FORWARD)
 		var size: Variant = tree.prop(tree.parent_of(id), "Size")
@@ -1188,9 +1257,9 @@ func _apply_lighting() -> void:
 	_sun.rotation = Vector3(-elev, deg_to_rad(-90.0 + t * 180.0), 0)
 	_sun.light_energy = brightness * (1.0 if day else 0.18)
 	_sun.light_color = Color("#fff4e0") if day else Color("#aebcff")
-	_sun.shadow_enabled = shadows and _quality != "low"
+	_sun.shadow_enabled = shadows and _quality != "low" and not _no_sun_shadow
 	# Phones on "medium": one shadow cascade, not two (the scene is drawn once for shadows).
-	if OS.has_feature("mobile") and _quality == "medium":
+	if Session.phone and _quality == "medium":
 		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		_sun.directional_shadow_max_distance = 45.0
 	else:
@@ -1370,11 +1439,11 @@ func _step_phys(delta: float) -> void:
 		return
 	_phys_clock = 0.0
 	var out: Array = []
-	for id in _parts:
-		var body: Node = _parts[id].body
-		if not (body is RigidBody3D):
+	# Only the loose parts: a map of thousands of anchored blocks costs nothing here.
+	for id in _rigid:
+		var rb: RigidBody3D = _rigid[id]
+		if not is_instance_valid(rb):
 			continue
-		var rb := body as RigidBody3D
 		if rb.freeze:
 			continue
 		var mine: bool = int(phys_owner.get(id, 0)) == my_user

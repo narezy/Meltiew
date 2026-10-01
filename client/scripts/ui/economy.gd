@@ -33,7 +33,7 @@ static func set_wallet(w: Dictionary, owned_items: Variant = null) -> void:
 
 ## A small "icon + number" label for a price ({pieces} and/or {orbs}); `currency`
 ## picks one, otherwise pieces when there are any.
-static func price_tag(price: Variant, size := 16, currency := "") -> Control:
+static func price_tag(price: Variant, size := 16, currency := "", color := UI.TEXT) -> Control:
 	var row := UI.hbox(4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not (price is Dictionary) or price.is_empty():
@@ -43,7 +43,7 @@ static func price_tag(price: Variant, size := 16, currency := "") -> Control:
 		return row
 	var is_pieces := cur == "pieces"
 	row.add_child(Icon.make("piece" if is_pieces else "orb", size + 2))
-	row.add_child(UI.label(str(int(price[cur])), size, UI.TEXT, "black"))
+	row.add_child(UI.label(str(int(price[cur])), size, color, "black"))
 	return row
 
 

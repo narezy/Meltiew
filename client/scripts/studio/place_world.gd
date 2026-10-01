@@ -21,3 +21,9 @@ func apply_quality(q: String) -> void:
 	_quality = q
 	if _scene:
 		_scene.apply_quality(q)
+
+
+## The phone's GPU can't keep up even at the lowest resolution: no sun shadow.
+func drop_sun_shadow() -> void:
+	if _scene:
+		_scene.drop_sun_shadow()

@@ -12,6 +12,8 @@ var player: Node3D
 var typing: Callable  # () -> bool: a text field has the keyboard
 
 var _prompts: Array = []  # ProximityPrompt ids in the world
+var _known := {}  # every ProximityPrompt id in the tree (kept up to date by its signals)
+var _bound: PlaceTree
 var _look := 0.0
 var _current := ""
 var _held := 0.0
@@ -87,17 +89,32 @@ func _candidates() -> Array:
 	return out
 
 
+func _bind(t: PlaceTree) -> void:
+	_bound = t
+	_known.clear()
+	for id in t.nodes:
+		if t.cls(id) == "ProximityPrompt":
+			_known[id] = true
+	t.added.connect(func(id: String):
+		if t.cls(id) == "ProximityPrompt":
+			_known[id] = true)
+	t.removed.connect(func(id: String, _parent: String): _known.erase(id))
+
+
 func _process(delta: float) -> void:
 	if player == null:
 		return
 	_look -= delta
 	if _look <= 0.0 and host and host.tree:
 		_look = LOOK_EVERY
+		if _bound != host.tree:
+			_bind(host.tree)
+		# Only the prompts, not the whole map: places have thousands of parts.
 		_prompts = []
 		var ws := host.tree.service("Workspace")
 		if ws != "":
-			for id in host.tree.descendants(ws):
-				if host.tree.cls(id) == "ProximityPrompt":
+			for id in _known:
+				if host.tree.has(id) and host.tree.is_descendant(id, ws):
 					_prompts.append(id)
 	var best: Dictionary = {}
 	var best_d := INF

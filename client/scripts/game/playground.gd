@@ -117,6 +117,12 @@ func apply_quality(q: String) -> void:
 		b.visible = q != "low"
 
 
+## The phone's GPU can't keep up even at the lowest resolution: no sun shadow.
+func drop_sun_shadow() -> void:
+	if _sun:
+		_sun.shadow_enabled = false
+
+
 # --- builder helpers --------------------------------------------------------
 
 func _xf(pos: Vector3, rot_deg := Vector3.ZERO) -> Transform3D:

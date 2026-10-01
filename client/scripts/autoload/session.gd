@@ -44,6 +44,9 @@ var pending_game := "playground"
 var studio_place_id := ""
 var studio_melt: Dictionary = {}
 var test_melt: Dictionary = {}
+## Drawing as for a phone (lighter shadows, lamps, resolution). A phone, or the
+## performance test pretending to be one on a computer.
+var phone := OS.has_feature("mobile")
 
 
 func _ready() -> void:

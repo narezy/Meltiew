@@ -217,6 +217,7 @@ const TABLE := {
 	"sys_slow": ["Slow down, the chat can't keep up :)", "Помедленнее, чат не успевает :)"],
 	"chat_placeholder": ["Say something...", "Написать в чат..."],
 	"stats": ["{0} FPS · ping {1}", "{0} FPS · пинг {1}"],
+	"stats_detail": ["frame {0} ms · GPU {1} ms · 3D {2}% · {3} draws", "кадр {0} мс · видеокарта {1} мс · 3D {2}% · {3} вызовов"],
 	"you_fell_apart": ["Oof! Respawning...", "Ой! Собираемся обратно..."],
 	"island_reached": ["You made it to the clouds!", "Ты добрался(ась) до облаков!"],
 	"maze_solved": ["Maze solved! You found the golden flower", "Лабиринт пройден! Золотой цветок твой"],

@@ -199,16 +199,12 @@ func _cloth_card(it: Dictionary) -> Control:
 		_preview()
 		_draw())
 	v.add_child(pic_btn)
-	var name := UI.label(str(it.name), 15, UI.TEXT, "bold")
-	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name.clip_text = true
-	name.custom_minimum_size.x = 100
-	v.add_child(name)
+	v.add_child(_card_name(str(it.name)))
 	var by: Variant = it.get("community") if it.get("community") is Dictionary else it.get("creator")
 	if by is Dictionary:
 		var who := UI.label(str(by.get("name", by.get("display_name", ""))), 12, UI.MUTED)
 		who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		who.clip_text = true
+		who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		v.add_child(who)
 	if it.get("owned", false):
 		var worn := id in _my_clothes()
@@ -231,6 +227,18 @@ func _cloth_card(it: Dictionary) -> Control:
 		b.pressed.connect(func(): _buy_cloth(it))
 		v.add_child(b)
 	return card
+
+
+## An item's name under its picture: up to two lines, then "…" (a long name never
+## widens the card).
+static func _card_name(text: String) -> Label:
+	var l := UI.label(text, 15, UI.TEXT, "bold")
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.max_lines_visible = 2
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.custom_minimum_size.x = 60
+	return l
 
 
 func _buy_cloth(it: Dictionary) -> void:
@@ -318,11 +326,7 @@ func _card(kind: String, it: Dictionary) -> Control:
 		Sfx.click()
 		_try(kind, id))
 	v.add_child(pic_btn)
-	var name := UI.label(Accessories.name_of(id) if kind == "accessory" else id, 15, UI.TEXT, "bold")
-	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name.clip_text = true
-	name.custom_minimum_size.x = 100
-	v.add_child(name)
+	v.add_child(_card_name(Accessories.name_of(id) if kind == "accessory" else id))
 	if _owns(kind, it):
 		var worn: bool = id in Session.worn_of(Session.user) if kind == "accessory" else id == str(Session.user.get("face", ""))
 		var b := UI.button(L.t("shop_worn") if worn else L.t("shop_wear"), "ghost", 40)

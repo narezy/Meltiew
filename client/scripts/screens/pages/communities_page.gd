@@ -187,8 +187,9 @@ func _create_sheet() -> void:
 		var inner := UI.hbox(6)
 		inner.set_anchors_preset(Control.PRESET_CENTER)
 		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		inner.add_child(UI.label(L.t("cm_create_for"), 17, UI.TEXT if cur == "orbs" else Color("#1d1a26"), "bold"))
-		inner.add_child(Economy.price_tag(int(_price.get(cur, 0)), 17, cur))
+		var ink: Color = UI.TEXT if cur == "orbs" else Color("#1d1a26")
+		inner.add_child(UI.label(L.t("cm_create_for"), 17, ink, "bold"))
+		inner.add_child(Economy.price_tag({cur: int(_price.get(cur, 0))}, 17, cur, ink))
 		b.custom_minimum_size.x = 200
 		var center := CenterContainer.new()
 		center.set_anchors_preset(Control.PRESET_FULL_RECT)
