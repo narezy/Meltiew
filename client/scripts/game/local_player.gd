@@ -48,6 +48,10 @@ var dead := false
 var first_person := false
 ## Shift lock: the camera sits over the right shoulder and the character faces where it looks.
 var shift_locked := false
+## Playing in a headset (VR): the body faces where you look, the camera is your head.
+var vr := false
+## The headset's place this frame (set by VR), or null.
+var vr_head: Variant = null
 var _shoulder := 0.0
 var seated := false
 
@@ -590,7 +594,7 @@ func _physics_process(delta: float) -> void:
 
 	if climbing:
 		_facing = atan2(_climb_normal.x, _climb_normal.z)  # face the wall
-	elif first_person or shift_locked:
+	elif first_person or shift_locked or vr:
 		_facing = cam_yaw
 	elif dir.length() > 0.05:
 		_facing = lerp_angle(_facing, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
@@ -625,6 +629,12 @@ func _process(delta: float) -> void:
 
 
 func _update_camera(delta: float) -> void:
+	# In a headset the camera is the head (scripts can't take it away there).
+	if vr_head is Transform3D:
+		if not camera.top_level:
+			camera.top_level = true
+		camera.global_transform = vr_head
+		return
 	if scripted_camera is Transform3D:
 		if not camera.top_level:
 			camera.top_level = true
@@ -713,7 +723,7 @@ func _fly(delta: float) -> void:
 	velocity = velocity.lerp(dir.limit_length(1.0) * speed, minf(delta * 6.0, 1.0))
 	move_and_slide()
 	var flat := Vector3(velocity.x, 0, velocity.z)
-	if first_person or shift_locked:
+	if first_person or shift_locked or vr:
 		_facing = cam_yaw
 	elif flat.length() > 0.5:
 		_facing = lerp_angle(_facing, atan2(-flat.x, -flat.z), minf(delta * TURN_SPEED, 1.0))

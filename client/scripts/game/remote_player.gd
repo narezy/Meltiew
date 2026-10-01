@@ -62,14 +62,26 @@ func refresh_look() -> void:
 		_role_tag.modulate = Color("#ffd166") if role == "owner" else UI.MINT
 
 
-func set_state(p: Vector3, yaw: float, anim: String) -> void:
+func set_state(p: Vector3, yaw: float, anim: String, hands: Variant = null) -> void:
 	var now := Time.get_ticks_msec()
 	if _snaps.is_empty():
 		global_position = p
 		avatar.rotation.y = yaw
-	_snaps.append([now, p, yaw, anim])
+	_snaps.append([now, p, yaw, anim, _hands_of(hands)])
 	while _snaps.size() > 30:
 		_snaps.pop_front()
+
+
+## Radio waves over their name while they talk in voice chat.
+## A VR player's hands from the server ([lx, ly, lz, rx, ry, rz], avatar space): two
+## Vector3 or nulls.
+static func _hands_of(h: Variant) -> Array:
+	var out := [null, null]
+	if h is Array and h.size() >= 6:
+		for i in 2:
+			if h[i * 3] != null and h[i * 3 + 1] != null and h[i * 3 + 2] != null:
+				out[i] = Vector3(float(h[i * 3]), float(h[i * 3 + 1]), float(h[i * 3 + 2]))
+	return out
 
 
 ## Radio waves over their name while they talk in voice chat.
@@ -120,11 +132,16 @@ func _process(delta: float) -> void:
 		var a: Array = _snaps[0]
 		var pos: Vector3 = a[1]
 		var yaw: float = a[2]
+		var hands: Array = (a[4] as Array).duplicate()
 		if _snaps.size() >= 2 and render_t > a[0]:
 			var b: Array = _snaps[1]
 			var k := clampf((render_t - a[0]) / maxf(b[0] - a[0], 1.0), 0.0, 1.0)
 			pos = (a[1] as Vector3).lerp(b[1], k)
 			yaw = lerp_angle(a[2], b[2], k)
+			for i in 2:
+				if hands[i] is Vector3 and b[4][i] is Vector3:
+					hands[i] = (hands[i] as Vector3).lerp(b[4][i], k)
+		avatar.set_vr_hands(hands[0], hands[1])
 		global_position = pos
 		avatar.rotation.y = lerp_angle(avatar.rotation.y, yaw, minf(delta * 16.0, 1.0))
 		var anim: String = a[3]

@@ -4220,6 +4220,7 @@ function handlers.player_add(e)
 	d.props.DisplayName = tostring(e.display or e.name)
 	d.props.UserId = tonumber(e.userId) or 0
 	d.props.Language = tostring(e.lang or "en")
+	d.props.VREnabled = e.vr == true
 	setPassOwner(d.props.UserId, e.passes)
 	setPassInfo(e.pass_info)
 	setBadgeOwner(d.props.UserId, e.badges)

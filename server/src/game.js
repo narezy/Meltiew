@@ -162,6 +162,32 @@ function finite(n, lim) {
   return Math.max(-lim, Math.min(lim, v));
 }
 
+// How far a VR hand may be from the middle of the chest (avatar space, studs): an arm is
+// 0.7 long from a shoulder 0.4 to the side; a little more for lag and leaning.
+const VR_REACH = 1.6;
+const VR_CHEST = [0, 1.32, 0];
+
+/** A VR player's hands from their app, checked: [lx, ly, lz, rx, ry, rz] (nulls for a
+ *  hand that isn't tracked), each pulled back within reach; null when there are none. */
+export function vrHands(h) {
+  if (!Array.isArray(h) || h.length !== 6) return null;
+  const out = [];
+  let any = false;
+  for (let i = 0; i < 2; i++) {
+    const v = h.slice(i * 3, i * 3 + 3);
+    if (v.some((x) => typeof x !== 'number' || !Number.isFinite(x))) {
+      out.push(null, null, null);
+      continue;
+    }
+    const d = v.map((x, k) => x - VR_CHEST[k]);
+    const len = Math.hypot(...d);
+    const k = len > VR_REACH ? VR_REACH / len : 1;
+    out.push(...d.map((x, j) => +(VR_CHEST[j] + x * k).toFixed(2)));
+    any = true;
+  }
+  return any ? out : null;
+}
+
 export class GameHub {
   /**
    * @param {object} opts
@@ -223,6 +249,9 @@ export class GameHub {
       ownerId: row.owner_id,
       chat: starter.ChatEnabled !== false,
       emotes: starter.EmotesEnabled !== false,
+      // VR: players in headsets may come in, and others (13+) see their hands move.
+      vrAllowed: starter.VRAllowed !== false,
+      vrHands: starter.VRHandsVisible !== false,
       strings: melt.strings || {},
       vm,
       inbox: [],
@@ -761,6 +790,9 @@ export class GameHub {
     if (server.players.size >= cap) {
       return conn.send({ t: 'error', code: 'full', m: msg('server_full', conn.lang, { n: cap }) });
     }
+    if (m.vr === true && server.vrAllowed === false) {
+      return conn.send({ t: 'error', code: 'no_vr', m: msg('no_vr', conn.lang) });
+    }
 
     // One live session per account: the newest connection wins.
     const existing = this.byUser.get(conn.user.id);
@@ -772,7 +804,7 @@ export class GameHub {
 
     const angle = Math.random() * Math.PI * 2;
     const spawn = [Math.cos(angle) * 2.2, 0.6, 15.5 + Math.sin(angle) * 1.2];
-    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn, joinedAt: Date.now(), events: 0, spawn, guard: new MoveGuard(spawn), emotesAt: {} };
+    const player = { user: publicUser(conn.user), p: spawn, r: Math.PI, a: 'idle', hp: 100, dirty: true, conn, joinedAt: Date.now(), events: 0, spawn, guard: new MoveGuard(spawn), emotesAt: {}, vr: m.vr === true, hands: null };
     server.players.set(conn.user.id, player);
     server.emptySince = 0;
     conn.player = player;
@@ -809,7 +841,7 @@ export class GameHub {
     }
     if (studio) {
       const look = { colors: player.user.colors, face: player.user.face, accessories: player.user.accessories };
-      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, look, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, vr: player.vr, look, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
       this.flushPlace(server);
     }
     // Every place (the playground too) keeps visit history: stats and "recently played".
@@ -852,6 +884,8 @@ export class GameHub {
     pl.a = ANIMS.has(m.a) || /^anim:\/\/\d{1,10}$/.test(String(m.a)) ? m.a : 'idle';
     // Whose character the camera follows (spectating): the anti-wallhack looks from there too.
     pl.watch = Number.isSafeInteger(m.w) && m.w > 0 ? m.w : 0;
+    // VR hands (avatar space): never further than an arm's reach from the chest.
+    pl.hands = pl.vr ? vrHands(m.h) : null;
     pl.dirty = true;
     pl.posDirty = true;
   }
@@ -1130,24 +1164,35 @@ export class GameHub {
       server.visAt = now;
       this.updateVisibility(server, now);
     }
-    const state = (id, p) => [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a];
+    // VR hands go to players 13 and older only (a hand can make rude gestures), and only
+    // where the place shows them.
+    const handsFor = (viewer) => server.vrHands !== false && viewer.conn.rules?.age != null && viewer.conn.rules.age >= 13;
+    const state = (id, p, hands = false) => (hands && p.hands
+      ? [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a, p.hands]
+      : [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a]);
     const dirty = [];
     for (const [id, p] of server.players) {
       if (p.dirty) dirty.push(id);
       p.dirty = false;
     }
-    const all = [];
-    for (const id of dirty) all.push(state(id, server.players.get(id)));
+    const plain = [];
+    const withHands = [];
+    for (const id of dirty) {
+      plain.push(state(id, server.players.get(id)));
+      withHands.push(state(id, server.players.get(id), true));
+    }
     for (const [rid, r] of server.players) {
       const lim = server.limits?.[String(rid)];
       const range = server.vm && lim && !lim.all ? Number(lim.range) || 0 : 0;
       const hidden = r.hidden;
+      const hands = handsFor(r);
+      const all = hands ? withHands : plain;
       if (range <= 0 && !hidden) {
         // Everyone in sight: whoever moved, plus anyone this player lost track of before.
         let out = all;
         if (r.seen) {
           out = all.slice();
-          for (const [id, p] of server.players) if (id !== rid && !r.seen.has(id) && !dirty.includes(id)) out.push(state(id, p));
+          for (const [id, p] of server.players) if (id !== rid && !r.seen.has(id) && !dirty.includes(id)) out.push(state(id, p, hands));
           r.seen = null;
         }
         if (out.length) r.conn.send({ t: 's', s: out, ts: now });
@@ -1159,7 +1204,7 @@ export class GameHub {
         if (id === rid) continue;
         const near = (range <= 0 || dist(p.p, r.p) <= range) && !hidden?.has(id);
         if (near && (dirty.includes(id) || !r.seen.has(id))) {
-          out.push(state(id, p));
+          out.push(state(id, p, hands));
           r.seen.add(id);
         } else if (!near && r.seen.has(id)) {
           out.push([id, 0, -10000, 0, 0, 'idle']);

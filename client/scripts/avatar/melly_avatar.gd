@@ -45,6 +45,7 @@ var _head_top_above_bone := 0.35
 ## Rest-pose height of the top of Melly's head (metres, avatar space).
 const HEAD_TOP := 1.81
 var _skeleton: Skeleton3D
+var _vr: VRPose
 var _hand: Node3D
 var _hold: HoldArm
 var _joints: JointPose
@@ -111,6 +112,12 @@ func _ready() -> void:
 	# Scripts turning joints (Humanoid / Rig *Angle properties), on top of the animation.
 	_joints = JointPose.new()
 	skeleton.add_child(_joints)
+	# VR: the arms reach for the hands (last, over everything else).
+	_vr = VRPose.new()
+	_vr.avatar = self
+	_vr.arms = {"left": skeleton.find_bone("ArmL"), "right": skeleton.find_bone("ArmR")}
+	_vr.head = skeleton.find_bone("Head")
+	skeleton.add_child(_vr)
 	# Looks may have been set before we entered the tree.
 	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
 	var pending: Array = _worn_pending if _worn_pending is Array else []
@@ -373,6 +380,55 @@ func set_joint_angles(angles: Dictionary) -> void:
 			if b >= 0:
 				out[b] = Quaternion.from_euler(v * (PI / 180.0))
 	_joints.turns = out
+
+
+## VR: where this player's hands are, in the avatar's space (studs from the feet, facing
+## -Z), or null for a hand that isn't tracked. The arms swing at the shoulders to point at
+## them (they don't stretch). From the local headset, or from the server for others.
+func set_vr_hands(left: Variant, right: Variant) -> void:
+	if _vr:
+		_vr.targets = {"left": left, "right": right}
+
+
+## The player's own avatar in VR: no head in front of the eyes (the hat goes with it).
+func set_head_hidden(hidden: bool) -> void:
+	if _vr:
+		_vr.hide_head = hidden
+
+
+class VRPose extends SkeletonModifier3D:
+	var avatar: Node3D
+	var arms := {}  # side -> bone index
+	var head := -1
+	var targets := {}  # side -> Vector3 (avatar space) or null
+	var hide_head := false
+	var _amount := {"left": 0.0, "right": 0.0}
+
+	func _process_modification_with_delta(delta: float) -> void:
+		var sk := get_skeleton()
+		if hide_head and head >= 0:
+			sk.set_bone_pose_scale(head, Vector3.ONE * 0.001)
+		var to_sk := sk.global_transform.affine_inverse() * avatar.global_transform
+		for side in arms:
+			var b: int = arms[side]
+			var t: Variant = targets.get(side)
+			# Eased in and out, so a hand that comes and goes doesn't snap the arm.
+			_amount[side] = move_toward(_amount[side], 1.0 if t is Vector3 else 0.0, delta * 6.0)
+			if b < 0 or _amount[side] <= 0.0:
+				continue
+			if t is Vector3:
+				_last[side] = t
+			var pose := sk.get_bone_global_pose(b)
+			var want: Vector3 = to_sk * (_last[side] as Vector3) - pose.origin
+			if want.length() < 0.01:
+				continue
+			# The arm hangs down in the rest pose: that's where it points from the shoulder.
+			var along := (pose.basis * (sk.get_bone_global_rest(b).basis.inverse() * Vector3.DOWN)).normalized()
+			var turn := Quaternion(along, want.normalized())
+			var aimed := Basis(Quaternion.IDENTITY.slerp(turn, _amount[side])) * pose.basis
+			sk.set_bone_global_pose(b, Transform3D(aimed, pose.origin))
+
+	var _last := {"left": Vector3.ZERO, "right": Vector3.ZERO}
 
 
 class JointPose extends SkeletonModifier3D:

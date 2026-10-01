@@ -456,6 +456,16 @@
      "default": 0,
      "min": 0,
      "max": 5000
+    },
+    "VRAllowed": {
+     "type": "bool",
+     "default": true,
+     "doc": "Whether players in a VR headset may join."
+    },
+    "VRHandsVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Whether others see VR players' hands move (only players 13 and older ever do)."
     }
    },
    "events": [],
@@ -542,6 +552,12 @@
     "SyncAll": {
      "type": "bool",
      "default": false
+    },
+    "VREnabled": {
+     "type": "bool",
+     "default": false,
+     "readonly": true,
+     "doc": "Playing in a VR headset."
     },
     "Team": {
      "type": "Instance",

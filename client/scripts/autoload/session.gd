@@ -35,6 +35,9 @@ var settings := {
 	# Voice chat: hear other players, and which microphone to use ("Default" = the system's).
 	"voice_hear": true,
 	"mic_device": "Default",
+	# Computers: "auto" starts in VR when a VR runtime (SteamVR, WiVRn...) is running,
+	# "on" always tries, "off" never does.
+	"vr": "auto",
 }
 ## Where the game scene should go when it opens: "auto", "new" or a server id.
 var pending_server := "auto"

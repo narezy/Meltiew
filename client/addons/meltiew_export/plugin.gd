@@ -43,6 +43,16 @@ class DeepLinkExport extends EditorExportPlugin:
 			m.store_string(xml)
 			m.close()
 
+	# Standalone headsets: Pico starts the app in VR (not in a flat window) with these.
+	func _get_android_manifest_application_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
+		var preset := get_export_preset()
+		if preset == null or not "pico" in preset.get_custom_features():
+			return ""
+		return """
+		<meta-data android:name="pvr.app.type" android:value="vr" />
+		<meta-data android:name="pvr.sdk.version" android:value="OpenXR" />
+"""
+
 	# A TV has no touch screen and often no microphone: neither is required (stores would
 	# hide the app from TVs otherwise). "show_in_android_tv" in the preset adds the TV launcher.
 	func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:

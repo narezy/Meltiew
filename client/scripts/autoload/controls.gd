@@ -14,7 +14,7 @@ signal device_changed(device: String)
 ## "touch", "mouse", "pad", "remote" or "vr"
 var device := "touch" if DisplayServer.is_touchscreen_available() else "mouse"
 ## Android TV: no touch screen, a remote's arrows and OK.
-var tv := OS.has_feature("android") and not DisplayServer.is_touchscreen_available()
+var tv := OS.has_feature("android") and not DisplayServer.is_touchscreen_available() and not _headset()
 
 var _screens: Array = []  # weakrefs to the open screens and sheets, the newest last
 
@@ -76,6 +76,12 @@ static func pad_button_name(b: JoyButton) -> String:
 		JOY_BUTTON_RIGHT_STICK: "ButtonR3", JOY_BUTTON_START: "ButtonStart", JOY_BUTTON_BACK: "ButtonSelect",
 		JOY_BUTTON_DPAD_UP: "DPadUp", JOY_BUTTON_DPAD_DOWN: "DPadDown", JOY_BUTTON_DPAD_LEFT: "DPadLeft",
 		JOY_BUTTON_DPAD_RIGHT: "DPadRight"}.get(b, "")
+
+
+## A standalone headset (Pico, Quest): Android without a touch screen too, but not a TV.
+static func _headset() -> bool:
+	var xr := XRServer.find_interface("OpenXR")
+	return OS.has_feature("pico") or OS.has_feature("quest") or (xr != null and xr.is_initialized())
 
 
 func pad_like() -> bool:

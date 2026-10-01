@@ -80,6 +80,10 @@ static func game_block(parent: Control) -> void:
 		else [["auto", L.t("fps_auto")], ["60", "60"], ["144", "144"], ["240", "240"], ["display", L.t("fps_display")], ["0", "∞"]]
 	chips(parent, L.t("fps_limit"), "fps", fps_options)
 	toggle(parent, L.t("show_fps"), "show_fps")
+	# Computers: VR when SteamVR / WiVRn runs ("auto"), always, or never. Takes effect on
+	# the next start.
+	if OS.has_feature("pc"):
+		chips(parent, L.t("vr_mode"), "vr", [["auto", L.t("vr_auto")], ["on", L.t("vr_on")], ["off", L.t("vr_off")]])
 	toggle(parent, L.t("voice_hear"), "voice_hear")
 	# Which microphone voice chat listens to.
 	var mic_row := UI.hbox(8)

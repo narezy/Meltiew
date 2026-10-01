@@ -130,9 +130,13 @@ func _ready() -> void:
 	net.message.connect(_on_message)
 	hud.show_overlay(L.t("loading_place") if _is_place else L.t("joining_playground"))
 	net.connect_to_game()
+	if VR.active:
+		VR.attach(self)
 
 
 func _exit_tree() -> void:
+	if VR.active:
+		VR.detach()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Input.set_custom_mouse_cursor(null)
 	net.close()
@@ -210,7 +214,7 @@ func _open_menu() -> void:
 
 func _on_connected() -> void:
 	_retries = 0
-	net.send({"t": "join", "game": Session.pending_game, "server": Session.pending_server})
+	net.send({"t": "join", "game": Session.pending_game, "server": Session.pending_server, "vr": VR.active})
 
 
 func _on_disconnected(reason: String) -> void:
@@ -248,7 +252,7 @@ func _on_message(m: Dictionary) -> void:
 			for s in m.s:
 				var id := int(s[0])
 				if remotes.has(id):
-					remotes[id].set_state(Vector3(s[1], s[2], s[3]), float(s[4]), str(s[5]))
+					remotes[id].set_state(Vector3(s[1], s[2], s[3]), float(s[4]), str(s[5]), s[6] if s.size() > 6 else null)
 		"join":
 			_add_remote(m.player)
 			Sfx.play("pop", 1.2)
@@ -578,6 +582,9 @@ func _ghost_contacts() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not place_host:
+		return
+	# In VR the mouse is the laser on the panel: missing a button isn't a click in the world.
+	if VR.active and event is InputEventMouse:
 		return
 	# Gamepad buttons for the place's scripts (the sticks and triggers: _send_pad_axes).
 	if event is InputEventJoypadButton:
@@ -953,6 +960,13 @@ func _physics_process(delta: float) -> void:
 		# Spectating someone: the server's anti-wallhack then also looks from their camera.
 		if Time.get_ticks_msec() - _watching_at < 500:
 			state["w"] = _watching
+		# In VR: where the hands are (avatar space), for others' view of your arms.
+		if VR.active:
+			var hands := []
+			for side in ["left", "right"]:
+				var h: Variant = VR.hand_in(player.avatar, side)
+				hands.append_array([snappedf(h.x, 0.01), snappedf(h.y, 0.01), snappedf(h.z, 0.01)] if h is Vector3 else [null, null, null])
+			state["h"] = hands
 		# Resend at least once a second so late joiners and interpolation stay fresh.
 		var now := Time.get_ticks_msec()
 		if state != _last_sent or now - _last_sent_at > 1000:

@@ -32,6 +32,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | CameraMinZoom | number | 0.5 | min 0, max 100 |
 | CameraMaxZoom | number | 14 | min 0.5, max 100 |
 | SyncAll | bool | false |  |
+| VREnabled | bool | false | read-only |
 | Team | Instance |  |  |
 | TeamColor | Color3 | Color3.fromHex("#ffffff") |  |
 | Neutral | bool | true |  |
@@ -225,6 +226,8 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | CameraMaxZoom | number | 14 | min 1, max 100 |
 | AntiCheat | bool | true |  |
 | PlayerSyncRange | number | 0 | min 0, max 5000 |
+| VRAllowed | bool | true |  |
+| VRHandsVisible | bool | true |  |
 
 ### StarterPlayerScripts
 
