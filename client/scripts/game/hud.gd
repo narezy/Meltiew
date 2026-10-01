@@ -7,6 +7,8 @@ signal chat_submitted(text: String)
 signal emote_picked(emote: String)
 ## A tool picked in the hotbar or inventory (the one in hand again = put it away).
 signal tool_picked(id: String)
+signal tool_used(down: bool)  # a gamepad's RT
+signal tool_dropped  # a gamepad's d-pad down
 ## ~ on a keyboard, for the platform owner's admin panel.
 signal admin_requested
 ## The microphone button: voice chat on or off.
@@ -22,6 +24,11 @@ var lock_btn: TouchButton
 var _stamina_bg: Panel
 var _stamina_fill: Panel
 var wheel: EmoteWheel
+var prompts: PlacePrompts  # set by the game (a TV remote's OK uses a prompt before jumping)
+var _rt_down := false
+var _action_btns: Array = []  # the place's ContextActionService buttons (phones)
+## (key) -> bool: a place script took this key or gamepad button; the HUD leaves it alone.
+var is_bound: Callable = func(_k: String) -> bool: return false
 
 var _root: Control
 const HP_W := 200.0
@@ -330,6 +337,63 @@ func bind_player(p: LocalPlayer) -> void:
 			_cam_btn.modulate = UI.ACCENT if fp else Color.WHITE)
 
 
+## Every round on-screen button, the place's action buttons too.
+func _touch_buttons() -> Array:
+	return [jump_btn, emote_btn, sprint_btn, lock_btn] + _action_btns
+
+
+## Buttons for the place's ContextActionService actions (phones only): where the script
+## put them, or stacked by the jump button. `on_press` is (name, down).
+func set_actions(list: Array, on_press: Callable) -> void:
+	for b in _action_btns:
+		b.queue_free()
+	_action_btns.clear()
+	if not DisplayServer.is_touchscreen_available():
+		return
+	var spots := [Vector2(-300, -250), Vector2(-90, -300), Vector2(-370, -150), Vector2(-250, -360), Vector2(-160, -400)]
+	for i in list.size():
+		var a: Dictionary = list[i]
+		var b := TouchButton.make("", 84)
+		var title := UI.label(str(a.get("title", "")), 16, UI.TEXT, "black")
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		title.set_anchors_preset(Control.PRESET_FULL_RECT)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(title)
+		var image := str(a.get("image", ""))
+		if image != "":
+			var pic := TextureRect.new()
+			pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+			pic.offset_left = 16
+			pic.offset_top = 16
+			pic.offset_right = -16
+			pic.offset_bottom = -16
+			pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			b.add_child(pic)
+			AssetCache.fetch(image, func(t: Texture2D):
+				if t and is_instance_valid(pic):
+					pic.texture = t
+					title.visible = false)
+		var pos: Variant = a.get("position")
+		if pos is Array and pos.size() == 4:
+			b.anchor_left = float(pos[0])
+			b.anchor_right = float(pos[0])
+			b.anchor_top = float(pos[2])
+			b.anchor_bottom = float(pos[2])
+			_place(b, Vector2(float(pos[1]), float(pos[3])))
+		else:
+			b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+			_place(b, spots[i % spots.size()])
+		var action := str(a.get("name", ""))
+		b.pressed_down.connect(func(): on_press.call(action, true))
+		b.released.connect(func(): on_press.call(action, false))
+		_root.add_child(b)
+		_action_btns.append(b)
+
+
 func _place(c: Control, offset: Vector2) -> void:
 	c.offset_left = offset.x
 	c.offset_top = offset.y
@@ -346,8 +410,9 @@ func _icon_button(kind: String) -> Button:
 	sb.set_corner_radius_all(16)
 	var sb2 := sb.duplicate()
 	sb2.bg_color = Color(UI.ACCENT_DARK, 0.9)
-	for s in ["normal", "hover", "focus"]:
+	for s in ["normal", "hover"]:
 		b.add_theme_stylebox_override(s, sb)
+	b.add_theme_stylebox_override("focus", UI.focus_ring(18))
 	b.add_theme_stylebox_override("pressed", sb2)
 	b.add_theme_stylebox_override("hover_pressed", sb2)
 	var ic := Icon.make(kind, 26)
@@ -461,8 +526,9 @@ func _style_slot(b: Button, filled: bool, on: bool) -> void:
 	if on:
 		sb.set_border_width_all(3)
 		sb.border_color = UI.ACCENT
-	for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+	for st in ["normal", "hover", "pressed", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", UI.focus_ring(18))
 
 
 func _fill_slot(b: Button, t: Dictionary) -> void:
@@ -572,6 +638,8 @@ func toggle_inventory() -> void:
 	if _inventory.visible:
 		release_touches()
 		_fill_inventory()
+	else:
+		get_viewport().gui_release_focus()
 
 
 func inventory_open() -> bool:
@@ -879,7 +947,7 @@ func mouse_look() -> bool:
 
 
 func release_touches() -> void:
-	for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
+	for b in _touch_buttons():
 		b.force_release()
 	joystick.reset()
 	_pinch.clear()
@@ -937,7 +1005,7 @@ func _grabs(ctl: Control, pos: Vector2, screen: Vector2) -> bool:
 func tap_allowed(pos: Vector2) -> bool:
 	if _blocked(pos) or _overlay.visible or wheel.visible:
 		return false
-	for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
+	for b in _touch_buttons():
 		if b.visible and b.get_global_rect().has_point(pos):
 			return false
 	return pos.x >= get_viewport().get_visible_rect().size.x * 0.42
@@ -946,6 +1014,11 @@ func tap_allowed(pos: Vector2) -> bool:
 func _input(event: InputEvent) -> void:
 	if player == null:
 		return
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion or (Controls.tv and event is InputEventKey):
+		_pad(event)
+		# A remote's OK is Enter: it jumps or uses a prompt, it doesn't open the chat.
+		if Controls.tv and event is InputEventKey and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not _pad_busy():
+			return
 	# Finger releases must always reach the buttons and joystick, even while the
 	# emote wheel or an overlay is open, or they'd stay "held" forever.
 	if event is InputEventScreenTouch and not event.pressed:
@@ -968,9 +1041,65 @@ func _input(event: InputEvent) -> void:
 		_desktop(event)
 
 
+## A gamepad or a TV remote in the game (menus and the wheel take it while they have
+## the focus). The sticks, run and zoom are read every frame in _process.
+func _pad(e: InputEvent) -> void:
+	if _pad_busy() or _overlay.visible:
+		return
+	if e is InputEventJoypadButton and is_bound.call(Controls.pad_button_name((e as InputEventJoypadButton).button_index)) \
+			and (e as InputEventJoypadButton).button_index != JOY_BUTTON_START:
+		return  # the place's script uses it
+	if e.is_action("tool_use") and not e.is_echo():
+		if is_bound.call("ButtonR2"):
+			return
+		var down := e.is_pressed()
+		if down != _rt_down:
+			_rt_down = down
+			tool_used.emit(down)
+		return
+	if not e.is_pressed() or e.is_echo():
+		return
+	if Controls.tv and e is InputEventKey and (e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER):
+		# OK: the prompt that's showing (prompts.gd), or a jump.
+		if not (prompts and prompts.showing()):
+			player.request_jump()
+		get_viewport().set_input_as_handled()
+	elif e.is_action_pressed("jump"):
+		player.request_jump()
+	elif e.is_action_pressed("emotes"):
+		if _core.Emotes and emote_btn.visible:
+			release_touches()
+			wheel.open()
+	elif e.is_action_pressed("game_menu"):
+		menu_requested.emit()
+	elif e.is_action_pressed("players"):
+		leaderboard.toggle()
+	elif e.is_action_pressed("first_person"):
+		player.toggle_first_person()
+	elif e.is_action_pressed("inventory"):
+		toggle_inventory()
+		if _inventory.visible:
+			_inventory.set_meta("on_back", toggle_inventory)
+			Controls.screen_opened(_inventory)
+	elif e.is_action_pressed("tool_drop"):
+		tool_dropped.emit()
+	elif e.is_action_pressed("tool_next") or e.is_action_pressed("tool_prev"):
+		if _bar.is_empty():
+			return
+		var step := 1 if e.is_action_pressed("tool_next") else -1
+		var at := _bar.find(_equipped)
+		_pick_slot(posmod(at + step, _bar.size()) if at >= 0 else (0 if step > 0 else _bar.size() - 1))
+
+
+## A menu, the emote wheel or the inventory has the gamepad's focus.
+func _pad_busy() -> bool:
+	var f := get_viewport().gui_get_focus_owner()
+	return f != null and f.is_visible_in_tree()
+
+
 func _touch(e: InputEventScreenTouch) -> void:
 	if e.pressed:
-		for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
+		for b in _touch_buttons():
 			if b.touch_press(e.index, e.position):
 				return
 		if _blocked(e.position) or ui_under(e.position):
@@ -983,7 +1112,7 @@ func _touch(e: InputEventScreenTouch) -> void:
 			if _cam_finger < 0:
 				_cam_finger = e.index
 	else:
-		for b in [jump_btn, emote_btn, sprint_btn, lock_btn]:
+		for b in _touch_buttons():
 			b.touch_release(e.index)
 		joystick.end(e.index)
 		_pinch.erase(e.index)
@@ -1030,6 +1159,9 @@ func _desktop(event: InputEvent) -> void:
 		# Typing in some other field (the admin panel's announcement): keys are text.
 		if get_viewport().gui_get_focus_owner() is LineEdit:
 			return
+		# A key the place's script took (ContextActionService) is the script's; Escape stays ours.
+		if event.keycode != KEY_ESCAPE and is_bound.call(OS.get_keycode_string(event.keycode)):
+			return
 		match event.keycode:
 			KEY_ENTER, KEY_KP_ENTER, KEY_T, KEY_SLASH:
 				# Open chat that lost focus: jump back into typing instead of closing it.
@@ -1072,9 +1204,18 @@ func _desktop(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if player:
 		player.move_input = joystick.value
-		player.keyboard_blocked = chat_open() or get_viewport().gui_get_focus_owner() is LineEdit
-		player.sprint = Input.is_key_pressed(KEY_SHIFT) and not player.keyboard_blocked
-		player.jump_held = (Input.is_key_pressed(KEY_SPACE) and not player.keyboard_blocked) or jump_btn.is_down()
+		# Typing, or a gamepad in a menu: the keys and sticks aren't for walking.
+		player.keyboard_blocked = chat_open() or get_viewport().gui_get_focus_owner() is LineEdit or (Controls.pad_like() and _pad_busy())
+		player.sprint = (Input.is_key_pressed(KEY_SHIFT) or Input.is_action_pressed("sprint")) and not player.keyboard_blocked
+		player.jump_held = (Input.is_action_pressed("jump") and not player.keyboard_blocked) or jump_btn.is_down()
+		if not player.keyboard_blocked:
+			# Right stick: the camera; the shoulder buttons: zoom.
+			var look := Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down")
+			if look != Vector2.ZERO:
+				player.rotate_camera(look * 520.0 * delta)
+			var zoom := Input.get_action_strength("zoom_out") - Input.get_action_strength("zoom_in")
+			if zoom != 0.0:
+				player.zoom_camera(zoom * 9.0 * delta)
 		if DisplayServer.is_touchscreen_available():
 			lock_btn.visible = not player.dead and player.camera_mode != "LockFirstPerson" and not player.first_person
 			if not lock_btn.visible and player.shift_locked:
@@ -1086,7 +1227,8 @@ func _process(delta: float) -> void:
 		# Arrow keys turn the camera (left/right) and tilt it (up/down).
 		if not player.keyboard_blocked and not DisplayServer.is_touchscreen_available():
 			var turn := float(Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_LEFT))
-			var tilt := float(Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_DOWN))
+			# (On a TV remote up / down walk instead.)
+			var tilt := 0.0 if Controls.tv else float(Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_DOWN))
 			if turn != 0.0 or tilt != 0.0:
 				player.rotate_camera(Vector2(turn, -tilt) * 380.0 * delta)
 		_update_stamina()

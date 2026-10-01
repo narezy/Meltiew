@@ -138,7 +138,9 @@ func _process(delta: float) -> void:
 		_box.visible = false
 		return
 	var key := str(best.key).to_upper()
-	_key.text = "" if DisplayServer.is_touchscreen_available() else key
+	# What to press: the prompt's key, X on a gamepad, OK on a TV remote; nothing on a phone.
+	var shown := {"pad": "X", "remote": "OK", "touch": ""}.get(Controls.device, key) as String
+	_key.text = "" if DisplayServer.is_touchscreen_available() and Controls.device == "touch" else shown
 	_key.visible = _key.text != ""
 	_action.text = str(best.action)
 	_object.text = str(best.object)
@@ -150,7 +152,10 @@ func _process(delta: float) -> void:
 	_box.position = cam.unproject_position(point) - _box.size / 2.0
 	# Held down with the key or a finger on it.
 	var code := OS.find_keycode_from_string(key)
-	var down: bool = _touch_held or (code != KEY_NONE and Input.is_physical_key_pressed(code) and not (typing.is_valid() and typing.call()))
+	var free: bool = not (typing.is_valid() and typing.call()) and not _menu_has_pad()
+	var down: bool = _touch_held or (free and ((code != KEY_NONE and Input.is_physical_key_pressed(code))
+		or (Input.is_action_pressed("interact") and not (host and host.is_bound("ButtonX")))
+		or (Controls.tv and Input.is_key_pressed(KEY_ENTER))))
 	if down and not _holding:
 		_holding = true
 		_held = 0.0
@@ -164,6 +169,17 @@ func _process(delta: float) -> void:
 		_holding = false
 		_held = 0.0
 	_bar.value = clampf(_held / need, 0.0, 1.0) if need > 0.0 else 0.0
+
+
+## A menu, the wheel or the inventory has the gamepad's focus: X is theirs.
+func _menu_has_pad() -> bool:
+	var f := get_viewport().gui_get_focus_owner()
+	return f != null and f.is_visible_in_tree() and not (f is LineEdit)
+
+
+## A prompt is showing (a TV remote's OK uses it instead of jumping).
+func showing() -> bool:
+	return _box.visible
 
 
 func _trigger(c: Dictionary) -> void:

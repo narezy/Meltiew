@@ -39,6 +39,9 @@ var _side_gap: Control
 
 
 func _ready() -> void:
+	# A TV remote's Back walks back through the menu (see _notification), not out of the app.
+	if Controls.tv:
+		get_tree().quit_on_go_back = false
 	add_child(Backdrop.new())
 	var shell := Control.new()
 	shell.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -90,6 +93,16 @@ func _ready() -> void:
 
 
 func _notification(what: int) -> void:
+	# A TV remote's Back: through the sheets and pages first; on home it leaves the app.
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and Controls.tv:
+		var top := Controls._top_screen()
+		if top and top.has_meta("on_back"):
+			Controls.go_back()
+		elif _page_id == "home":
+			get_tree().quit()
+		else:
+			go_back()
+		return
 	# Coming back from the browser after pressing "Play" on the website.
 	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		var launch := Launcher.take()
@@ -184,7 +197,8 @@ func _build_sidebar() -> Control:
 		var b := Button.new()
 		b.theme_type_variation = "TabButton"
 		b.toggle_mode = true
-		b.focus_mode = Control.FOCUS_NONE
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.custom_minimum_size.y = 56
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var inner := UI.hbox(14)
@@ -323,6 +337,15 @@ func _highlight(id: String) -> void:
 		_nav_icons[pid][1].add_theme_color_override("font_color", UI.TEXT if on else UI.MUTED)
 
 
+## Back with a gamepad's B or a TV remote: from a place to where it was opened, from
+## any other page to home.
+func go_back() -> void:
+	if _page_id == "place":
+		open_page(last_page)
+	elif _page_id != "home":
+		open_page("home")
+
+
 ## Rebuilds the current page from scratch (after changes that alter its layout).
 func reload_page() -> void:
 	var id := _page_id
@@ -367,6 +390,7 @@ func open_page(id: String) -> void:
 			_page = HomePage.new()
 	_page.set_meta("menu", self)
 	_pages.add_child(_page)
+	Controls.screen_opened(_page)
 	var page := _page
 	page.modulate.a = 0.0
 	# Slide in from where the container puts the page (its margins), once it's laid out.

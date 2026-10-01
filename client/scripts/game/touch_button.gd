@@ -30,6 +30,8 @@ static func make(kind: String, px: int) -> TouchButton:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	if icon_kind == "":
+		return  # a text or picture button (the place's actions)
 	_icon = Icon.make(icon_kind, int(size.x * 0.42), tint)
 	_icon.position = (size - _icon.custom_minimum_size) * 0.5
 	add_child(_icon)

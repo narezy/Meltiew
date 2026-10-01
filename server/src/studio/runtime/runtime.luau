@@ -1500,7 +1500,14 @@ end
 -- Enum.Material.Neon == "Neon": enum values are plain strings, so both work.
 local Enum = setmetatable({}, {
 	__index = function(_, name)
-		local list = enums[name]
+		if name == "KeyCode" then
+			local t = table.clone(later.keyCodes)
+			t.GetEnumItems = function()
+				return table.clone(later.keyNames)
+			end
+			return table.freeze(t)
+		end
+		local list = enums[name] or later.inputEnums[name]
 		if not list then
 			error("no enum named " .. tostring(name), 2)
 		end
@@ -1594,6 +1601,221 @@ local UserInputService = setmetatable({}, {
 		return "UserInputService"
 	end,
 })
+
+-- Gamepads, TV remotes and the device: UserInputService's extra members, Enum.KeyCode
+-- (Roblox names; each is the same string the host sends, so `input.KeyCode == "E"` and
+-- `== Enum.KeyCode.E` both work), ContextActionService and GuiService.
+do
+	UIS.GamepadEnabled = false
+	UIS.VREnabled = false
+	UIS.PreferredInput = "KeyboardAndMouse"
+	UIS._platform = "Windows"
+	UIS._last = "Keyboard"
+	UIS._tv = false
+	UIS.LastInputTypeChanged = Signal.new("LastInputTypeChanged")
+	UIS.GamepadConnected = Signal.new("GamepadConnected")
+	UIS.GamepadDisconnected = Signal.new("GamepadDisconnected")
+	function UIS:GetPlatform()
+		return UIS._platform
+	end
+	function UIS:GetLastInputType()
+		return UIS._last
+	end
+	function UIS:GetConnectedGamepads()
+		return UIS.GamepadEnabled and { "Gamepad1" } or {}
+	end
+	function UIS:GetGamepadConnected(gamepad)
+		return UIS.GamepadEnabled and tostring(gamepad) == "Gamepad1"
+	end
+	function UIS:IsGamepadButtonDown(_gamepad, key)
+		return UIS._down[tostring(key)] == true
+	end
+	function UIS:GetNavigationGamepads()
+		return UIS:GetConnectedGamepads()
+	end
+
+	-- Roblox's KeyCode names -> the key names the host sends (Godot's).
+	local keys = {
+		Zero = "0", One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6", Seven = "7", Eight = "8", Nine = "9",
+		Space = "Space", Return = "Enter", KeypadEnter = "Kp Enter", Escape = "Escape", Tab = "Tab", Backspace = "Backspace",
+		LeftShift = "Shift", RightShift = "Shift", LeftControl = "Ctrl", RightControl = "Ctrl", LeftAlt = "Alt", RightAlt = "Alt",
+		LeftSuper = "Meta", RightSuper = "Meta", CapsLock = "CapsLock",
+		Up = "Up", Down = "Down", Left = "Left", Right = "Right",
+		Insert = "Insert", Delete = "Delete", Home = "Home", End = "End", PageUp = "PageUp", PageDown = "PageDown",
+		Backquote = "QuoteLeft", Minus = "Minus", Equals = "Equal", LeftBracket = "BracketLeft", RightBracket = "BracketRight",
+		BackSlash = "BackSlash", Semicolon = "Semicolon", Quote = "Apostrophe", Comma = "Comma", Period = "Period", Slash = "Slash",
+		Unknown = "Unknown",
+	}
+	for c in string.gmatch("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ".") do
+		keys[c] = c
+	end
+	for i = 1, 12 do
+		keys["F" .. i] = "F" .. i
+	end
+	for i = 0, 9 do
+		keys["Keypad" .. ({ "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" })[i + 1]] = "Kp " .. i
+	end
+	for _, b in { "ButtonA", "ButtonB", "ButtonX", "ButtonY", "ButtonL1", "ButtonR1", "ButtonL2", "ButtonR2", "ButtonL3",
+		"ButtonR3", "ButtonStart", "ButtonSelect", "DPadUp", "DPadDown", "DPadLeft", "DPadRight", "Thumbstick1", "Thumbstick2" } do
+		keys[b] = b
+	end
+	later.keyCodes = keys
+	local keyNames = {}
+	for k in keys do
+		table.insert(keyNames, k)
+	end
+	table.sort(keyNames)
+	later.keyNames = keyNames
+	-- Enums that are plain names (Enum.X.Y == "Y"), kept here with the input code.
+	later.inputEnums = {
+		UserInputType = { "Keyboard", "MouseButton1", "MouseButton2", "MouseButton3", "MouseWheel", "MouseMovement", "Touch", "Gamepad1", "TextInput", "None" },
+		UserInputState = { "Begin", "Change", "End", "Cancel", "None" },
+		ContextActionResult = { "Sink", "Pass" },
+		Platform = { "Windows", "OSX", "IOS", "Android", "AndroidTV", "Linux", "MetaOS", "None" },
+		PreferredInput = { "KeyboardAndMouse", "Gamepad", "Touch" },
+		UserCFrame = { "Head", "LeftHand", "RightHand", "Floor" },
+	}
+
+	-- ContextActionService: a function bound to keys, gamepad buttons or input types (and on
+	-- phones, an on-screen button). Bound inputs reach it before UserInputService; returning
+	-- Enum.ContextActionResult.Pass lets them through. A bound key also stops the game's own
+	-- use of it (jump, emotes...).
+	local bound = {} -- name -> { fn, inputs = {..}, touch, title, image, position, priority, order }
+	local order = 0
+	local function changed()
+		if role ~= "client" then
+			return
+		end
+		local inputs, buttons = {}, {}
+		for name, b in bound do
+			for _, i in b.inputs do
+				inputs[i] = true
+			end
+			if b.touch then
+				table.insert(buttons, { name = name, title = b.title or "", image = b.image or "",
+					position = b.position and { b.position.X.Scale, b.position.X.Offset, b.position.Y.Scale, b.position.Y.Offset } or nil })
+			end
+		end
+		local list = {}
+		for i in inputs do
+			table.insert(list, i)
+		end
+		table.sort(list)
+		table.sort(buttons, function(a, b2)
+			return a.name < b2.name
+		end)
+		emit({ o = "cas", keys = list, buttons = buttons })
+	end
+	local function bind(name, fn, touch, priority, ...)
+		name = tostring(name)
+		if type(fn) ~= "function" then
+			error("BindAction: the second argument must be a function", 3)
+		end
+		local inputs = {}
+		for _, i in { ... } do
+			table.insert(inputs, tostring(i))
+		end
+		order += 1
+		bound[name] = { fn = fn, inputs = inputs, touch = touch == true, priority = priority, order = order }
+		changed()
+	end
+	local CAS = {}
+	function CAS:BindAction(name, fn, createTouchButton, ...)
+		bind(name, fn, createTouchButton, 2000, ...)
+	end
+	function CAS:BindActionAtPriority(name, fn, createTouchButton, priority, ...)
+		bind(name, fn, createTouchButton, tonumber(priority) or 2000, ...)
+	end
+	function CAS:UnbindAction(name)
+		if bound[tostring(name)] then
+			bound[tostring(name)] = nil
+			changed()
+		end
+	end
+	function CAS:UnbindAllActions()
+		table.clear(bound)
+		changed()
+	end
+	function CAS:GetBoundActionInfo(name)
+		local b = bound[tostring(name)]
+		if not b then
+			return {}
+		end
+		return { inputTypes = table.clone(b.inputs), createTouchButton = b.touch, priorityLevel = b.priority, title = b.title, image = b.image }
+	end
+	function CAS:GetAllBoundActionInfo()
+		local out = {}
+		for name in bound do
+			out[name] = CAS:GetBoundActionInfo(name)
+		end
+		return out
+	end
+	local function setter(field)
+		return function(_, name, value)
+			local b = bound[tostring(name)]
+			if b then
+				b[field] = value
+				changed()
+			end
+		end
+	end
+	CAS.SetTitle = setter("title")
+	CAS.SetImage = setter("image")
+	CAS.SetPosition = setter("position")
+	CAS.SetDescription = setter("description")
+	function CAS:GetButton()
+		return nil
+	end
+	-- Called for every input before UserInputService: true when an action sank it.
+	later.casInput = function(input, state)
+		local hits = {}
+		for name, b in bound do
+			if table.find(b.inputs, input.KeyCode) or table.find(b.inputs, input.UserInputType) then
+				table.insert(hits, { name = name, b = b })
+			end
+		end
+		table.sort(hits, function(x, y)
+			if x.b.priority ~= y.b.priority then
+				return x.b.priority > y.b.priority
+			end
+			return x.b.order > y.b.order
+		end)
+		for _, h in hits do
+			local ok, result = pcall(h.b.fn, h.name, state, input)
+			if not ok then
+				report(result)
+			end
+			if result ~= "Pass" then
+				return true
+			end
+		end
+		return false
+	end
+	-- The on-screen button of an action was pressed or let go (phones).
+	later.casTouch = function(name, down)
+		local b = bound[tostring(name)]
+		if not b then
+			return
+		end
+		local input = table.freeze({ KeyCode = "Unknown", UserInputType = "Touch", Position = v3(0, 0, 0), Delta = v3(0, 0, 0), UserInputState = down and "Begin" or "End" })
+		local ok, err = pcall(b.fn, tostring(name), down and "Begin" or "End", input)
+		if not ok then
+			report(err)
+		end
+	end
+	later.ContextActionService = setmetatable(CAS, { __tostring = function()
+		return "ContextActionService"
+	end })
+
+	-- GuiService: whether the game is on a TV (big text, a remote).
+	local GuiService = {}
+	function GuiService:IsTenFootInterface()
+		return UIS._tv
+	end
+	later.GuiService = setmetatable(GuiService, { __tostring = function()
+		return "GuiService"
+	end })
+end
 
 -- Player:GetMouse(): the pointer as an object (Hit, Target, Button1Down...).
 local mouseSignals = {}
@@ -3729,6 +3951,8 @@ local specialServices = {
 	RunService = RunService,
 	TweenService = TweenService,
 	UserInputService = UserInputService,
+	ContextActionService = later.ContextActionService,
+	GuiService = later.GuiService,
 	LocalizationService = LocalizationService,
 	Debris = Debris,
 	HttpService = HttpService,
@@ -4348,19 +4572,32 @@ function handlers.gui(e)
 end
 function handlers.input(e)
 	local kind = tostring(e.kind or "Keyboard")
-	local key = kind == "Keyboard" and tostring(e.key) or "Unknown"
-	local pos = v2(tonumber(e.x) or mouseState.x, tonumber(e.y) or mouseState.y)
-	local input = table.freeze({ KeyCode = key, UserInputType = kind, Position = pos })
+	local key = (kind == "Keyboard" or kind == "Gamepad1") and tostring(e.key) or "Unknown"
+	local pad = kind == "Gamepad1"
+	-- Gamepad sticks and triggers: Position is a Vector3 (X, Y of the stick; Z of a trigger).
+	local pos = pad and v3(tonumber(e.x) or 0, tonumber(e.y) or 0, tonumber(e.z) or 0) or v2(tonumber(e.x) or mouseState.x, tonumber(e.y) or mouseState.y)
+	local state = e.change and "Change" or (e.down and "Begin" or "End")
+	local input = table.freeze({ KeyCode = key, UserInputType = kind, Position = pos, UserInputState = state, Delta = pad and v3(0, 0, 0) or v2(0, 0) })
+	if kind ~= UIS._last and kind ~= "MouseWheel" then
+		UIS._last = kind
+		UIS.LastInputTypeChanged:_fire(kind)
+	end
+	local sunk = later.casInput(input, state)
+	local processed = e.ui == true or sunk
 	if kind == "MouseWheel" then
-		UIS.InputChanged:_fire(input, e.ui == true)
+		UIS.InputChanged:_fire(input, processed)
 		mouseSignals[e.down and "WheelForward" or "WheelBackward"]:_fire()
 		return
 	end
-	UIS._down[kind == "Keyboard" and key or kind] = e.down == true
+	if e.change then
+		UIS.InputChanged:_fire(input, processed)
+		return
+	end
+	UIS._down[(kind == "Keyboard" or pad) and key or kind] = e.down == true
 	if e.down then
-		UIS.InputBegan:_fire(input, e.ui == true)
+		UIS.InputBegan:_fire(input, processed)
 	else
-		UIS.InputEnded:_fire(input, e.ui == true)
+		UIS.InputEnded:_fire(input, processed)
 	end
 	if e.ui ~= true then
 		if kind == "MouseButton1" or kind == "Touch" then
@@ -4369,6 +4606,19 @@ function handlers.input(e)
 			mouseSignals[e.down and "Button2Down" or "Button2Up"]:_fire()
 		end
 	end
+end
+-- The device changed: a gamepad connected or not, what the player uses now.
+function handlers.device(e)
+	local had = UIS.GamepadEnabled
+	UIS.GamepadEnabled = e.gamepad == true
+	UIS.PreferredInput = tostring(e.preferred or UIS.PreferredInput)
+	if had ~= UIS.GamepadEnabled then
+		(UIS.GamepadEnabled and UIS.GamepadConnected or UIS.GamepadDisconnected):_fire("Gamepad1")
+	end
+end
+-- An on-screen action button (ContextActionService, phones) pressed or let go.
+function handlers.cas(e)
+	later.casTouch(e.name, e.down == true)
 end
 -- client: replication from the server (same shape as the server's operations)
 function handlers.new(e)
@@ -4458,6 +4708,11 @@ G.__init = hostCall(function(cfg)
 	UIS.TouchEnabled = device.touch == true
 	UIS.KeyboardEnabled = device.keyboard == true
 	UIS.MouseEnabled = device.mouse == true
+	UIS.GamepadEnabled = device.gamepad == true
+	UIS.VREnabled = device.vr == true
+	UIS.PreferredInput = tostring(device.preferred or (device.touch and "Touch" or "KeyboardAndMouse"))
+	UIS._platform = tostring(device.platform or "Windows")
+	UIS._tv = device.tv == true
 	math.randomseed(tonumber(cfg.seed) or 1)
 	DataModel = create("DataModel", "0")
 	D[DataModel].name = "Game"

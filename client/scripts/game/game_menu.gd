@@ -142,6 +142,8 @@ func open() -> void:
 	_fit()
 	visible = true
 	show_tab(_tab)
+	_card.set_meta("on_back", close)
+	Controls.screen_opened(_card)
 	_card.modulate.a = 0.0
 	_card.scale = Vector2(0.96, 0.96)
 	_card.pivot_offset = _card.size / 2.0
@@ -153,6 +155,8 @@ func open() -> void:
 func close() -> void:
 	if visible:
 		visible = false
+		# Back in the game: A jumps again instead of pressing a menu button.
+		get_viewport().gui_release_focus()
 		resumed.emit()
 
 

@@ -159,7 +159,8 @@ func _cloth_card(it: Dictionary) -> Control:
 	card.add_child(v)
 	var pic_btn := Button.new()
 	pic_btn.flat = true
-	pic_btn.focus_mode = Control.FOCUS_NONE
+	pic_btn.set_meta("pad_focus", true)
+	pic_btn.focus_mode = Controls.focus_mode()
 	pic_btn.custom_minimum_size = Vector2(0, 110)
 	var tile := Panel.new()
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -290,7 +291,8 @@ func _card(kind: String, it: Dictionary) -> Control:
 	card.add_child(v)
 	var pic_btn := Button.new()
 	pic_btn.flat = true
-	pic_btn.focus_mode = Control.FOCUS_NONE
+	pic_btn.set_meta("pad_focus", true)
+	pic_btn.focus_mode = Controls.focus_mode()
 	pic_btn.custom_minimum_size = Vector2(0, 100)
 	var pic := TextureRect.new()
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

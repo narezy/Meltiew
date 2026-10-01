@@ -29,7 +29,9 @@ func _ready() -> void:
 	for i in ITEMS.size():
 		var it: Array = ITEMS[i]
 		var b := Button.new()
-		b.focus_mode = Control.FOCUS_NONE
+		# A gamepad walks the wheel with the stick; the one it's on lights up.
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.custom_minimum_size = Vector2(BTN, BTN)
 		b.size = Vector2(BTN, BTN)
 		var sb := StyleBoxFlat.new()
@@ -39,9 +41,8 @@ func _ready() -> void:
 		sb.border_color = Color(1, 1, 1, 0.14)
 		var sb_hi := sb.duplicate()
 		sb_hi.bg_color = UI.ACCENT_DARK
-		for st in ["normal", "focus"]:
-			b.add_theme_stylebox_override(st, sb)
-		for st in ["hover", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override("normal", sb)
+		for st in ["hover", "pressed", "hover_pressed", "focus"]:
 			b.add_theme_stylebox_override(st, sb_hi)
 		var ic := Icon.make(it[1], 34)
 		ic.position = Vector2((BTN - 34) / 2.0, 16)
@@ -95,6 +96,8 @@ func set_overrides(o: Dictionary) -> void:
 func open() -> void:
 	visible = true
 	_layout()
+	set_meta("on_back", close)
+	Controls.screen_opened(self)
 	for i in _items.size():
 		var c := _items[i]
 		c.scale = Vector2(0.4, 0.4)
@@ -106,6 +109,8 @@ func open() -> void:
 
 
 func close() -> void:
+	if visible and is_inside_tree():
+		get_viewport().gui_release_focus()
 	visible = false
 
 

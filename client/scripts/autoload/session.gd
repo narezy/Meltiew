@@ -47,6 +47,8 @@ var test_melt: Dictionary = {}
 ## Drawing as for a phone (lighter shadows, lamps, resolution). A phone, or the
 ## performance test pretending to be one on a computer.
 var phone := OS.has_feature("mobile")
+## Playing in a VR headset (set when the game starts in VR; see the VR mode).
+var vr := false
 
 
 func _ready() -> void:

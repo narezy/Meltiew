@@ -217,7 +217,8 @@ func _swatches(picked: Array) -> Control:
 	for col in COLORS:
 		var b := Button.new()
 		b.toggle_mode = true
-		b.focus_mode = Control.FOCUS_NONE
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.custom_minimum_size = Vector2(40, 40)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(col)

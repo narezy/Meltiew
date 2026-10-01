@@ -33,6 +33,7 @@ Net="*res://scripts/autoload/net.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 UI="*res://scripts/autoload/ui.gd"
 Busts="*res://scripts/autoload/busts.gd"
+Controls="*res://scripts/autoload/controls.gd"
 
 [display]
 

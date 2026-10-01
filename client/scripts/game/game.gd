@@ -95,6 +95,7 @@ func _ready() -> void:
 	prompts.typing = func() -> bool: return hud.chat_open() or get_viewport().gui_get_focus_owner() is LineEdit
 	prompts.extra = _hug_prompts
 	hud.add_child(prompts)
+	hud.prompts = prompts
 	hud.bind_player(player)
 	hud.menu_requested.connect(_open_menu)
 	hud.chat_submitted.connect(func(t: String):
@@ -106,6 +107,8 @@ func _ready() -> void:
 	hud.admin_requested.connect(_toggle_admin)
 	hud.emote_picked.connect(_emote)
 	hud.tool_picked.connect(_pick_tool)
+	hud.tool_used.connect(_use_tool)
+	hud.tool_dropped.connect(_drop_tool)
 	voice = Voice.new()
 	voice.net = net
 	voice.remotes = remotes
@@ -181,10 +184,7 @@ func _apply_quality() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if menu and menu.visible:
-			menu.close()
-		else:
-			_open_menu()
+		go_back()
 	# "Play" on the website while already in a game: go there instead.
 	if what == NOTIFICATION_APPLICATION_RESUMED:
 		var launch := Launcher.take()
@@ -458,6 +458,10 @@ func _start_place(p: Dictionary) -> void:
 		return id != "" and place_host.tree.has(id) and place_host.tree.prop(id, "Climbable") == true
 	place_host.animation_requested.connect(func(anim: String): player.play_custom(anim))
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
+	place_host.actions_changed.connect(func(): hud.set_actions(place_host.action_buttons, place_host.action_touch))
+	hud.is_bound = func(k: String) -> bool: return place_host != null and place_host.is_bound(k)
+	Controls.device_changed.connect(func(_d): if place_host: place_host.device_changed())
+	Input.joy_connection_changed.connect(func(_id, _on): if place_host: place_host.device_changed())
 	place_host.passes = p.get("passes", [])
 	place_host.pass_info = p.get("pass_info", [])
 	place_host.badges = p.get("badges", [])
@@ -572,6 +576,12 @@ func _ghost_contacts() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not place_host:
+		return
+	# Gamepad buttons for the place's scripts (the sticks and triggers: _send_pad_axes).
+	if event is InputEventJoypadButton:
+		var key := Controls.pad_button_name(event.button_index)
+		if key != "":
+			place_host.pad_event(key, event.pressed)
 		return
 	if event is InputEventKey and not event.echo:
 		if event.pressed and event.keycode == KEY_F9:
@@ -956,10 +966,51 @@ func _process(delta: float) -> void:
 		net.send({"t": "ping", "c": Time.get_ticks_msec()})
 	_frame_ms += delta * 1000.0
 	_frame_n += 1
+	if place_host and not Input.get_connected_joypads().is_empty():
+		_send_pad_axes()
 	_stats_timer -= delta
 	if _stats_timer <= 0.0:
 		_stats_timer = 0.5
 		_measure_frames()
+
+
+## Back (the phone's gesture, B, a remote's Back): the menu opens or closes.
+func go_back() -> void:
+	if menu and menu.visible:
+		menu.close()
+	else:
+		_open_menu()
+
+
+# --- gamepad sticks and triggers for scripts -------------------------------------
+
+var _pad_axes := {}  # key -> last Vector3 sent
+var _triggers := {}  # "ButtonL2" / "ButtonR2" -> held
+
+
+## The sticks (Thumbstick1/2, Y up) and triggers (ButtonL2/R2: Z, and a press past half)
+## when they move, for UserInputService.InputChanged and ContextActionService.
+func _send_pad_axes() -> void:
+	var dev: int = Input.get_connected_joypads()[0]
+	var now := {
+		"Thumbstick1": Vector3(Input.get_joy_axis(dev, JOY_AXIS_LEFT_X), -Input.get_joy_axis(dev, JOY_AXIS_LEFT_Y), 0),
+		"Thumbstick2": Vector3(Input.get_joy_axis(dev, JOY_AXIS_RIGHT_X), -Input.get_joy_axis(dev, JOY_AXIS_RIGHT_Y), 0),
+		"ButtonL2": Vector3(0, 0, Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT)),
+		"ButtonR2": Vector3(0, 0, Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT)),
+	}
+	for key in now:
+		var v: Vector3 = now[key]
+		if v.length() < 0.12:
+			v = Vector3.ZERO
+		var last: Vector3 = _pad_axes.get(key, Vector3.ZERO)
+		if v.distance_to(last) > 0.03 or (v == Vector3.ZERO and last != Vector3.ZERO):
+			_pad_axes[key] = v
+			place_host.pad_axis(key, v)
+		if key.begins_with("Button"):
+			var held := v.z > 0.5
+			if held != bool(_triggers.get(key, false)):
+				_triggers[key] = held
+				place_host.pad_event(key, held)
 
 
 # --- frame time and resolution -------------------------------------------------

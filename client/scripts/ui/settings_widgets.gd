@@ -17,7 +17,8 @@ static func slider(parent: Control, title: String, key: String, lo: float, hi: f
 	s.step = step
 	s.value = float(Session.settings[key])
 	s.custom_minimum_size.y = 36
-	s.focus_mode = Control.FOCUS_NONE
+	s.set_meta("pad_focus", true)
+	s.focus_mode = Controls.focus_mode()
 	var fmt := func(x: float) -> String:
 		return "%d%%" % roundi(x * 100.0) if percent else "%.2fx" % x
 	val.text = fmt.call(s.value)
@@ -59,7 +60,8 @@ static func toggle(parent: Control, title: String, key: String) -> CheckButton:
 	t.text = title
 	t.button_pressed = bool(Session.settings.get(key, false))
 	t.add_theme_font_size_override("font_size", 19)
-	t.focus_mode = Control.FOCUS_NONE
+	t.set_meta("pad_focus", true)
+	t.focus_mode = Controls.focus_mode()
 	t.mouse_filter = Control.MOUSE_FILTER_PASS
 	t.toggled.connect(func(on):
 		Session.settings[key] = on

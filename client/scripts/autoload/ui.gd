@@ -194,7 +194,9 @@ func button(text: String, variant := "primary", min_h := 56) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size.y = min_h
-	b.focus_mode = Control.FOCUS_NONE
+	# Focusable while a gamepad or a remote is in use (Controls); the HUD's own buttons opt out.
+	b.set_meta("pad_focus", true)
+	b.focus_mode = Controls.focus_mode()
 	match variant:
 		"ghost":
 			b.theme_type_variation = "GhostButton"
@@ -276,6 +278,7 @@ func avatar_badge(u: Dictionary, size := 52) -> Control:
 ## pressing inside the card, or dragging to scroll, never closes it.
 func close_outside(dim: Control, card: Control, on_close: Callable) -> void:
 	var st := {"down": false, "at": Vector2.ZERO}
+	dim.set_meta("on_back", on_close)  # B on a gamepad, Back on a remote
 	dim.gui_input.connect(func(e: InputEvent):
 		if not (e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT):
 			return
@@ -324,6 +327,7 @@ func confirm(parent: Node, title: String, text: String, ok_text := "", danger :=
 	row.add_child(yes)
 	var result := [false]
 	var done := [false]
+	dim.set_meta("on_back", func(): done[0] = true)
 	no.pressed.connect(func(): done[0] = true)
 	yes.pressed.connect(func():
 		result[0] = true
@@ -380,6 +384,19 @@ func _box(color: Color, radius := 16, px := 16, py := 12) -> StyleBoxFlat:
 	return sb
 
 
+## The ring around what a gamepad or a remote is on (only shown for those: a click or a
+## tap doesn't show it, see gui/common/show_focus_state_on_pointer_event).
+func focus_ring(radius := 18) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.draw_center = false
+	sb.set_border_width_all(3)
+	sb.border_color = Color.WHITE
+	sb.set_corner_radius_all(radius)
+	sb.set_expand_margin_all(4)
+	sb.anti_aliasing = true
+	return sb
+
+
 func _button_styles(t: Theme, type: String, base: Color, fg: Color, border := Color.TRANSPARENT) -> void:
 	var normal := _box(base, 16, 22, 12)
 	if border.a > 0:
@@ -398,7 +415,7 @@ func _button_styles(t: Theme, type: String, base: Color, fg: Color, border := Co
 	t.set_stylebox("pressed", type, pressed)
 	t.set_stylebox("hover_pressed", type, pressed)
 	t.set_stylebox("disabled", type, disabled)
-	t.set_stylebox("focus", type, StyleBoxEmpty.new())
+	t.set_stylebox("focus", type, focus_ring())
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		t.set_color(c, type, fg)
 	t.set_color("font_disabled_color", type, fg.darkened(0.4))
@@ -502,7 +519,7 @@ func _build_theme() -> Theme:
 	t.set_color("font_hover_color", "CheckButton", TEXT)
 	t.set_color("font_pressed_color", "CheckButton", TEXT)
 	t.set_color("font_hover_pressed_color", "CheckButton", TEXT)
-	t.set_stylebox("focus", "CheckButton", StyleBoxEmpty.new())
+	t.set_stylebox("focus", "CheckButton", focus_ring(14))
 	for s in ["normal", "hover", "pressed", "hover_pressed"]:
 		t.set_stylebox(s, "CheckButton", StyleBoxEmpty.new())
 
@@ -553,12 +570,28 @@ static func md_to_bbcode(md: String) -> String:
 func on_tap(c: Control, cb: Callable) -> void:
 	var start := [Vector2.ZERO]
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
+	# A gamepad or a remote can stop on it too (OK / A taps it) and sees a ring.
+	c.set_meta("pad_focus", true)
+	c.set_meta("tap_card", true)
+	c.focus_mode = Controls.focus_mode()
+	var ring := Panel.new()
+	ring.add_theme_stylebox_override("panel", focus_ring())
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ring.visible = false
+	c.add_child(ring, false, Node.INTERNAL_MODE_BACK)
+	c.focus_entered.connect(func(): ring.visible = true)
+	c.focus_exited.connect(func(): ring.visible = false)
 	c.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 			if e.pressed:
 				start[0] = e.global_position
 			elif e.global_position.distance_to(start[0]) < 14.0:
-				cb.call())
+				cb.call()
+		elif e.is_action_pressed("ui_accept") and not e.is_echo():
+			c.accept_event()
+			Sfx.click()
+			cb.call())
 
 
 ## Small colored chip for staff roles ("OWNER", "ADMIN"); null for everyone else.

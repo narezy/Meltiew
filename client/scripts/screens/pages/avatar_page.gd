@@ -160,7 +160,8 @@ func _build_colors_tab() -> Control:
 	for hex in UI.SWATCHES:
 		var sw := Button.new()
 		sw.custom_minimum_size = Vector2(48, 48)
-		sw.focus_mode = Control.FOCUS_NONE
+		sw.set_meta("pad_focus", true)
+		sw.focus_mode = Controls.focus_mode()
 		sw.set_meta("hex", hex)
 		_style_swatch(sw, Color(hex), false)
 		sw.pressed.connect(func():
@@ -177,7 +178,8 @@ func _build_colors_tab() -> Control:
 	_custom_picker.edit_alpha = false
 	_custom_picker.color = Color(_colors.torso)
 	_custom_picker.color_changed.connect(func(c: Color): _paint("#" + c.to_html(false)))
-	_custom_picker.focus_mode = Control.FOCUS_NONE
+	_custom_picker.set_meta("pad_focus", true)
+	_custom_picker.focus_mode = Controls.focus_mode()
 	custom_row.add_child(_custom_picker)
 	v.add_child(custom_row)
 	_select_parts(["torso"])
@@ -198,8 +200,9 @@ func _style_swatch(b: Button, c: Color, selected: bool) -> void:
 	sb.set_corner_radius_all(24)
 	sb.set_border_width_all(4 if selected else 2)
 	sb.border_color = UI.TEXT if selected else Color(1, 1, 1, 0.12)
-	for s in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+	for s in ["normal", "hover", "pressed", "hover_pressed"]:
 		b.add_theme_stylebox_override(s, sb)
+	b.add_theme_stylebox_override("focus", UI.focus_ring(26))
 
 
 func _select_parts(parts: Array) -> void:
@@ -243,7 +246,8 @@ func _build_faces_tab() -> Control:
 			continue
 		var b := Button.new()
 		b.toggle_mode = true
-		b.focus_mode = Control.FOCUS_NONE
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.custom_minimum_size = Vector2(84, 84)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.theme_type_variation = "ChipButton"
@@ -386,7 +390,8 @@ func _draw_clothes() -> void:
 	for id in rest:
 		var b := Button.new()
 		b.flat = true
-		b.focus_mode = Control.FOCUS_NONE
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.tooltip_text = str(_cloth_items[id].name)
 		var thumb := _cloth_thumb(_cloth_items[id], 96)
 		b.custom_minimum_size = thumb.custom_minimum_size
@@ -427,7 +432,8 @@ func _build_hats_tab() -> Control:
 			continue
 		var b := Button.new()
 		b.toggle_mode = true
-		b.focus_mode = Control.FOCUS_NONE
+		b.set_meta("pad_focus", true)
+		b.focus_mode = Controls.focus_mode()
 		b.theme_type_variation = "ChipButton"
 		b.custom_minimum_size = Vector2(118, 146)
 		var col := UI.vbox(2)

@@ -64,15 +64,18 @@ static func chips(parent: Node) -> HBoxContainer:
 
 static func _chip(icon: String, tint: Color, text: String, on_press: Callable) -> Button:
 	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
+	b.set_meta("pad_focus", true)
+	b.set_meta("pad_late", true)  # not where a gamepad starts on a page
+	b.focus_mode = Controls.focus_mode()
 	b.custom_minimum_size.y = 44
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(UI.BG_2, 0.9)
 	sb.set_corner_radius_all(22)
 	sb.content_margin_left = 12
 	sb.content_margin_right = 14
-	for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+	for st in ["normal", "hover", "pressed", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", UI.focus_ring(24))
 	var row := UI.hbox(6)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)

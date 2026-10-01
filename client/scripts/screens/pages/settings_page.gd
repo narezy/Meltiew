@@ -49,7 +49,8 @@ func _ready() -> void:
 	var cur := float(Session.settings.get("ui_scale", 0.0))
 	slider.value = cur if cur > 0.0 else UI.default_ui_scale()
 	slider.custom_minimum_size.y = 36
-	slider.focus_mode = Control.FOCUS_NONE
+	slider.set_meta("pad_focus", true)
+	slider.focus_mode = Controls.focus_mode()
 	scale_val.text = "%d%%" % roundi(slider.value * 100.0)
 	slider.value_changed.connect(func(x): scale_val.text = "%d%%" % roundi(x * 100.0))
 	# Applied on release, otherwise the slider jumps under your finger while it rescales.
@@ -109,7 +110,8 @@ func _ready() -> void:
 	hide.text = L.t("hide_friends")
 	hide.button_pressed = bool(Session.user.get("hide_friends", false))
 	hide.add_theme_font_size_override("font_size", 19)
-	hide.focus_mode = Control.FOCUS_NONE
+	hide.set_meta("pad_focus", true)
+	hide.focus_mode = Controls.focus_mode()
 	hide.toggled.connect(func(on):
 		var r := await Api.request("PATCH", "/api/me", {"hide_friends": on})
 		if r.ok:

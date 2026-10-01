@@ -14,7 +14,8 @@ var _selected: Variant = null
 func _init(p_title := "", p_placeholder := "") -> void:
 	title = p_title
 	placeholder = p_placeholder
-	focus_mode = Control.FOCUS_NONE
+	set_meta("pad_focus", true)
+	focus_mode = Controls.focus_mode()
 	clip_text = true
 	alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -27,8 +28,9 @@ func _init(p_title := "", p_placeholder := "") -> void:
 	sb.border_color = UI.LINE
 	sb.content_margin_left = 14
 	sb.content_margin_right = 34
-	for st in ["normal", "hover", "pressed", "focus"]:
+	for st in ["normal", "hover", "pressed"]:
 		add_theme_stylebox_override(st, sb)
+	add_theme_stylebox_override("focus", UI.focus_ring(16))
 	add_theme_color_override("font_color", UI.TEXT)
 	add_theme_color_override("font_hover_color", UI.TEXT)
 	add_theme_color_override("font_pressed_color", UI.TEXT)

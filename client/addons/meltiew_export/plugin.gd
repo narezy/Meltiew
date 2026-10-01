@@ -31,6 +31,26 @@ class DeepLinkExport extends EditorExportPlugin:
 			var f := FileAccess.open(target, FileAccess.WRITE)
 			f.store_string(patched)
 			f.close()
+		# Android TV: the banner on the home screen (the template's <application> gets it).
+		var res := ProjectSettings.globalize_path("res://android/build/res/drawable-xhdpi")
+		DirAccess.make_dir_recursive_absolute(res)
+		DirAccess.copy_absolute(ProjectSettings.globalize_path("res://addons/meltiew_export/android/tv_banner.png"), res.path_join("tv_banner.png"))
+		var manifest := ProjectSettings.globalize_path("res://android/build/src/main/AndroidManifest.xml")
+		var xml := FileAccess.get_file_as_string(manifest)
+		if xml != "" and not "android:banner" in xml:
+			xml = xml.replace("<application\n", "<application\n        android:banner=\"@drawable/tv_banner\"\n")
+			var m := FileAccess.open(manifest, FileAccess.WRITE)
+			m.store_string(xml)
+			m.close()
+
+	# A TV has no touch screen and often no microphone: neither is required (stores would
+	# hide the app from TVs otherwise). "show_in_android_tv" in the preset adds the TV launcher.
+	func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
+		return """
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+"""
 
 	# Lets meltiew://play links (and intent:// URLs from the website) open the game.
 	func _get_android_manifest_activity_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:

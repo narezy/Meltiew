@@ -23,6 +23,9 @@ signal animation_requested(anim: String)
 signal sit_requested(seat_id: String)
 ## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
 signal core_gui_changed(kind: String, on: bool)
+## ContextActionService changed: the keys / buttons scripts took, and the on-screen
+## action buttons for phones ([{name, title, image, position}]).
+signal actions_changed
 
 const RUNTIME_PATH := "res://studio/runtime/runtime.luau"
 const MEMORY_MB := 64
@@ -106,7 +109,9 @@ func start(p_user_id: int, p_lang: String, p_strings: Dictionary, snapshot: Arra
 		return false
 	_vm.sandbox()
 	var touch := DisplayServer.is_touchscreen_available()
-	var device := {"touch": touch, "keyboard": not touch or OS.has_feature("pc"), "mouse": not touch or OS.has_feature("pc")}
+	var device := {"touch": touch, "keyboard": not touch or OS.has_feature("pc"), "mouse": not touch or OS.has_feature("pc"),
+		"gamepad": not Input.get_connected_joypads().is_empty(), "vr": Session.vr, "tv": Controls.tv,
+		"platform": platform_name(), "preferred": preferred_input()}
 	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device, "passes": passes, "pass_info": pass_info, "badges": badges, "badge_info": badge_info})
 	_call("__dispatch", snapshot)
 	_call("__start", "")
@@ -251,6 +256,52 @@ func _on_gui_event(id: String, ev: String, value: Variant) -> void:
 		_call("__dispatch", [{"e": "gui", "id": id, "ev": ev, "value": value}])
 
 
+## Enum.Platform for UserInputService:GetPlatform().
+static func platform_name() -> String:
+	if Controls.tv:
+		return "AndroidTV"
+	return {"Windows": "Windows", "macOS": "OSX", "Linux": "Linux", "FreeBSD": "Linux", "Android": "Android", "iOS": "IOS"}.get(OS.get_name(), "None")
+
+
+## Enum.PreferredInput: what the player is using now.
+static func preferred_input() -> String:
+	return "Gamepad" if Controls.pad_like() or Controls.device == "vr" else ("Touch" if Controls.device == "touch" else "KeyboardAndMouse")
+
+
+# --- ContextActionService and gamepads ----------------------------------------------
+
+var bound_keys := {}  # key or input-type names scripts bound: the game leaves those alone
+var action_buttons: Array = []  # on-screen buttons for bound actions (phones)
+
+
+## Whether a script took this key (Godot's name, like "Q") or gamepad button ("ButtonX").
+func is_bound(key: String) -> bool:
+	return bound_keys.has(key)
+
+
+func pad_event(key: String, down: bool) -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "input", "kind": "Gamepad1", "key": key, "down": down}])
+
+
+## A stick or trigger moved (Thumbstick1/2: x, y; ButtonL2/R2: z).
+func pad_axis(key: String, v: Vector3) -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "input", "kind": "Gamepad1", "key": key, "change": true, "x": v.x, "y": v.y, "z": v.z}])
+
+
+## A phone's on-screen action button (ContextActionService) pressed or let go.
+func action_touch(action: String, down: bool) -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "cas", "name": action, "down": down}])
+
+
+## A gamepad connected or the player switched between touch, mouse and a gamepad.
+func device_changed() -> void:
+	if _vm:
+		_call("__dispatch", [{"e": "device", "gamepad": not Input.get_connected_joypads().is_empty(), "preferred": preferred_input()}])
+
+
 func _call(fn: String, arg: Variant) -> void:
 	var out: String = _vm.call_function(fn, arg if arg is String else JSON.stringify(arg), TIME_LIMIT)
 	var err: String = _vm.get_error()
@@ -291,6 +342,12 @@ func _apply(ops: Array) -> void:
 			"mouse":
 				mouse_settings = {"icon": str(op.get("icon", "")), "enabled": op.get("enabled", true) != false, "behavior": str(op.get("behavior", "Default"))}
 				mouse_settings_changed.emit()
+			"cas":
+				bound_keys.clear()
+				for k in op.get("keys", []):
+					bound_keys[str(k)] = true
+				action_buttons = op.get("buttons", [])
+				actions_changed.emit()
 			"prompt_pass":
 				pass_prompt.emit(int(op.get("id", 0)))
 			"camctl":
