@@ -556,6 +556,7 @@ func _sync_place(delta: float) -> void:
 		if not is_equal_approx(hp, player.hp) or not is_equal_approx(mx, player.max_hp):
 			player.set_server_health(hp, mx)
 	player.gravity = float(h.workspace_prop("Gravity"))
+	player.vr_arms = VR.active and str(h.starter("VRLocomotion")) == "Arms"
 	player.void_height = float(h.workspace_prop("FallHeight"))
 	player.set_camera_rules(str(h.player_prop("CameraMode")), float(h.player_prop("CameraMinZoom")), float(h.player_prop("CameraMaxZoom")))
 	hud.set_view_toggle(player.can_toggle_view())

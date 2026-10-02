@@ -4939,6 +4939,16 @@ G.__limits = function()
 			out[tostring(uid)].climb = climb
 			out[tostring(uid)].floating = hp ~= nil and hp.Floating == true
 		end
+		-- VR players moving by their hands (StarterPlayer.VRLocomotion = "Arms") fly about
+		-- pushing off things: quick, and in the air a lot.
+		if D[player].props.VREnabled == true and starterValue("VRLocomotion") == "Arms" then
+			local l = out[tostring(uid)]
+			l.walk = math.max(l.walk, 18)
+			l.sprint = math.max(l.sprint, 18)
+			l.jump = math.max(l.jump, 14)
+			l.rise = 16
+			l.floating = true
+		end
 	end
 	return json.encode(out)
 end

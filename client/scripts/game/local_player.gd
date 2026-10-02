@@ -53,6 +53,10 @@ var vr := false
 var hip := 0.0  # set_hip
 ## The headset's place this frame (set by VR), or null.
 var vr_head: Variant = null
+## VR: the place moves you by your hands only, like the gorilla games (StarterPlayer
+## .VRLocomotion = "Arms"); otherwise hands only climb Climbable parts (with the grip).
+var vr_arms := false
+var _vr_hands: VRHands
 var _shoulder := 0.0
 var seated := false
 
@@ -203,6 +207,8 @@ func can_sit() -> bool:
 
 ## Sits on a bench seat. `seat` is the seat's top-center, `seat_basis` faces away from the backrest.
 func sit_on(seat: Vector3, seat_basis: Basis) -> void:
+	if _vr_hands:
+		_vr_hands.release()
 	seated = true
 	_collision.disabled = true
 	velocity = Vector3.ZERO
@@ -298,6 +304,10 @@ func _step_up(step: Vector3, wants: Vector3) -> void:
 
 ## Starts climbing when walking into a Climbable part; at the top, hops up onto it.
 func _update_climb(dir: Vector3) -> void:
+	# In VR you climb with your hands (the grip on a Climbable part, VRHands).
+	if vr:
+		climbing = false
+		return
 	var wall := Vector3.ZERO
 	if climb_check.is_valid():
 		for i in get_slide_collision_count():
@@ -452,6 +462,8 @@ func take_damage(amount: float) -> void:
 
 
 func die() -> void:
+	if _vr_hands:
+		_vr_hands.release()
 	if dead:
 		return
 	if seated:
@@ -543,6 +555,24 @@ func _physics_process(delta: float) -> void:
 	if floating:
 		_hover()
 		return
+	# In VR your hands can hold on to things and move you (VRHands).
+	if vr:
+		if _vr_hands == null:
+			_vr_hands = VRHands.new()
+			_vr_hands.player = self
+		_vr_hands.arms = vr_arms
+		_vr_hands.climb_check = climb_check
+		if _vr_hands.step(delta):
+			climbing = false
+			_fall_speed = 0.0
+			_was_on_floor = is_on_floor()
+			_anim_state = "idle"
+			avatar.play(_emote if _emote != "" else "idle")
+			if global_position.y < void_height:
+				die()
+			return
+		if vr_arms:
+			_jump_buffer = 0.0  # no jumping either: push off with your hands
 	if not on_floor and not climbing:
 		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
@@ -574,8 +604,8 @@ func _physics_process(delta: float) -> void:
 				velocity.x = hv0.x
 				velocity.z = hv0.y
 
-	var input := move_input
-	if not keyboard_blocked:
+	var input := move_input if not (vr and vr_arms) else Vector2.ZERO
+	if not keyboard_blocked and not (vr and vr_arms):
 		var kb := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if kb.length() > input.length():
 			input = kb

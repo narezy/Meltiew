@@ -434,6 +434,7 @@ func set_first_person(on: bool) -> void:
 	_first_person = on
 	if _vr:
 		_vr.thin = 0.6 if on else 1.0
+		_vr.narrow = 0.18 if on else 0.0
 	for bone in _rep_nodes:
 		if is_instance_valid(_rep_nodes[bone]):
 			_rep_nodes[bone].visible = not (on and bone in FIRST_PERSON_HIDDEN)
@@ -449,6 +450,7 @@ class VRPose extends SkeletonModifier3D:
 	var targets := {}  # side -> Vector3 (avatar space) or null
 	var head_turn: Variant = null  # Quaternion (avatar space) or null
 	var thin := 1.0  # the arms' thickness while they follow the hands
+	var narrow := 0.0  # studs the shoulders come in toward the middle (your own view)
 	var _amount := {"left": 0.0, "right": 0.0}
 	var _head := Quaternion.IDENTITY
 
@@ -473,6 +475,10 @@ class VRPose extends SkeletonModifier3D:
 			if t is Vector3:
 				_last[side] = t
 			var pose := sk.get_bone_global_pose(b)
+			if narrow > 0.0:
+				var at := to_sk.affine_inverse() * pose.origin
+				at.x = move_toward(at.x, 0.0, narrow * _amount[side])
+				pose.origin = to_sk * at
 			var want: Vector3 = to_sk * (_last[side] as Vector3) - pose.origin
 			if want.length() < 0.01:
 				continue

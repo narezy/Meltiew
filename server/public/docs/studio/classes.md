@@ -259,6 +259,7 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | PlayerSyncRange | number | 0 | min 0, max 5000 |
 | VRAllowed | bool | true |  |
 | VRHandsVisible | bool | true |  |
+| VRLocomotion | [VRLocomotion](#vrlocomotion) | "Walk" |  |
 
 ### StarterPlayerScripts
 
@@ -1093,3 +1094,7 @@ A team inside the Teams service. **TeamColor** marks its players and its SpawnLo
 ### NormalId
 
 `Front`, `Back`, `Top`, `Bottom`, `Left`, `Right`
+
+### VRLocomotion
+
+`Walk`, `Arms`

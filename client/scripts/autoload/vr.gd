@@ -396,8 +396,6 @@ func _update_pointer() -> void:
 		var uv: Variant = _uv_on(quad, from, dir)
 		if uv == null:
 			continue
-		_pointing = true
-		hit = quad.global_transform * _local_on(quad, uv)
 		var target: Viewport = sf[1]
 		var px: Vector2 = (uv as Vector2) * target.get_visible_rect().size
 		if target != _target_vp:
@@ -410,6 +408,12 @@ func _update_pointer() -> void:
 			m.global_position = px
 			m.button_mask = MOUSE_BUTTON_MASK_LEFT if _clicking else 0
 			target.push_input(m, true)
+		# In the game the screen is mostly see-through (the HUD, a place's ScreenGuis): an
+		# empty spot of it points on into the world behind, clicks too.
+		if target == get_tree().root and _game and not _menu_open() and not _clicking and not _ui_at():
+			continue
+		_pointing = true
+		hit = quad.global_transform * _local_on(quad, uv)
 		break
 	# Only when there's something to point at: the panel or the keyboard, something in the
 	# world to click, or the trigger being pulled (aiming a click into the world).
@@ -425,6 +429,20 @@ func _update_pointer() -> void:
 		_dot.global_position = hit
 	elif _world_hit is Vector3:
 		_dot.global_position = _world_hit
+
+
+## Whether something on the app's screen is under the pointer to take a click: a button, a
+## text box, a list, a frame of a place's GUI. Something as big as the whole screen (the
+## layers everything sits on) doesn't count.
+func _ui_at() -> bool:
+	var c := get_tree().root.gui_get_hovered_control()
+	if c == null:
+		return false
+	if c is BaseButton or c is LineEdit or c is TextEdit or c is Range or c is ScrollContainer or c is ItemList:
+		return true
+	var r := c.get_global_rect().size
+	var screen := get_tree().root.get_visible_rect().size
+	return r.x < screen.x * 0.9 or r.y < screen.y * 0.9
 
 
 ## Where a ray meets a quad, as uv from its top left (0..1), or null if it misses.
@@ -701,6 +719,24 @@ func hand_in(av: Node3D, side: String) -> Variant:
 	return av.get_global_transform_interpolated().affine_inverse() * ((c as Node3D).global_transform * Vector3(0, -0.02, 0.06))
 
 
+## Where a hand's palm would be with the body's feet at `feet` (where physics has it this
+## step, not where it's drawn): for holding on and pulling yourself along (VRHands). Null
+## when the hand isn't tracked.
+func palm_at(side: String, feet: Vector3) -> Variant:
+	var c = hands.get(side)
+	if c == null or not c.get_has_tracking_data() or _game == null:
+		return null
+	var local: Vector3 = (c as Node3D).transform * Vector3(0, -0.02, 0.06)
+	var head := camera.position
+	return feet + Vector3(0, _lift, 0) + origin.global_basis * (local - Vector3(head.x, 0, head.z))
+
+
+## Whether a hand's grip button is held (holding on to a Climbable part).
+func grip(side: String) -> bool:
+	var c = hands.get(side)
+	return c != null and (c.is_button_pressed("grip_click") or c.get_float("grip") > 0.6)
+
+
 ## How the head is turned from where the body faces (degrees: pitch, yaw, roll), for
 ## others to see; null outside VR.
 func head_turn(av: Node3D) -> Variant:
@@ -731,14 +767,22 @@ class SimHand extends Node3D:
 	signal input_float_changed(name: String, value: float)
 	signal input_vector2_changed(name: String, value: Vector2)
 	var sticks := {}
+	var held := {}
 
 	func get_has_tracking_data() -> bool:
 		return true
+
+	func is_button_pressed(name: String) -> bool:
+		return held.get(name, false)
+
+	func get_float(name: String) -> float:
+		return 1.0 if held.get({"grip": "grip_click", "trigger": "trigger_click"}.get(name, name), false) else 0.0
 
 	func get_vector2(name: String) -> Vector2:
 		return sticks.get(name, Vector2.ZERO)
 
 	func press(name: String, down: bool) -> void:
+		held[name] = down
 		(button_pressed if down else button_released).emit(name)
 
 	func stick(name: String, v: Vector2) -> void:
