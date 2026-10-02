@@ -1256,6 +1256,8 @@ InstMT.__index = function(inst, key)
 		return d.parent
 	elseif key == "ClassName" then
 		return d.class.name
+	elseif key == "AssemblyLinearVelocity" and d.class.isA.BasePart then
+		return later.velocityOf(inst)
 	end
 	local v = d.props[key]
 	if v ~= nil then
@@ -1298,6 +1300,12 @@ InstMT.__newindex = function(inst, key, value)
 		return
 	elseif key == "Parent" then
 		setParent(inst, value)
+		return
+	elseif key == "AssemblyLinearVelocity" and d.class.isA.BasePart then
+		if not isV3(value) then
+			error("AssemblyLinearVelocity needs a Vector3", 2)
+		end
+		later.setVelocity(inst, value)
 		return
 	end
 	local p = d.class.props[key]
@@ -1674,6 +1682,7 @@ do
 		Platform = { "Windows", "OSX", "IOS", "Android", "AndroidTV", "Linux", "MetaOS", "None" },
 		PreferredInput = { "KeyboardAndMouse", "Gamepad", "Touch" },
 		UserCFrame = { "Head", "LeftHand", "RightHand", "Floor" },
+		RaycastFilterType = { "Exclude", "Include" },
 	}
 
 	-- ContextActionService: a function bound to keys, gamepad buttons or input types (and on
@@ -3952,7 +3961,44 @@ end
 ---------------------------------------------------------------------------
 -- DataModel (game) and the globals scripts see
 ---------------------------------------------------------------------------
+-- VRService: where this app's VR player has their head and hands (world space, studs and
+-- degrees like a part's Position / Rotation), fresh every frame, for places that move
+-- players by hand in their own way (see the gorilla example). Only on the player's own app.
+do
+	local VRService = {}
+	local function pose(kind)
+		local all = later.vrPoses
+		return all and all[tostring(kind)]
+	end
+	function VRService:GetUserPosition(kind)
+		local e = pose(kind)
+		return e and e.p
+	end
+	function VRService:GetUserRotation(kind)
+		local e = pose(kind)
+		return e and e.r
+	end
+	function VRService:GetUserCFrameEnabled(kind)
+		return pose(kind) ~= nil
+	end
+	later.VRService = setmetatable(VRService, {
+		__index = function(_, key)
+			if key == "VREnabled" then
+				return UIS.VREnabled
+			end
+			return nil
+		end,
+		__newindex = function(_, key)
+			error("VRService." .. tostring(key) .. " can't be changed by scripts", 2)
+		end,
+		__tostring = function()
+			return "VRService"
+		end,
+	})
+end
+
 local specialServices = {
+	VRService = later.VRService,
 	RunService = RunService,
 	TweenService = TweenService,
 	UserInputService = UserInputService,
@@ -4102,6 +4148,74 @@ end
 local function humanoidOf(player)
 	local model = player and D[player] and D[player].props.Character
 	return model and D[model] and Methods.Instance.FindFirstChildOfClass(model, "Humanoid")
+end
+
+-- A character's speed (HumanoidRootPart.AssemblyLinearVelocity): read, the app's own player
+-- as it moves right now (elsewhere the last one set); set, that player's app moves them
+-- off at that speed (a push, a dash, a launch pad, or moving by hand every frame).
+do
+	local function ownerOf(root)
+		local model = D[root].parent
+		if D[root].name ~= "HumanoidRootPart" or not model then
+			return nil
+		end
+		return Methods.Players.GetPlayerFromCharacter(nil, model)
+	end
+	function later.velocityOf(inst)
+		local player = ownerOf(inst)
+		if role == "client" and player and D[player].props.UserId == localUserId and later.myVel then
+			return later.myVel
+		end
+		return D[inst].vel or v3(0, 0, 0)
+	end
+	function later.setVelocity(inst, v)
+		v = v3(v.X, v.Y, v.Z)
+		D[inst].vel = v
+		local player = ownerOf(inst)
+		if not player then
+			return
+		end
+		if role == "server" then
+			emit({ o = "vel", to = D[player].props.UserId, v = encodeValue(v) })
+		elseif D[player].props.UserId == localUserId then
+			later.myVel = v
+			emit({ o = "vel", v = encodeValue(v) })
+		end
+	end
+	-- Every frame from this app: the player's own character (where, how fast) and, in VR,
+	-- the headset and the hands.
+	function later.stepMe(me, others)
+		-- Other players where this app shows them, so LocalScripts see them move too.
+		if type(others) == "table" then
+			for uid, p in others do
+				local root = characterRoot(playersByUser[tonumber(uid)])
+				if root and type(p) == "table" then
+					setProp(root, "Position", v3(tonumber(p[1]) or 0, tonumber(p[2]) or 0, tonumber(p[3]) or 0), true)
+				end
+			end
+		end
+		local player = localUserId and playersByUser[localUserId]
+		local root = characterRoot(player)
+		local p, v = me.p, me.v
+		if root and type(p) == "table" then
+			setProp(root, "Position", v3(tonumber(p[1]) or 0, tonumber(p[2]) or 0, tonumber(p[3]) or 0), true)
+		end
+		if type(v) == "table" then
+			later.myVel = v3(tonumber(v[1]) or 0, tonumber(v[2]) or 0, tonumber(v[3]) or 0)
+		end
+		local poses = nil
+		if type(me.vr) == "table" then
+			poses = {}
+			for kind, e in me.vr do
+				local a, b = e.p, e.r
+				poses[kind] = {
+					p = v3(tonumber(a[1]) or 0, tonumber(a[2]) or 0, tonumber(a[3]) or 0),
+					r = v3(tonumber(b[1]) or 0, tonumber(b[2]) or 0, tonumber(b[3]) or 0),
+				}
+			end
+		end
+		later.vrPoses = poses
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -4757,6 +4871,9 @@ end)
 
 G.__step = hostCall(function(t)
 	local dt = math.clamp(tonumber(t and t.dt) or 0, 0, 1)
+	if role == "client" and t and type(t.me) == "table" then
+		later.stepMe(t.me, t.others)
+	end
 	simTime += dt
 	RunService.Stepped:_fire(simTime, dt)
 	runWaiting()
@@ -4938,16 +5055,6 @@ G.__limits = function()
 			out[tostring(uid)].grounded = grounded
 			out[tostring(uid)].climb = climb
 			out[tostring(uid)].floating = hp ~= nil and hp.Floating == true
-		end
-		-- VR players moving by their hands (StarterPlayer.VRLocomotion = "Arms") fly about
-		-- pushing off things: quick, and in the air a lot.
-		if D[player].props.VREnabled == true and starterValue("VRLocomotion") == "Arms" then
-			local l = out[tostring(uid)]
-			l.walk = math.max(l.walk, 18)
-			l.sprint = math.max(l.sprint, 18)
-			l.jump = math.max(l.jump, 14)
-			l.rise = 16
-			l.floating = true
 		end
 	end
 	return json.encode(out)

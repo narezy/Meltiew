@@ -185,10 +185,6 @@
    "Bottom",
    "Left",
    "Right"
-  ],
-  "VRLocomotion": [
-   "Walk",
-   "Arms"
   ]
  },
  "classes": {
@@ -470,11 +466,6 @@
      "type": "bool",
      "default": true,
      "doc": "Whether others see VR players' hands move (only players 13 and older ever do)."
-    },
-    "VRLocomotion": {
-     "type": "enum:VRLocomotion",
-     "default": "Walk",
-     "doc": "How players in a VR headset get around. Walk: the stick walks, and hands climb Climbable parts while the grip button holds on. Arms: no walking, like the gorilla games: a hand that touches anything holds on, and moving it moves you (push off the ground to jump, pull on a wall to climb, let go to fly). Players on a screen walk as usual either way."
     }
    },
    "events": [],

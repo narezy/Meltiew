@@ -1,0 +1,11 @@
+{
+  "vr_only": {"en": "Monkey Tag is played in a VR headset: come back in VR!", "ru": "В обезьяньи салки играют в ВР-шлеме: заходи в ВР!"},
+  "st_waiting": {"en": "Waiting for monkeys: {0}/{1}", "ru": "Ждём обезьянок: {0}/{1}"},
+  "st_starting": {"en": "Round in {0}", "ru": "Раунд через {0}"},
+  "st_lava": {"en": "You're lava! Tag everyone ({0} left)", "ru": "Ты лава! Осаль всех (осталось {0})"},
+  "st_run": {"en": "Run from the lava! Monkeys left: {0}", "ru": "Беги от лавы! Осталось обезьянок: {0}"},
+  "st_over": {"en": "Everyone's lava! New round soon", "ru": "Все в лаве! Скоро новый раунд"},
+  "st_screen": {"en": "Looking around on a screen: walk as usual (this game is for VR)", "ru": "Смотришь с экрана: ходи как обычно (игра для ВР)"},
+  "hint": {"en": "No legs, just arms: slap the ground and push to jump, pull on walls and trees to climb, let go to fly", "ru": "Ног нет, только руки: толкни землю, чтобы прыгнуть, тяни стены и деревья, чтобы лезть, отпусти, чтобы лететь"},
+  "title": {"en": "MONKEY TAG", "ru": "ОБЕЗЬЯНЬИ САЛКИ"}
+}

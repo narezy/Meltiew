@@ -21,6 +21,8 @@ signal camera_control(op: Dictionary)
 signal animation_requested(anim: String)
 ## Seat:Sit from a script: sit this player on that seat.
 signal sit_requested(seat_id: String)
+## A script set the local character's speed (HumanoidRootPart.AssemblyLinearVelocity).
+signal velocity_requested(v: Vector3)
 ## StarterGui:SetCoreGuiEnabled(kind, on) from a LocalScript.
 signal core_gui_changed(kind: String, on: bool)
 ## ContextActionService changed: the keys / buttons scripts took, and the on-screen
@@ -33,6 +35,9 @@ const RUNTIME_PATH := "res://studio/runtime/runtime.luau"
 const MEMORY_MB := 64
 const TIME_LIMIT := 0.1
 
+## Sent to the scripts with every frame: the local character ("p", "v") and, in VR, where
+## the headset and hands are ("vr"); kept fresh by the game.
+var step_info := {}
 var tree := PlaceTree.new()
 var scene: PlaceScene
 var gui: PlaceGui
@@ -161,6 +166,10 @@ func server_ops(ops: Array) -> void:
 				animation_requested.emit(str(op.get("anim", "")))
 			"sit":
 				sit_requested.emit(str(op.get("id", "")))
+			"vel":
+				var v: Variant = SValue.decode(op.get("v"))
+				if v is Vector3:
+					velocity_requested.emit(v)
 	if not events.is_empty() and _vm:
 		_call("__dispatch", events)
 
@@ -168,7 +177,9 @@ func server_ops(ops: Array) -> void:
 
 func _process(delta: float) -> void:
 	if _vm:
-		_call("__step", {"dt": delta})
+		var t := step_info.duplicate()
+		t["dt"] = delta
+		_call("__step", t)
 	# Touches end when a part hasn't been touched for a moment.
 	for id in _touching.keys():
 		_touching[id] += delta
@@ -360,6 +371,10 @@ func _apply(ops: Array) -> void:
 				animation_requested.emit(str(op.get("anim", "")))
 			"sit":
 				sit_requested.emit(str(op.get("id", "")))
+			"vel":
+				var v: Variant = SValue.decode(op.get("v"))
+				if v is Vector3:
+					velocity_requested.emit(v)
 			"coregui":
 				core_gui[str(op.k)] = op.get("on", true) == true
 				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])

@@ -454,6 +454,9 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.camera_control.connect(_camera_control)
+	place_host.velocity_requested.connect(func(v: Vector3):
+		if not player.dead and not player.seated:
+			player.velocity = v)
 	place_host.sit_requested.connect(func(id: String):
 		# No seat: the server says get up (someone else sat there first).
 		if id == "" and player.seated:
@@ -556,7 +559,6 @@ func _sync_place(delta: float) -> void:
 		if not is_equal_approx(hp, player.hp) or not is_equal_approx(mx, player.max_hp):
 			player.set_server_health(hp, mx)
 	player.gravity = float(h.workspace_prop("Gravity"))
-	player.vr_arms = VR.active and str(h.starter("VRLocomotion")) == "Arms"
 	player.void_height = float(h.workspace_prop("FallHeight"))
 	player.set_camera_rules(str(h.player_prop("CameraMode")), float(h.player_prop("CameraMinZoom")), float(h.player_prop("CameraMaxZoom")))
 	hud.set_view_toggle(player.can_toggle_view())
@@ -1028,6 +1030,19 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# The scripts' view of the local character this frame (and the headset and hands).
+	if place_host and _joined:
+		var f := player.global_position
+		var v := player.velocity
+		var me := {"p": [f.x, f.y + 0.9, f.z], "v": [v.x, v.y, v.z]}
+		if VR.active:
+			me["vr"] = VR.user_poses(f)
+		# Everyone else as this app shows them (their HumanoidRootPart.Position here).
+		var others := {}
+		for uid in remotes:
+			var at: Vector3 = (remotes[uid] as Node3D).global_position
+			others[str(uid)] = [snappedf(at.x, 0.01), snappedf(at.y + 0.9, 0.01), snappedf(at.z, 0.01)]
+		place_host.step_info = {"me": me, "others": others}
 	_ping_timer -= delta
 	if _ping_timer <= 0.0 and _joined:
 		_ping_timer = 3.0

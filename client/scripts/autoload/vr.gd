@@ -746,17 +746,24 @@ func head_turn(av: Node3D) -> Variant:
 	return rel.get_euler() * (180.0 / PI)
 
 
-## The headset's and the hands' places for the place's scripts (VRService:GetUserCFrame):
-## relative to where the character stands.
-func user_cframes() -> Dictionary:
+## The headset and the hands for the place's scripts (VRService:GetUserPosition /
+## GetUserRotation): world positions (the palms for the hands) and turns in degrees like a
+## part's Rotation, with the body's feet at `feet` (where physics has it).
+func user_poses(feet: Vector3) -> Dictionary:
 	if not active or _game == null:
 		return {}
-	var base := Transform3D(Basis(Vector3.UP, (_game.player as Node).cam_yaw), (_game.player as Node3D).global_position)
-	var out := {"Head": base.affine_inverse() * camera.global_transform}
+	var head := camera.position
+	var base := origin.global_basis
+	var place := func(t: Transform3D) -> Dictionary:
+		var at: Vector3 = feet + Vector3(0, _lift, 0) + base * (t.origin - Vector3(head.x, 0, head.z))
+		var r := (base * t.basis).orthonormalized().get_euler() * (180.0 / PI)
+		return {"p": [snappedf(at.x, 0.001), snappedf(at.y, 0.001), snappedf(at.z, 0.001)], "r": [snappedf(r.x, 0.01), snappedf(r.y, 0.01), snappedf(r.z, 0.01)]}
+	var out := {"Head": place.call(camera.transform), "Floor": {"p": [feet.x, feet.y, feet.z], "r": [0, rad_to_deg(_head_yaw()), 0]}}
 	for side in hands:
 		var c = hands[side]
 		if c.get_has_tracking_data():
-			out["LeftHand" if side == "left" else "RightHand"] = base.affine_inverse() * c.global_transform
+			var t: Transform3D = (c as Node3D).transform
+			out["LeftHand" if side == "left" else "RightHand"] = place.call(Transform3D(t.basis, t * Vector3(0, -0.02, 0.06)))
 	return out
 
 

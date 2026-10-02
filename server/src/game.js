@@ -359,6 +359,14 @@ export class GameHub {
           server.inbox.push({ e: 'ds_ret', rid: op.rid, ok: !!look, value: look || null, err: look ? '' : 'no player with that name' });
           break;
         }
+        case 'vel': {
+          // A script sets a character's speed (a push, a launch): their app moves them off.
+          const who = server.players.get(Number(op.to));
+          if (!who) break;
+          who.guard.pushed();
+          this.target(server, op.to, { o: 'vel', v: op.v });
+          break;
+        }
         case 'sit':
           // Seat:Sit from a script: that player's app sits them down.
           this.target(server, op.to, { o: 'sit', id: String(op.id || '') });

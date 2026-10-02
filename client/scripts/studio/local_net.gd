@@ -106,7 +106,7 @@ func _join() -> void:
 		"spawn": [0, 5, 0],
 		"players": [],
 	})
-	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info}]))
+	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info, "vr": VR.active}]))
 	_flush()
 
 

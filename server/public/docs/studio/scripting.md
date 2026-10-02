@@ -275,6 +275,68 @@ print(UIS:IsKeyDown("Shift"))
 
 For clicking things in the world, put a **ClickDetector** in a part; its `MouseClick(player)` fires on the server.
 
+## Gamepads, TV remotes and VR controllers
+
+What the player is playing on, in a LocalScript:
+
+```lua
+local UIS = game:GetService("UserInputService")
+print(UIS:GetPlatform())        -- Windows, OSX, Linux, Android, AndroidTV, IOS, MetaOS
+print(UIS.PreferredInput)       -- KeyboardAndMouse, Gamepad or Touch (changes as they switch)
+print(UIS.GamepadEnabled, UIS.VREnabled)
+UIS.LastInputTypeChanged:Connect(function(kind) print("now using", kind) end)
+```
+
+On the server, `player.VREnabled` says who's in a headset.
+
+Gamepad buttons arrive in `InputBegan` / `InputEnded` like keys, with `KeyCode` `"ButtonA"`, `"ButtonB"`, `"ButtonX"`, `"ButtonY"`, `"ButtonL1"`, `"ButtonR1"`, `"ButtonL2"`, `"ButtonR2"`, `"ButtonL3"`, `"ButtonR3"`, `"ButtonStart"`, `"ButtonSelect"` and `"DPadUp"` … `"DPadRight"`; the sticks and triggers come in `InputChanged` (`"Thumbstick1"`, `"Thumbstick2"`: `input.Position` X and Y; triggers: Z). `UIS:IsGamepadButtonDown("Gamepad1", "ButtonA")` asks right now. A TV remote's OK is `"ButtonA"`, its Back `"ButtonB"`. VR controllers count as a gamepad: A, B, X, Y as on one, the grips are `ButtonL1` / `ButtonR1`, the triggers `ButtonL2` / `ButtonR2`, stick clicks `ButtonL3` / `ButtonR3`, the menu button `ButtonSelect`.
+
+To give an input a job of your own, bind it with **ContextActionService**: the function gets it before anything else, the game's own use of that button (jumping on A, say) stops, and on phones you can ask for an on-screen button too:
+
+```lua
+local CAS = game:GetService("ContextActionService")
+CAS:BindAction("Dash", function(name, state, input)
+	if state == Enum.UserInputState.Begin then
+		dash()
+	end
+	return Enum.ContextActionResult.Sink   -- or Pass: let others have it too
+end, true, "Q", "ButtonX")
+CAS:SetTitle("Dash", "DASH")              -- the phone button's label
+CAS:UnbindAction("Dash")
+```
+
+## VR
+
+Players can join in a VR headset (a computer with SteamVR or WiVRn, or a standalone Pico): the app's screen floats in front of them, the controllers point and click, the left stick walks, the right one turns. Their hands show to players 13 and older, and their head turns for everyone. **StarterPlayer.VRAllowed** = false keeps headsets out of your place, **VRHandsVisible** = false hides everyone's hands. In VR, Climbable parts are climbed with the hands: hold the grip while a hand touches one and pull.
+
+Where the headset and the hands are, in a LocalScript (world positions in studs, turns in degrees like a part's `Rotation`; `nil` when a hand isn't tracked):
+
+```lua
+local VRService = game:GetService("VRService")
+if VRService.VREnabled then
+	local hand = VRService:GetUserPosition(Enum.UserCFrame.RightHand)   -- "Head", "LeftHand", "RightHand", "Floor"
+	local turn = VRService:GetUserRotation(Enum.UserCFrame.RightHand)
+end
+```
+
+They're fresh every frame (`RunService.Heartbeat`), so a place can move players its own way. The example **Monkey Tag** (`examples/monkeytag` in the Meltiew repository) is tag played with your arms, like the gorilla games: no legs, no stick, a hand that touches anything holds on, and moving it moves you. All of that is its own LocalScript, under a hundred lines: copy it and change how it feels.
+
+### Moving a player from a script
+
+`HumanoidRootPart.AssemblyLinearVelocity` is how fast the character is going (studs a second). Set it to send them off that way: a launch pad, a knock-back, a dash, or moving them by hand every frame.
+
+```lua
+-- server: a jump pad
+pad.Touched:Connect(function(hit)
+	local root = hit.Parent:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.AssemblyLinearVelocity = Vector3.new(0, 30, 0)
+	end
+end)
+```
+
+From a LocalScript it works on your own character right away; from the server it's sent to that player's app. Gravity and the ground take over from there (`Traction` decides how fast it fades on the ground and in the air).
+
 ## Sounds
 
 ```lua
@@ -289,7 +351,7 @@ Your own sounds: in Studio open **Assets → Sounds**, upload an OGG, MP3 or WAV
 
 ## Climbing and steps
 
-Players walk up ledges up to about 0.65 studs high without jumping (stairs, kerbs). Turn on **Climbable** on any part to make it a wall they can climb: walking into it climbs up, walking away climbs down, sideways moves along it, jump lets go, and at the top they step onto it. From scripts: `part.Climbable = true`.
+Players walk up ledges up to about 0.65 studs high without jumping (stairs, kerbs). Turn on **Climbable** on any part to make it a wall they can climb: walking into it climbs up, walking away climbs down, sideways moves along it, jump lets go, and at the top they step onto it. In VR it's climbed by hand instead: grip it and pull. From scripts: `part.Climbable = true`.
 
 ## Physics parts
 

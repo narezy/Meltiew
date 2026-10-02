@@ -53,10 +53,7 @@ var vr := false
 var hip := 0.0  # set_hip
 ## The headset's place this frame (set by VR), or null.
 var vr_head: Variant = null
-## VR: the place moves you by your hands only, like the gorilla games (StarterPlayer
-## .VRLocomotion = "Arms"); otherwise hands only climb Climbable parts (with the grip).
-var vr_arms := false
-var _vr_hands: VRHands
+var _vr_hands: VRHands  # VR: hands climb Climbable parts while the grip holds on
 var _shoulder := 0.0
 var seated := false
 
@@ -555,12 +552,11 @@ func _physics_process(delta: float) -> void:
 	if floating:
 		_hover()
 		return
-	# In VR your hands can hold on to things and move you (VRHands).
+	# In VR your hands hold on to Climbable parts and pull you up (VRHands).
 	if vr:
 		if _vr_hands == null:
 			_vr_hands = VRHands.new()
 			_vr_hands.player = self
-		_vr_hands.arms = vr_arms
 		_vr_hands.climb_check = climb_check
 		if _vr_hands.step(delta):
 			climbing = false
@@ -571,8 +567,6 @@ func _physics_process(delta: float) -> void:
 			if global_position.y < void_height:
 				die()
 			return
-		if vr_arms:
-			_jump_buffer = 0.0  # no jumping either: push off with your hands
 	if not on_floor and not climbing:
 		velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL)
 		_fall_speed = maxf(_fall_speed, -velocity.y)
@@ -604,8 +598,8 @@ func _physics_process(delta: float) -> void:
 				velocity.x = hv0.x
 				velocity.z = hv0.y
 
-	var input := move_input if not (vr and vr_arms) else Vector2.ZERO
-	if not keyboard_blocked and not (vr and vr_arms):
+	var input := move_input
+	if not keyboard_blocked:
 		var kb := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if kb.length() > input.length():
 			input = kb

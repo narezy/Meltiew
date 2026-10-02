@@ -104,6 +104,11 @@ export class MoveGuard {
     this.graceUntil = now + 1500;
   }
 
+  /** The place pushed the player (a script set their speed): a moment of grace for the trip. */
+  pushed(now = Date.now()) {
+    this.graceUntil = Math.max(this.graceUntil, now + 1500);
+  }
+
   /** Lets the next update land anywhere near `pos` (a respawn the client does itself). */
   expect(pos, radius, now = Date.now()) {
     this.pending = { p: pos.slice(), r: radius, until: now + 8000 };
