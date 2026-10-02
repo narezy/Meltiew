@@ -47,6 +47,8 @@ const HEAD_TOP := 1.81
 var _skeleton: Skeleton3D
 var _vr: VRPose
 var _hidden := {}  # bone names scripts hid
+var _first_person := false  # your own avatar in VR: no torso and head in front of the eyes
+const FIRST_PERSON_HIDDEN := ["Torso", "Head"]
 var _leg_scale := {}  # "LegL" / "LegR" -> height scale scripts set
 var _rep_nodes := {}  # bone -> BoneAttachment3D holding a script's object for that part
 var _rep_info := {}  # bone -> {box: AABB, face, accessories}
@@ -219,7 +221,8 @@ func set_colors(colors: Dictionary) -> void:
 	for i in JOINT_ORDER.size():
 		var part: String = JOINT_ORDER[i]
 		var c := Color(str(colors.get(part, Session.DEFAULT_COLORS[part])))
-		c.a = 0.0 if _hidden.has(BONES[i]) or _rep_info.has(BONES[i]) else 1.0  # (the shader leaves hidden parts out)
+		c.a = 0.0 if _hidden.has(BONES[i]) or _rep_info.has(BONES[i]) or (_first_person and BONES[i] in FIRST_PERSON_HIDDEN) \
+			else 1.0  # (the shader leaves hidden parts out)
 		arr.append(c)
 	if _body_mat:
 		_body_mat.set_shader_parameter("part_colors", arr)
@@ -415,10 +418,27 @@ func set_vr_hands(left: Variant, right: Variant) -> void:
 		_vr.targets = {"left": left, "right": right}
 
 
-## The player's own avatar in VR: no head in front of the eyes (the hat goes with it).
-func set_head_hidden(hidden: bool) -> void:
+## VR: how this player's head is turned from where the body faces (degrees: pitch, yaw,
+## roll), or null; the head turns to match (it doesn't move, only turns).
+func set_vr_head(angles: Variant) -> void:
 	if _vr:
-		_vr.hide_head = hidden
+		_vr.head_turn = Quaternion.from_euler(angles * (PI / 180.0)) if angles is Vector3 else null
+
+
+## The player's own avatar in VR: the torso and the head (with the face and hats) aren't
+## drawn, they'd be in front of your eyes; the arms and legs are, the arms a little thinner
+## so they don't fill the view.
+func set_first_person(on: bool) -> void:
+	if _first_person == on:
+		return
+	_first_person = on
+	if _vr:
+		_vr.thin = 0.6 if on else 1.0
+	for bone in _rep_nodes:
+		if is_instance_valid(_rep_nodes[bone]):
+			_rep_nodes[bone].visible = not (on and bone in FIRST_PERSON_HIDDEN)
+	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
+	_apply_head_extras()
 
 
 class VRPose extends SkeletonModifier3D:
@@ -427,14 +447,22 @@ class VRPose extends SkeletonModifier3D:
 	var arms := {}  # side -> bone index
 	var head := -1
 	var targets := {}  # side -> Vector3 (avatar space) or null
-	var hide_head := false
+	var head_turn: Variant = null  # Quaternion (avatar space) or null
+	var thin := 1.0  # the arms' thickness while they follow the hands
 	var _amount := {"left": 0.0, "right": 0.0}
+	var _head := Quaternion.IDENTITY
 
 	func _process_modification_with_delta(delta: float) -> void:
 		var sk := get_skeleton()
-		if hide_head and head >= 0:
-			sk.set_bone_pose_scale(head, Vector3.ONE * 0.001)
 		var to_sk := sk.global_transform.affine_inverse() * avatar.global_transform
+		# The head turns about the neck the way the headset does (eased: it comes over the
+		# network in steps).
+		if head >= 0:
+			_head = _head.slerp(head_turn if head_turn is Quaternion else Quaternion.IDENTITY, minf(delta * 14.0, 1.0))
+			if not _head.is_equal_approx(Quaternion.IDENTITY):
+				var b := to_sk.basis.orthonormalized()
+				var hp := sk.get_bone_global_pose(head)
+				sk.set_bone_global_pose(head, Transform3D(b * Basis(_head) * b.inverse() * hp.basis, hp.origin))
 		for side in arms:
 			var b: int = arms[side]
 			var t: Variant = targets.get(side)
@@ -457,7 +485,7 @@ class VRPose extends SkeletonModifier3D:
 			var reach := clampf(want.length() / ARM_LENGTH, 0.6, 1.6)
 			var stretch := lerpf(1.0, reach, _amount[side])
 			var axis := local.abs()
-			var scale := Vector3.ONE
+			var scale := Vector3.ONE * lerpf(1.0, thin, _amount[side])
 			if axis.x >= axis.y and axis.x >= axis.z:
 				scale.x = stretch
 			elif axis.y >= axis.z:
@@ -531,6 +559,7 @@ func set_part_replacements(reps: Dictionary) -> void:
 		att.add_child(holder)
 		holder.add_child(node)
 		_rep_nodes[bone] = att
+		att.visible = not (_first_person and bone in FIRST_PERSON_HIDDEN)
 		var box := _box_of(node)
 		_rep_info[bone] = {"box": box, "face": r.get("face", false), "accessories": r.get("accessories", false)}
 		if bone == "Head" and r.get("face", false):
@@ -547,9 +576,9 @@ func set_part_replacements(reps: Dictionary) -> void:
 func _apply_head_extras() -> void:
 	var head: Dictionary = _rep_info.get("Head", {})
 	if _face_mat:
-		_face_mat.albedo_color.a = 0.0 if not head.is_empty() or _hidden.has("Head") else 1.0
+		_face_mat.albedo_color.a = 0.0 if not head.is_empty() or _hidden.has("Head") or _first_person else 1.0
 	if _hat_root:
-		_hat_root.visible = not _hidden.has("Head") and (head.is_empty() or head.accessories)
+		_hat_root.visible = not _hidden.has("Head") and not _first_person and (head.is_empty() or head.accessories)
 		# Up to the new head's top (in the bone's own units).
 		var lift := 0.0
 		if not head.is_empty():

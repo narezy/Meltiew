@@ -102,6 +102,11 @@ func _drive() -> void:
 	VR.hands.right.position = VR.camera.position + Vector3(0.35, -0.5, -0.2)
 	await get_tree().create_timer(0.5).timeout
 	await _shot("4_hands")
+	# Look down at your own body: arms and legs, no torso or head.
+	VR.camera.rotation.x = deg_to_rad(-55.0)
+	await get_tree().create_timer(0.3).timeout
+	await _shot("4b_down")
+	VR.camera.rotation.x = 0.0
 	# The chat opens: the keyboard comes up; type a letter with the laser.
 	VR.show_panel(true)
 	game.hud.toggle_chat(true)

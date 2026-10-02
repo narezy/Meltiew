@@ -54,7 +54,8 @@ var _menu_env: Environment
 var _lift := 0.0
 var _panel_yaw := 0.0  # where the panel is around your head
 var _swinging := false
-var _hand_marks := {}  # side -> MeshInstance3D: your hands (your own body isn't drawn in VR)
+var _trigger := {"left": 0.0, "right": 0.0}  # how far each trigger is pulled
+var _world_click := false  # the pointing hand is over something in the world to click
 var _world_wait := 0.0
 var _world_hit: Variant = null  # where the pointing hand meets the world (VR mouse)
 var _calibrate_in := -1.0
@@ -67,6 +68,9 @@ var _poked := {}  # side -> true while that hand's finger is in a key
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# The headset's things are moved every drawn frame (90 a second and more), not on the
+	# physics ticks: interpolating them between ticks made them jerk while walking.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	xr = XRServer.find_interface("OpenXR")
 	if xr and xr.is_initialized():
 		_start()
@@ -168,16 +172,6 @@ func _start() -> void:
 	_make_panel()
 	_make_laser()
 	_make_keyboard()
-	for side in hands:
-		var mark := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.07, 0.05, 0.11)
-		mark.mesh = box
-		mark.position = Vector3(0, -0.02, 0.06)  # where the palm is, behind the aim point
-		mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		hands[side].add_child(mark)
-		_hand_marks[side] = mark
-	_paint_hands(Session.DEFAULT_COLORS)
 	_place_panel.call_deferred(true)
 	# Holding the headset's recenter button: the height is measured again too.
 	if xr and xr.has_signal("pose_recentered"):
@@ -241,11 +235,18 @@ func _show_keyboard(on: bool) -> void:
 		return
 	_kb.visible = on
 	if on:
-		# Below the panel, closer, tilted toward you like a desk.
-		var yaw := _head_yaw()
-		var fwd := Basis(Vector3.UP, yaw) * Vector3.FORWARD
-		var at := camera.global_position + fwd * 0.55 + Vector3(0, -0.45, 0)
-		_kb.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(-35.0)), at)
+		_kb_yaw = _head_yaw()
+		_place_keyboard()
+
+
+var _kb_yaw := 0.0
+
+
+## Below the panel, closer, tilted toward you like a desk; it walks along with you.
+func _place_keyboard() -> void:
+	var fwd := Basis(Vector3.UP, _kb_yaw) * Vector3.FORWARD
+	var at := camera.global_position + fwd * 0.55 + Vector3(0, -0.45, 0)
+	_kb.global_transform = Transform3D(Basis(Vector3.UP, _kb_yaw) * Basis(Vector3.RIGHT, deg_to_rad(-35.0)), at)
 
 
 func _make_laser() -> void:
@@ -318,6 +319,8 @@ func _update_panel() -> void:
 			if absf(angle_difference(_panel_yaw, _head_yaw())) < deg_to_rad(3.0):
 				_swinging = false
 		_place_panel()
+	if _kb.visible and _game:
+		_place_keyboard()
 
 
 ## The laser from the pointing hand: where it meets the panel becomes the mouse.
@@ -357,11 +360,16 @@ func _update_pointer() -> void:
 			m.button_mask = MOUSE_BUTTON_MASK_LEFT if _clicking else 0
 			target.push_input(m, true)
 		break
-	var length: float = from.distance_to(hit) if _pointing else (from.distance_to(_world_hit) if _world_hit is Vector3 else 0.6)
-	_laser.visible = true
+	# Only when there's something to point at: the panel or the keyboard, something in the
+	# world to click, or the trigger being pulled (aiming a click into the world).
+	var world: bool = not _pointing and _world_hit is Vector3 and (_world_click or _trigger.get(_pointer, 0.0) > 0.05)
+	_laser.visible = _pointing or world
+	_dot.visible = _laser.visible
+	if not _laser.visible:
+		return
+	var length: float = from.distance_to(hit) if _pointing else from.distance_to(_world_hit)
 	_laser.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD), from + dir * length / 2.0)
 	_laser.scale = Vector3(1, 1, length)
-	_dot.visible = _pointing or _world_hit is Vector3
 	if _pointing:
 		_dot.global_position = hit
 	elif _world_hit is Vector3:
@@ -394,8 +402,10 @@ func _poke() -> void:
 	if not _kb.visible:
 		_poked.clear()
 		return
-	for side in _hand_marks:
-		var tip: Vector3 = (_hand_marks[side] as Node3D).global_position
+	for side in hands:
+		if not hands[side].get_has_tracking_data():
+			continue
+		var tip: Vector3 = (hands[side] as Node3D).global_position
 		var local := _kb.global_transform.affine_inverse() * tip
 		var size := (_kb.mesh as QuadMesh).size
 		var inside := absf(local.x) <= size.x / 2.0 and absf(local.y) <= size.y / 2.0
@@ -496,6 +506,8 @@ func _game_button(name: String, side: String, down: bool) -> void:
 
 
 func _on_float(name: String, value: float, side: String) -> void:
+	if name == "trigger":
+		_trigger[side] = value
 	var host: Node = _game.get("place_host") if _game else null
 	if host and name == "trigger":
 		host.pad_axis("ButtonL2" if side == "left" else "ButtonR2", Vector3(0, 0, value))
@@ -536,6 +548,9 @@ func _turn(angle: float) -> void:
 func _process(delta: float) -> void:
 	if not active:
 		return
+	# The body first (the origin goes where it is now), then what's placed by the head.
+	if _game:
+		_drive(delta)
 	_update_panel()
 	_update_pointer()
 	_poke()
@@ -547,15 +562,17 @@ func _process(delta: float) -> void:
 			_wheel(s.y > 0.0)
 			_scroll_wait = 0.12
 	if _game:
-		_drive(delta)
 		# Not on the panel: the pointing hand is the mouse in the world.
 		_world_wait -= delta
 		if not _pointing and _world_wait <= 0.0:
 			_world_wait = 0.05
 			var hand = hands[_pointer]
-			_world_hit = _game.vr_point(hand.global_position, -(hand.global_basis.z as Vector3).normalized()) if hand.get_has_tracking_data() else null
+			var at: Variant = _game.vr_point(hand.global_position, -(hand.global_basis.z as Vector3).normalized()) if hand.get_has_tracking_data() else null
+			_world_hit = at.at if at is Dictionary else null
+			_world_click = at is Dictionary and at.click
 		elif _pointing:
 			_world_hit = null
+			_world_click = false
 
 
 # --- in the game ------------------------------------------------------------------------
@@ -566,8 +583,7 @@ func attach(game: Node) -> void:
 	camera.environment = null  # the place's sky and light
 	_yaw = 0.0
 	game.player.vr = true
-	game.player.avatar.set_head_hidden(true)
-	_paint_hands(Session.colors_of(Session.user))
+	game.player.avatar.set_first_person(true)
 	_calibrate_in = 0.5
 	show_panel(true)
 
@@ -575,6 +591,7 @@ func attach(game: Node) -> void:
 func detach() -> void:
 	_game = null
 	_world_hit = null
+	_world_click = false
 	if not active:
 		return
 	camera.environment = _menu_env
@@ -611,8 +628,6 @@ func _drive(_delta: float) -> void:
 	_strength("move_right", maxf(stick.x, 0.0))
 	var av: Node3D = p.avatar
 	av.set_vr_hands(hand_in(av, "left"), hand_in(av, "right"))
-	# Your own body would fill the view (and its arms looked huge): just the hands.
-	av.visible = false
 
 
 func _strength(action: String, v: float) -> void:
@@ -622,21 +637,23 @@ func _strength(action: String, v: float) -> void:
 		Input.action_release(action)
 
 
-## Your hands in your arms' colors.
-func _paint_hands(colors: Dictionary) -> void:
-	for side in _hand_marks:
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(str(colors.get("arm_l" if side == "left" else "arm_r", "#f5f1ec")))
-		m.roughness = 0.7
-		(_hand_marks[side] as MeshInstance3D).material_override = m
-
-
-## A hand in an avatar's space (studs from its feet, facing -Z), or null if not tracked.
+## Where a hand is (the palm, a little behind the controller's tip) in an avatar's space
+## (studs from its feet, facing -Z), or null if not tracked. From where the avatar is drawn
+## this frame, between physics ticks.
 func hand_in(av: Node3D, side: String) -> Variant:
 	var c = hands.get(side)
 	if c == null or not c.get_has_tracking_data():
 		return null
-	return av.to_local(c.global_position)
+	return av.get_global_transform_interpolated().affine_inverse() * ((c as Node3D).global_transform * Vector3(0, -0.02, 0.06))
+
+
+## How the head is turned from where the body faces (degrees: pitch, yaw, roll), for
+## others to see; null outside VR.
+func head_turn(av: Node3D) -> Variant:
+	if not active or _game == null:
+		return null
+	var rel := av.get_global_transform_interpolated().basis.orthonormalized().inverse() * camera.global_basis.orthonormalized()
+	return rel.get_euler() * (180.0 / PI)
 
 
 ## The headset's and the hands' places for the place's scripts (VRService:GetUserCFrame):

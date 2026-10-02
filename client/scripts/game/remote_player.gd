@@ -62,12 +62,15 @@ func refresh_look() -> void:
 		_role_tag.modulate = Color("#ffd166") if role == "owner" else UI.MINT
 
 
-func set_state(p: Vector3, yaw: float, anim: String, hands: Variant = null) -> void:
+func set_state(p: Vector3, yaw: float, anim: String, hands: Variant = null, head: Variant = null) -> void:
 	var now := Time.get_ticks_msec()
 	if _snaps.is_empty():
 		global_position = p
 		avatar.rotation.y = yaw
-	_snaps.append([now, p, yaw, anim, _hands_of(hands)])
+	var turn: Variant = null
+	if head is Array and head.size() == 3 and head.all(func(x): return x is float or x is int):
+		turn = Vector3(float(head[0]), float(head[1]), float(head[2]))
+	_snaps.append([now, p, yaw, anim, _hands_of(hands), turn])
 	while _snaps.size() > 30:
 		_snaps.pop_front()
 
@@ -133,6 +136,7 @@ func _process(delta: float) -> void:
 		var pos: Vector3 = a[1]
 		var yaw: float = a[2]
 		var hands: Array = (a[4] as Array).duplicate()
+		var head: Variant = a[5]
 		if _snaps.size() >= 2 and render_t > a[0]:
 			var b: Array = _snaps[1]
 			var k := clampf((render_t - a[0]) / maxf(b[0] - a[0], 1.0), 0.0, 1.0)
@@ -141,7 +145,10 @@ func _process(delta: float) -> void:
 			for i in 2:
 				if hands[i] is Vector3 and b[4][i] is Vector3:
 					hands[i] = (hands[i] as Vector3).lerp(b[4][i], k)
+			if head is Vector3 and b[5] is Vector3:
+				head = Vector3(lerpf(head.x, b[5].x, k), lerpf(head.y, b[5].y, k), lerpf(head.z, b[5].z, k))
 		avatar.set_vr_hands(hands[0], hands[1])
+		avatar.set_vr_head(head)
 		global_position = pos
 		avatar.rotation.y = lerp_angle(avatar.rotation.y, yaw, minf(delta * 16.0, 1.0))
 		var anim: String = a[3]

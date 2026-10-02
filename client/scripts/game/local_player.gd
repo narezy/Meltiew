@@ -506,6 +506,19 @@ func respawn() -> void:
 	respawned.emit()
 
 
+## VR: the body follows where you look loosely, like a real one: walking turns it to face
+## ahead, and standing it only comes along once the head is turned far (so others see
+## the head turn on its own).
+func _vr_facing(delta: float, moving: bool) -> float:
+	const MAX_TWIST := 0.87  # 50 degrees
+	var d := angle_difference(_facing, cam_yaw)
+	if moving:
+		return lerp_angle(_facing, cam_yaw, minf(delta * 8.0, 1.0))
+	if absf(d) > MAX_TWIST:
+		return cam_yaw - signf(d) * MAX_TWIST
+	return _facing
+
+
 func _physics_process(delta: float) -> void:
 	if dead or seated:
 		return
@@ -612,7 +625,9 @@ func _physics_process(delta: float) -> void:
 
 	if climbing:
 		_facing = atan2(_climb_normal.x, _climb_normal.z)  # face the wall
-	elif first_person or shift_locked or vr:
+	elif vr:
+		_facing = _vr_facing(delta, dir.length() > 0.05)
+	elif first_person or shift_locked:
 		_facing = cam_yaw
 	elif dir.length() > 0.05:
 		_facing = lerp_angle(_facing, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
@@ -741,7 +756,9 @@ func _fly(delta: float) -> void:
 	velocity = velocity.lerp(dir.limit_length(1.0) * speed, minf(delta * 6.0, 1.0))
 	move_and_slide()
 	var flat := Vector3(velocity.x, 0, velocity.z)
-	if first_person or shift_locked or vr:
+	if vr:
+		_facing = _vr_facing(delta, flat.length() > 0.5)
+	elif first_person or shift_locked:
 		_facing = cam_yaw
 	elif flat.length() > 0.5:
 		_facing = lerp_angle(_facing, atan2(-flat.x, -flat.z), minf(delta * TURN_SPEED, 1.0))

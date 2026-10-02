@@ -188,6 +188,14 @@ export function vrHands(h) {
   return any ? out : null;
 }
 
+/** A VR player's head turn from their app ([pitch, yaw, roll] degrees from where the body
+ *  faces), kept to what a neck can do; null when there's none. */
+export function vrHead(hd) {
+  if (!Array.isArray(hd) || hd.length !== 3 || hd.some((x) => typeof x !== 'number' || !Number.isFinite(x))) return null;
+  const lim = [80, 90, 50];
+  return hd.map((x, i) => Math.round(Math.max(-lim[i], Math.min(lim[i], x))));
+}
+
 export class GameHub {
   /**
    * @param {object} opts
@@ -886,6 +894,7 @@ export class GameHub {
     pl.watch = Number.isSafeInteger(m.w) && m.w > 0 ? m.w : 0;
     // VR hands (avatar space): never further than an arm's reach from the chest.
     pl.hands = pl.vr ? vrHands(m.h) : null;
+    pl.head = pl.vr ? vrHead(m.hd) : null;
     pl.dirty = true;
     pl.posDirty = true;
   }
@@ -1167,9 +1176,16 @@ export class GameHub {
     // VR hands go to players 13 and older only (a hand can make rude gestures), and only
     // where the place shows them.
     const handsFor = (viewer) => server.vrHands !== false && viewer.conn.rules?.age != null && viewer.conn.rules.age >= 13;
-    const state = (id, p, hands = false) => (hands && p.hands
-      ? [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a, p.hands]
-      : [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a]);
+    // A VR head's turn goes to everyone (after the hands, or a null for them).
+    const state = (id, p, hands = false) => {
+      const out = [id, +p.p[0].toFixed(3), +p.p[1].toFixed(3), +p.p[2].toFixed(3), +p.r.toFixed(3), p.a];
+      if (hands && p.hands) out.push(p.hands);
+      if (p.head) {
+        if (out.length === 6) out.push(null);
+        out.push(p.head);
+      }
+      return out;
+    };
     const dirty = [];
     for (const [id, p] of server.players) {
       if (p.dirty) dirty.push(id);

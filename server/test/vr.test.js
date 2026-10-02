@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { startServer } from '../src/index.js';
-import { vrHands } from '../src/game.js';
+import { vrHands, vrHead } from '../src/game.js';
 import { LATEST_CLIENT } from '../src/version.js';
 
 const PORT = 17411;
@@ -62,6 +62,13 @@ test('vr: hands are pulled back within reach, broken ones are dropped', () => {
   assert.equal(vrHands([1, 2, 3]), null);
 });
 
+test('vr: a head turn is kept to what a neck can do', () => {
+  assert.deepEqual(vrHead([10.4, -30, 5]), [10, -30, 5]);
+  assert.deepEqual(vrHead([170, 400, -90]), [80, 90, -50]);
+  assert.equal(vrHead([1, 2]), null);
+  assert.equal(vrHead([1, 'x', 3]), null);
+});
+
 test('vr: a headset player\'s hands reach players 13 and older, not younger ones', async () => {
   const vr = await connect(users.headset);
   const teen = await connect(users.teen);
@@ -74,13 +81,15 @@ test('vr: a headset player\'s hands reach players 13 and older, not younger ones
   }
   const me = w.you;
   for (let i = 0; i < 4; i++) {
-    vr.send2({ t: 'state', p: [0, 0.6, 15.5 + i * 0.05], r: 0, a: 'idle', h: [0.3, 1.2, -0.5, -0.3, 1.6, -0.3] });
+    vr.send2({ t: 'state', p: [0, 0.6, 15.5 + i * 0.05], r: 0, a: 'idle', h: [0.3, 1.2, -0.5, -0.3, 1.6, -0.3], hd: [10, 20, 0] });
     await new Promise((r) => setTimeout(r, 80));
   }
   const mine = (ws) => ws.all((m) => m.t === 's').flatMap((m) => m.s).filter((s) => s[0] === me);
   await new Promise((r) => setTimeout(r, 200));
   assert.ok(mine(teen).some((s) => Array.isArray(s[6]) && s[6][1] === 1.2), JSON.stringify(mine(teen)));
-  assert.ok(mine(kid).length > 0 && mine(kid).every((s) => s.length === 6), JSON.stringify(mine(kid)));
+  assert.ok(mine(teen).some((s) => Array.isArray(s[7]) && s[7][1] === 20), JSON.stringify(mine(teen)));
+  // Younger players see the head turn, not the hands.
+  assert.ok(mine(kid).length > 0 && mine(kid).every((s) => s.length === 8 && s[6] === null && s[7][0] === 10), JSON.stringify(mine(kid)));
   // Someone who isn't in VR can't send hands at all.
   teen.send2({ t: 'state', p: [1, 0.6, 15.5], r: 0, a: 'idle', h: [0.3, 1.2, -0.5, -0.3, 1.6, -0.3] });
   await new Promise((r) => setTimeout(r, 200));

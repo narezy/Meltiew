@@ -252,7 +252,7 @@ func _on_message(m: Dictionary) -> void:
 			for s in m.s:
 				var id := int(s[0])
 				if remotes.has(id):
-					remotes[id].set_state(Vector3(s[1], s[2], s[3]), float(s[4]), str(s[5]), s[6] if s.size() > 6 else null)
+					remotes[id].set_state(Vector3(s[1], s[2], s[3]), float(s[4]), str(s[5]), s[6] if s.size() > 6 else null, s[7] if s.size() > 7 else null)
 		"join":
 			_add_remote(m.player)
 			Sfx.play("pop", 1.2)
@@ -645,6 +645,9 @@ func _click_at(screen: Vector2) -> void:
 
 ## VR: a controller pointed into the world is the mouse there (Mouse.Hit / Target for
 ## scripts). Returns where it hits (or null), for drawing the laser.
+## VR: the pointing hand is the mouse in the world. {at: where it meets the world, click:
+## whether there's something there to click (a ClickDetector in reach, or a tool in your
+## hand)}, or null when it points at nothing.
 func vr_point(from: Vector3, dir: Vector3) -> Variant:
 	if place_host == null:
 		return null
@@ -652,8 +655,14 @@ func vr_point(from: Vector3, dir: Vector3) -> Variant:
 	q.exclude = [player.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	var at: Vector3 = hit.position if not hit.is_empty() else from + dir * 500.0
-	place_host.mouse_state(get_viewport().get_visible_rect().size / 2.0, from, dir, at, PlaceScene.id_of(hit.collider) if not hit.is_empty() else "")
-	return hit.position if not hit.is_empty() else null
+	var part := PlaceScene.id_of(hit.collider) if not hit.is_empty() else ""
+	place_host.mouse_state(get_viewport().get_visible_rect().size / 2.0, from, dir, at, part)
+	if hit.is_empty():
+		return null
+	var det := place_host.tree.child_of_class(part, "ClickDetector") if part != "" else ""
+	var click := place_host.equipped_tool() != "" \
+		or (det != "" and at.distance_to(player.global_position) <= float(place_host.tree.prop(det, "MaxDistance")) + 2.0)
+	return {"at": at, "click": click}
 
 
 ## VR: the trigger pointed into the world: a mouse click there (scripts, tools, ClickDetectors).
@@ -999,6 +1008,10 @@ func _physics_process(delta: float) -> void:
 				var h: Variant = VR.hand_in(player.avatar, side)
 				hands.append_array([snappedf(h.x, 0.01), snappedf(h.y, 0.01), snappedf(h.z, 0.01)] if h is Vector3 else [null, null, null])
 			state["h"] = hands
+			# And how the head is turned, for everyone to see.
+			var hd: Variant = VR.head_turn(player.avatar)
+			if hd is Vector3:
+				state["hd"] = [roundi(hd.x), roundi(hd.y), roundi(hd.z)]
 		# Resend at least once a second so late joiners and interpolation stay fresh.
 		var now := Time.get_ticks_msec()
 		if state != _last_sent or now - _last_sent_at > 1000:
