@@ -227,6 +227,7 @@ func _build_top_bar() -> Control:
 	left.add_child(_menu("file", L.t("st_file"), [
 		[L.t("st_save") + "   Ctrl+S", func(): save()],
 		[L.t("st_export"), _export],
+		[L.t("st_export_obj"), _export_obj],
 		[L.t("st_import"), _import],
 		[],
 		[L.t("st_close"), _close],
@@ -454,6 +455,21 @@ func _export() -> void:
 	var data := JSON.stringify(doc.to_melt(), "\t").to_utf8_buffer()
 	var name := str(doc.meta.get("name", "place")).validate_filename() + ".melt"
 	StudioFiles.save_file(name, ["*.melt ; Meltiew place"], data, func(path): log_line({"level": "info", "msg": L.t("st_exported", [path])}))
+
+
+## What's selected (the whole place when nothing is) as an .obj with its .mtl and
+## textures in a zip, for Blender and the like: rigs in the pose they're in.
+func _export_obj() -> void:
+	var ids: Array = doc.selection.duplicate()
+	var whole := ids.is_empty()
+	if whole:
+		ids = [doc.tree.service("Workspace")]
+	var name := (str(doc.meta.get("name", "place")) if whole or ids.size() > 1 else doc.tree.name_of(ids[0])).validate_filename()
+	var data: PackedByteArray = await ObjExport.selection(view.scene, ids, name)
+	if data.is_empty():
+		log_line({"level": "warn", "msg": L.t("st_export_obj_empty")})
+		return
+	StudioFiles.save_file(name + ".zip", ["*.zip ; OBJ + MTL + PNG"], data, func(path): log_line({"level": "info", "msg": L.t("st_exported", [path])}))
 
 
 ## Imports a .melt file as a new place in your list and opens it.

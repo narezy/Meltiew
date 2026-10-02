@@ -680,6 +680,8 @@ const TABLE := {
 	"st_save": ["Save", "Сохранить"],
 	"st_export": ["Export .melt", "Экспорт .melt"],
 	"st_import": ["Import .melt", "Импорт .melt"],
+	"st_export_obj": ["Export selection to .obj", "Экспорт выделенного в .obj"],
+	"st_export_obj_empty": ["Nothing to export: select parts, models or rigs", "Нечего экспортировать: выдели детали, модели или риги"],
 	"st_close": ["Close studio", "Закрыть студию"],
 	"st_edit": ["Edit", "Правка"],
 	"st_undo": ["Undo", "Отменить"],
