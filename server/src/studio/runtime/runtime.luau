@@ -3588,7 +3588,12 @@ Methods.Player = {
 	end,
 	Kick = function(self, message)
 		if role ~= "server" then
-			error("Kick can only be called from a Script", 2)
+			-- A LocalScript may kick its own player (shown the same way).
+			if localUserId and D[self].props.UserId == localUserId then
+				emit({ o = "kick_self", msg = tostring(message or "") })
+				return
+			end
+			error("a LocalScript can only kick the LocalPlayer", 2)
 		end
 		emit({ o = "kick", to = D[self].props.UserId, msg = tostring(message or "") })
 	end,

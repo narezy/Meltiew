@@ -58,6 +58,11 @@ var _hand_marks := {}  # side -> MeshInstance3D: your hands (your own body isn't
 var _world_wait := 0.0
 var _world_hit: Variant = null  # where the pointing hand meets the world (VR mouse)
 var _calibrate_in := -1.0
+var _kb_vp: SubViewport  # the VR keyboard's own screen
+var _kb: MeshInstance3D
+var _keys: VRKeyboard
+var _target_vp: Viewport  # what the laser points at: the app's screen or the keyboard
+var _poked := {}  # side -> true while that hand's finger is in a key
 
 
 func _ready() -> void:
@@ -162,6 +167,7 @@ func _start() -> void:
 		hands[side] = c
 	_make_panel()
 	_make_laser()
+	_make_keyboard()
 	for side in hands:
 		var mark := MeshInstance3D.new()
 		var box := BoxMesh.new()
@@ -192,6 +198,54 @@ func _make_panel() -> void:
 	panel.material_override = _panel_mat
 	panel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	vp.add_child(panel)
+
+
+## The keyboard: its own little screen on a quad, shown while a text field has the focus.
+func _make_keyboard() -> void:
+	_kb_vp = SubViewport.new()
+	_kb_vp.size = Vector2i(1100, 420)
+	_kb_vp.transparent_bg = true
+	_kb_vp.gui_embed_subwindows = true
+	add_child(_kb_vp)
+	_keys = VRKeyboard.new()
+	_keys.theme = UI.theme
+	_keys.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_kb_vp.add_child(_keys)
+	_keys.closed.connect(func():
+		get_tree().root.gui_release_focus()
+		_show_keyboard(false))
+	_kb = MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(0.95, 0.95 * 420.0 / 1100.0)
+	_kb.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = _kb_vp.get_texture()
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.no_depth_test = true
+	m.render_priority = 10
+	_kb.material_override = m
+	_kb.visible = false
+	vp.add_child(_kb)
+	get_tree().root.gui_focus_changed.connect(func(c: Control):
+		if c is LineEdit or c is TextEdit:
+			_keys.target = c
+			_show_keyboard(true)
+		else:
+			_show_keyboard(false))
+
+
+func _show_keyboard(on: bool) -> void:
+	if not active or _kb.visible == on:
+		return
+	_kb.visible = on
+	if on:
+		# Below the panel, closer, tilted toward you like a desk.
+		var yaw := _head_yaw()
+		var fwd := Basis(Vector3.UP, yaw) * Vector3.FORWARD
+		var at := camera.global_position + fwd * 0.55 + Vector3(0, -0.45, 0)
+		_kb.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(-35.0)), at)
 
 
 func _make_laser() -> void:
@@ -276,26 +330,33 @@ func _update_pointer() -> void:
 		return
 	var from: Vector3 = hand.global_position
 	var dir: Vector3 = -(hand.global_basis.z as Vector3).normalized()
-	var n := panel.global_basis.z.normalized()
-	var denom: float = dir.dot(n)
 	var hit := Vector3.ZERO
-	var size := (panel.mesh as QuadMesh).size
-	if absf(denom) > 0.0001 and panel_shown:
-		var t: float = (panel.global_position - from).dot(n) / denom
-		if t > 0.0:
-			hit = from + dir * t
-			var local := panel.global_transform.affine_inverse() * hit
-			if absf(local.x) <= size.x / 2.0 and absf(local.y) <= size.y / 2.0:
-				_pointing = true
-				var uv := Vector2(local.x / size.x + 0.5, 0.5 - local.y / size.y)
-				var px := uv * get_tree().root.get_visible_rect().size
-				if px.distance_to(_px) > 0.5:
-					_px = px
-					var m := InputEventMouseMotion.new()
-					m.position = px
-					m.global_position = px
-					m.button_mask = MOUSE_BUTTON_MASK_LEFT if _clicking else 0
-					get_tree().root.push_input(m, true)
+	# The keyboard first (it's in front of the panel), then the panel.
+	var surfaces := []
+	if _kb.visible:
+		surfaces.append([_kb, _kb_vp])
+	if panel_shown:
+		surfaces.append([panel, get_tree().root])
+	for sf in surfaces:
+		var quad: MeshInstance3D = sf[0]
+		var uv: Variant = _uv_on(quad, from, dir)
+		if uv == null:
+			continue
+		_pointing = true
+		hit = quad.global_transform * _local_on(quad, uv)
+		var target: Viewport = sf[1]
+		var px: Vector2 = (uv as Vector2) * target.get_visible_rect().size
+		if target != _target_vp:
+			_target_vp = target
+			_px = Vector2(-1, -1)
+		if px.distance_to(_px) > 0.5:
+			_px = px
+			var m := InputEventMouseMotion.new()
+			m.position = px
+			m.global_position = px
+			m.button_mask = MOUSE_BUTTON_MASK_LEFT if _clicking else 0
+			target.push_input(m, true)
+		break
 	var length: float = from.distance_to(hit) if _pointing else (from.distance_to(_world_hit) if _world_hit is Vector3 else 0.6)
 	_laser.visible = true
 	_laser.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD), from + dir * length / 2.0)
@@ -307,7 +368,52 @@ func _update_pointer() -> void:
 		_dot.global_position = _world_hit
 
 
-## (Positions are the app's own screen coordinates: push_input(..., true), whatever the
+## Where a ray meets a quad, as uv from its top left (0..1), or null if it misses.
+func _uv_on(quad: MeshInstance3D, from: Vector3, dir: Vector3) -> Variant:
+	var n := quad.global_basis.z.normalized()
+	var denom := dir.dot(n)
+	if absf(denom) < 0.0001:
+		return null
+	var t := (quad.global_position - from).dot(n) / denom
+	if t <= 0.0:
+		return null
+	var local := quad.global_transform.affine_inverse() * (from + dir * t)
+	var size := (quad.mesh as QuadMesh).size
+	if absf(local.x) > size.x / 2.0 or absf(local.y) > size.y / 2.0:
+		return null
+	return Vector2(local.x / size.x + 0.5, 0.5 - local.y / size.y)
+
+
+func _local_on(quad: MeshInstance3D, uv: Vector2) -> Vector3:
+	var size := (quad.mesh as QuadMesh).size
+	return Vector3((uv.x - 0.5) * size.x, (0.5 - uv.y) * size.y, 0)
+
+
+## A hand poking the keyboard presses the key under it (like a real one).
+func _poke() -> void:
+	if not _kb.visible:
+		_poked.clear()
+		return
+	for side in _hand_marks:
+		var tip: Vector3 = (_hand_marks[side] as Node3D).global_position
+		var local := _kb.global_transform.affine_inverse() * tip
+		var size := (_kb.mesh as QuadMesh).size
+		var inside := absf(local.x) <= size.x / 2.0 and absf(local.y) <= size.y / 2.0
+		if inside and absf(local.z) < 0.02 and not _poked.get(side, false):
+			_poked[side] = true
+			var px := Vector2(local.x / size.x + 0.5, 0.5 - local.y / size.y) * _kb_vp.get_visible_rect().size
+			for down in [true, false]:
+				var b := InputEventMouseButton.new()
+				b.button_index = MOUSE_BUTTON_LEFT
+				b.pressed = down
+				b.position = px
+				b.global_position = px
+				_kb_vp.push_input(b, true)
+		elif not inside or absf(local.z) > 0.05:
+			_poked[side] = false
+
+
+## (Positions are the target screen's own coordinates: push_input(..., true), whatever the
 ## size of the flat window.)
 func _click(down: bool) -> void:
 	_clicking = down
@@ -317,7 +423,7 @@ func _click(down: bool) -> void:
 	b.position = _px
 	b.global_position = _px
 	b.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
-	get_tree().root.push_input(b, true)
+	(_target_vp if _target_vp else get_tree().root).push_input(b, true)
 
 
 func _wheel(up: bool) -> void:
@@ -327,7 +433,7 @@ func _wheel(up: bool) -> void:
 		w.pressed = pressed
 		w.position = _px
 		w.global_position = _px
-		get_tree().root.push_input(w, true)
+		(_target_vp if _target_vp else get_tree().root).push_input(w, true)
 
 
 # --- buttons and sticks ---------------------------------------------------------------
@@ -432,6 +538,7 @@ func _process(delta: float) -> void:
 		return
 	_update_panel()
 	_update_pointer()
+	_poke()
 	# The pointing hand's stick scrolls lists on the panel.
 	_scroll_wait -= delta
 	if _pointing and _scroll_wait <= 0.0 and _menu_open():

@@ -335,6 +335,8 @@ const TABLE := {
 	"your_version": ["Your version: {0}", "Твоя версия: {0}"],
 	"kicked_banned": ["Your account was banned", "Твой аккаунт заблокирован"],
 	"kicked_admin": ["An admin removed you from the server", "Админ выгнал тебя с сервера"],
+	"kicked_place": ["You were removed from this place:\n{0}", "Тебя выгнали из плейса:\n{0}"],
+	"kicked_place_plain": ["You were removed from this place", "Тебя выгнали из плейса"],
 	"server_closed": ["This server was closed", "Этот сервер закрыли"],
 	"role_owner": ["OWNER", "ОВНЕР"],
 	"role_admin": ["ADMIN", "АДМИН"],

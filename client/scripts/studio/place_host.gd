@@ -26,6 +26,8 @@ signal core_gui_changed(kind: String, on: bool)
 ## ContextActionService changed: the keys / buttons scripts took, and the on-screen
 ## action buttons for phones ([{name, title, image, position}]).
 signal actions_changed
+## A LocalScript kicked this player (LocalPlayer:Kick("reason")).
+signal kicked(reason: String)
 
 const RUNTIME_PATH := "res://studio/runtime/runtime.luau"
 const MEMORY_MB := 64
@@ -342,6 +344,8 @@ func _apply(ops: Array) -> void:
 			"mouse":
 				mouse_settings = {"icon": str(op.get("icon", "")), "enabled": op.get("enabled", true) != false, "behavior": str(op.get("behavior", "Default"))}
 				mouse_settings_changed.emit()
+			"kick_self":
+				kicked.emit(str(op.get("msg", "")))
 			"cas":
 				bound_keys.clear()
 				for k in op.get("keys", []):

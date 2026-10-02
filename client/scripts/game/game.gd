@@ -363,8 +363,8 @@ func _on_message(m: Dictionary) -> void:
 				"closed":
 					hud.show_overlay(L.t("server_closed"), [[L.t("to_menu"), _leave]])
 				"place":
-					# Kicked by the place's own script (player:Kick("...")).
-					hud.show_overlay(str(m.get("m", "")) if str(m.get("m", "")) != "" else L.t("kicked_admin"), [[L.t("to_menu"), _leave]])
+					# Kicked by the place's own script (player:Kick("...")), with its reason.
+					_show_kick(str(m.get("m", "")))
 				_:
 					hud.show_overlay(L.t("err_duplicate"), [[L.t("to_menu"), _leave]])
 		"rejoin":
@@ -462,6 +462,10 @@ func _start_place(p: Dictionary) -> void:
 		return id != "" and place_host.tree.has(id) and place_host.tree.prop(id, "Climbable") == true
 	place_host.animation_requested.connect(func(anim: String): player.play_custom(anim))
 	place_host.core_gui_changed.connect(func(k, on): hud.set_core_gui(k, on))
+	place_host.kicked.connect(func(reason: String):
+		_leaving = true
+		net.close()
+		_show_kick(reason))
 	place_host.actions_changed.connect(func(): hud.set_actions(place_host.action_buttons, place_host.action_touch))
 	hud.is_bound = func(k: String) -> bool: return place_host != null and place_host.is_bound(k)
 	Controls.device_changed.connect(func(_d): if place_host: place_host.device_changed())
@@ -1016,6 +1020,10 @@ func _process(delta: float) -> void:
 	if _stats_timer <= 0.0:
 		_stats_timer = 0.5
 		_measure_frames()
+
+
+func _show_kick(reason: String) -> void:
+	hud.show_overlay(L.t("kicked_place", [reason]) if reason != "" else L.t("kicked_place_plain"), [[L.t("to_menu"), _leave]])
 
 
 ## Back (the phone's gesture, B, a remote's Back): the menu opens or closes.

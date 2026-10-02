@@ -102,4 +102,24 @@ func _drive() -> void:
 	VR.hands.right.position = VR.camera.position + Vector3(0.35, -0.5, -0.2)
 	await get_tree().create_timer(0.5).timeout
 	await _shot("4_hands")
+	# The chat opens: the keyboard comes up; type a letter with the laser.
+	VR.show_panel(true)
+	game.hud.toggle_chat(true)
+	await get_tree().create_timer(0.4).timeout
+	print("keyboard shown: ", VR._kb.visible)
+	var key: Button = null
+	for b in VR._keys.find_children("*", "Button", true, false):
+		if (b as Button).text in ["q", "й"]:
+			key = b
+	if key and VR._kb.visible:
+		var uv := key.get_global_rect().get_center() / VR._kb_vp.get_visible_rect().size
+		var spot := VR._kb.global_transform * VR._local_on(VR._kb, uv)
+		(VR.hands.right as Node3D).look_at(spot, Vector3.UP)
+		await get_tree().create_timer(0.2).timeout
+		VR.hands.right.press("trigger_click", true)
+		await get_tree().create_timer(0.1).timeout
+		VR.hands.right.press("trigger_click", false)
+		await get_tree().create_timer(0.3).timeout
+		print("typed into the chat: '", game.hud._chat_input.text, "'")
+	await _shot("5_keyboard")
 	get_tree().quit()
