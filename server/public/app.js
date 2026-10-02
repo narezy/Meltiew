@@ -6,6 +6,7 @@ const DOWNLOADS = {
   linux: DL_BASE + 'meltiew-linux.zip',
   macos: DL_BASE + 'meltiew-macos.zip',
   ios: DL_BASE + 'meltiew-ios.ipa',
+  vr: DL_BASE + 'meltiew-vr.apk',
 };
 const DOWNLOAD_URL = DOWNLOADS.android;
 const PLATFORMS = [
@@ -14,9 +15,12 @@ const PLATFORMS = [
   ['linux', 'Linux', 'ZIP · x86_64'],
   ['macos', 'macOS', 'ZIP · Apple Silicon & Intel · beta'],
   ['ios', 'iPhone / iPad', 'IPA · SideStore / AltStore · iOS 16+ · beta'],
+  ['vr', 'Pico / Meta Quest', 'APK · VR · beta'],
 ];
 function myPlatform() {
   const ua = navigator.userAgent.toLowerCase();
+  // (a headset's browser says Android too)
+  if (ua.includes('oculusbrowser') || ua.includes('quest') || ua.includes('pico')) return 'vr';
   if (ua.includes('android')) return 'android';
   if (ua.includes('windows')) return 'windows';
   // (an iPhone says "like Mac OS X" too)
@@ -89,6 +93,7 @@ const T = {
     save: 'Save', name_en: 'Name (EN)', name_ru: 'Name (RU)', desc_en: 'Description (EN)', desc_ru: 'Description (RU)',
     download_for: 'Download for {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Also on', desktop_note: 'Unzip and run Meltiew. Same account, same friends.',
     ios_note: 'iPhone and iPad: open the .ipa in SideStore or AltStore (iOS 16+, iPhone XS or newer).',
+    vr_note: 'VR headsets: install the VR APK from a computer (Pico: copy it over USB and open it in Files; Quest: developer mode and SideQuest). With SteamVR or WiVRn running, the Windows and Linux versions start in VR by themselves.',
     last_seen: 'last seen {0}',
     messages: 'Messages', chats: 'Chats', dm_requests: 'Requests', no_chats: 'No chats yet. Open a profile and say hi!',
     no_dm_requests: 'No message requests', pick_chat: 'Pick a chat on the left', type_message: 'Message...',
@@ -187,6 +192,7 @@ const T = {
     save: 'Сохранить', name_en: 'Название (EN)', name_ru: 'Название (RU)', desc_en: 'Описание (EN)', desc_ru: 'Описание (RU)',
     download_for: 'Скачать для {0}', get_windows: 'Windows', get_linux: 'Linux', other_platforms: 'Ещё есть под', desktop_note: 'Распакуй и запусти Meltiew. Тот же аккаунт, те же друзья.',
     ios_note: 'iPhone и iPad: открой .ipa в SideStore или AltStore (iOS 16+, iPhone XS и новее).',
+    vr_note: 'ВР-шлемы: поставь ВР-APK с компьютера (Pico: скинь по USB и открой в «Файлах»; Quest: режим разработчика и SideQuest). Если запущен SteamVR или WiVRn, версии для Windows и Linux сами запускаются в ВР.',
     last_seen: 'был(а) {0}',
     messages: 'Сообщения', chats: 'Чаты', dm_requests: 'Запросы', no_chats: 'Чатов пока нет. Открой чей-нибудь профиль и напиши!',
     no_dm_requests: 'Запросов на переписку нет', pick_chat: 'Выбери чат слева', type_message: 'Сообщение...',
@@ -471,7 +477,7 @@ const pages = {
     root.innerHTML = `<div class="hero"><div>
         <h1>${t('download_title')}</h1><p>${t('download_text')}</p>
         ${downloadButtons()}
-        <p class="muted">${t('desktop_note')}<br>${t('ios_note')}</p></div>
+        <p class="muted">${t('desktop_note')}<br>${t('ios_note')}<br>${t('vr_note')}</p></div>
         <img class="cover" src="/img/cover.png" alt=""></div>`;
   },
 

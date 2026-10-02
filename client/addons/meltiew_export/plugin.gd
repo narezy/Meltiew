@@ -43,7 +43,7 @@ class DeepLinkExport extends EditorExportPlugin:
 			m.store_string(xml)
 			m.close()
 
-	# Standalone headsets: Pico starts the app in VR (not in a flat window) with these.
+	# Standalone headsets: Pico (and Meta Quest) start the app in VR, not in a flat window.
 	func _get_android_manifest_application_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
 		var preset := get_export_preset()
 		if preset == null or not "pico" in preset.get_custom_features():
@@ -51,6 +51,7 @@ class DeepLinkExport extends EditorExportPlugin:
 		return """
 		<meta-data android:name="pvr.app.type" android:value="vr" />
 		<meta-data android:name="pvr.sdk.version" android:value="OpenXR" />
+		<meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2|quest3|quest3s|questpro" />
 """
 
 	# A TV has no touch screen and often no microphone: neither is required (stores would
@@ -64,7 +65,14 @@ class DeepLinkExport extends EditorExportPlugin:
 
 	# Lets meltiew://play links (and intent:// URLs from the website) open the game.
 	func _get_android_manifest_activity_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
-		return """
+		var preset := get_export_preset()
+		var quest := """
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="com.oculus.intent.category.VR" />
+			</intent-filter>
+""" if preset != null and "pico" in preset.get_custom_features() else ""
+		return quest + """
 			<intent-filter>
 				<action android:name="android.intent.action.VIEW" />
 				<category android:name="android.intent.category.DEFAULT" />
