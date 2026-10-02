@@ -52,7 +52,9 @@ var _menu_env: Environment
 ## Added to the headset's height so the eyes are at the character's eyes: runtimes without
 ## a floor (WiVRn, seated) put the head at 0. Set on entering the game and on recentering.
 var _lift := 0.0
-var _last_head := Vector3.INF
+var _panel_yaw := 0.0  # where the panel is around your head
+var _swinging := false
+var _hand_marks := {}  # side -> MeshInstance3D: your hands (your own body isn't drawn in VR)
 var _world_wait := 0.0
 var _world_hit: Variant = null  # where the pointing hand meets the world (VR mouse)
 var _calibrate_in := -1.0
@@ -160,6 +162,16 @@ func _start() -> void:
 		hands[side] = c
 	_make_panel()
 	_make_laser()
+	for side in hands:
+		var mark := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.07, 0.05, 0.11)
+		mark.mesh = box
+		mark.position = Vector3(0, -0.02, 0.06)  # where the palm is, behind the aim point
+		mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		hands[side].add_child(mark)
+		_hand_marks[side] = mark
+	_paint_hands(Session.DEFAULT_COLORS)
 	_place_panel.call_deferred(true)
 	# Holding the headset's recenter button: the height is measured again too.
 	if xr and xr.has_signal("pose_recentered"):
@@ -213,14 +225,18 @@ func _make_laser() -> void:
 func _place_panel(snap := false) -> void:
 	if not active:
 		return
-	var head := camera.global_transform
-	var fwd := -head.basis.z
-	fwd.y = 0.0
-	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	var at := head.origin + fwd * PANEL_DISTANCE + Vector3(0, -0.35 if _game else -0.1, 0)
+	if snap:
+		_panel_yaw = _head_yaw()
+	# Always the same distance from your head: it swings around you, never closer or further.
+	var fwd := Basis(Vector3.UP, _panel_yaw) * Vector3.FORWARD
+	var at := camera.global_position + fwd * PANEL_DISTANCE + Vector3(0, -0.35 if _game else -0.1, 0)
 	# The quad's face (+Z) toward you: looking_at points -Z away.
-	var t := Transform3D(Basis.looking_at(fwd, Vector3.UP), at)
-	panel.global_transform = t if snap else panel.global_transform.interpolate_with(t, 0.15)
+	panel.global_transform = Transform3D(Basis.looking_at(fwd, Vector3.UP), at)
+
+
+func _head_yaw() -> float:
+	var fwd := -camera.global_basis.z
+	return atan2(-fwd.x, -fwd.z) if Vector2(fwd.x, fwd.z).length() > 0.01 else _panel_yaw
 
 
 func show_panel(on: bool) -> void:
@@ -238,19 +254,16 @@ func _update_panel() -> void:
 		q.size = want
 	if not panel_shown:
 		return
-	# In the game it comes along as you walk (same distance from your head)...
-	var head := camera.global_position
-	if _game and _last_head != Vector3.INF:
-		panel.global_position += head - _last_head
-	_last_head = head
-	# ...and drifts after where you look (unless you're pointing at it).
-	if _game and not _pointing:
-		var to_panel := panel.global_position - camera.global_position
-		to_panel.y = 0.0
-		var fwd := -camera.global_basis.z
-		fwd.y = 0.0
-		if to_panel.length() > 0.01 and fwd.length() > 0.01 and to_panel.normalized().dot(fwd.normalized()) < 0.75:
-			_place_panel()
+	# In the game it comes along as you walk and swings after where you look, once you've
+	# turned well away (not while you point at it).
+	if _game:
+		if not _pointing and absf(angle_difference(_panel_yaw, _head_yaw())) > deg_to_rad(35.0):
+			_swinging = true
+		if _swinging:
+			_panel_yaw = lerp_angle(_panel_yaw, _head_yaw(), 0.08)
+			if absf(angle_difference(_panel_yaw, _head_yaw())) < deg_to_rad(3.0):
+				_swinging = false
+		_place_panel()
 
 
 ## The laser from the pointing hand: where it meets the panel becomes the mouse.
@@ -447,13 +460,13 @@ func attach(game: Node) -> void:
 	_yaw = 0.0
 	game.player.vr = true
 	game.player.avatar.set_head_hidden(true)
+	_paint_hands(Session.colors_of(Session.user))
 	_calibrate_in = 0.5
 	show_panel(true)
 
 
 func detach() -> void:
 	_game = null
-	_last_head = Vector3.INF
 	_world_hit = null
 	if not active:
 		return
@@ -491,6 +504,8 @@ func _drive(_delta: float) -> void:
 	_strength("move_right", maxf(stick.x, 0.0))
 	var av: Node3D = p.avatar
 	av.set_vr_hands(hand_in(av, "left"), hand_in(av, "right"))
+	# Your own body would fill the view (and its arms looked huge): just the hands.
+	av.visible = false
 
 
 func _strength(action: String, v: float) -> void:
@@ -498,6 +513,15 @@ func _strength(action: String, v: float) -> void:
 		Input.action_press(action, v)
 	else:
 		Input.action_release(action)
+
+
+## Your hands in your arms' colors.
+func _paint_hands(colors: Dictionary) -> void:
+	for side in _hand_marks:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(str(colors.get("arm_l" if side == "left" else "arm_r", "#f5f1ec")))
+		m.roughness = 0.7
+		(_hand_marks[side] as MeshInstance3D).material_override = m
 
 
 ## A hand in an avatar's space (studs from its feet, facing -Z), or null if not tracked.
