@@ -37,6 +37,9 @@ func _ready() -> void:
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	VR.vp.get_texture().get_image().save_png("%s_%s.png" % [_out, name])
+	# And what the computer's window shows (the mirror under the app's screen).
+	if VR._window_view:
+		VR._window_view.get_texture().get_image().save_png("%s_%s_window.png" % [_out, name])
 	print("shot ", name, "  pointing=", VR._pointing, " px=", VR._px.round(), " panel=", VR.panel_shown, " screen=", get_tree().root.get_visible_rect().size, " window=", DisplayServer.window_get_size(), " scale=", get_tree().root.content_scale_factor)
 
 

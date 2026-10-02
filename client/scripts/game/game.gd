@@ -187,8 +187,14 @@ func _apply_quality() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_WM_CLOSE_REQUEST:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		go_back()
+	# The window's close button, Alt+F4, the window manager's "close" (Super+Q): the app
+	# closes, like any other (Android's back gesture comes as GO_BACK above).
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_leaving = true
+		net.close()
+		get_tree().quit()
 	# "Play" on the website while already in a game: go there instead.
 	if what == NOTIFICATION_APPLICATION_RESUMED:
 		var launch := Launcher.take()
@@ -1283,11 +1289,20 @@ func _on_island() -> void:
 
 
 func _confirm_leave() -> void:
+	# Already on the way out (kicked, an error, a place update) but still here: just go.
 	if _leaving:
+		_leave()
 		return
-	var yes: bool = await UI.confirm(menu, L.t("leave_q"), L.t("leave_body"), L.t("leave_game"))
+	if _confirming:
+		return
+	_confirming = true
+	var yes: bool = await UI.confirm(self, L.t("leave_q"), L.t("leave_body"), L.t("leave_game"))
+	_confirming = false
 	if yes:
 		_leave()
+
+
+var _confirming := false
 
 
 func _leave() -> void:
@@ -1299,6 +1314,12 @@ func _leave() -> void:
 		UI.goto("res://scenes/studio.tscn")
 		return
 	UI.goto("res://scenes/main_menu.tscn")
+	# Should the fade get stuck somehow, out anyway: nobody stays locked in a place. (Gone
+	# by then as it should be: the timer's call goes with this scene.)
+	var tree := get_tree()
+	tree.create_timer(2.0).timeout.connect(func():
+		if is_inside_tree():
+			tree.change_scene_to_file("res://scenes/main_menu.tscn"))
 
 
 ## "Hug" by everyone near who's waiting for one (the hug emote, arms open).

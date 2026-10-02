@@ -34,6 +34,7 @@ var _fade_layer: CanvasLayer
 var _fade: ColorRect
 var _toast_box: VBoxContainer
 var _busy := false
+var _busy_since := 0
 
 
 func _ready() -> void:
@@ -131,9 +132,11 @@ func show_update_required(message: String, url: String) -> void:
 # --- scene flow -------------------------------------------------------------
 
 func goto(path: String) -> void:
-	if _busy:
+	# One change at a time; one that hangs (it shouldn't) doesn't block the next for long.
+	if _busy and Time.get_ticks_msec() - _busy_since < 3000:
 		return
 	_busy = true
+	_busy_since = Time.get_ticks_msec()
 	_fade.mouse_filter = Control.MOUSE_FILTER_STOP
 	var t := create_tween()
 	t.tween_property(_fade, "modulate:a", 1.0, 0.18)

@@ -64,6 +64,11 @@ var _kb: MeshInstance3D
 var _keys: VRKeyboard
 var _target_vp: Viewport  # what the laser points at: the app's screen or the keyboard
 var _poked := {}  # side -> true while that hand's finger is in a key
+var _mirror: SubViewport  # the computer's window: the world as the headset sees it
+var _mirror_cam: Camera3D
+var _window_view: SubViewport  # what the window shows: the mirror with the app's screen over it
+const HEADSET_ONLY := 1 << 19  # render layer of the panel, keyboard and laser (not mirrored)
+const MIRROR_SCALE := 0.5  # the mirror's resolution, of the window's
 
 
 func _ready() -> void:
@@ -172,6 +177,10 @@ func _start() -> void:
 	_make_panel()
 	_make_laser()
 	_make_keyboard()
+	for n: VisualInstance3D in [panel, _kb, _laser, _dot]:
+		n.layers = HEADSET_ONLY
+	if OS.has_feature("pc"):
+		_make_mirror()
 	_place_panel.call_deferred(true)
 	# Holding the headset's recenter button: the height is measured again too.
 	if xr and xr.has_signal("pose_recentered"):
@@ -272,6 +281,48 @@ func _make_laser() -> void:
 	dmat.albedo_color = Color.WHITE
 	_dot.material_override = dmat
 	vp.add_child(_dot)
+
+
+## The computer's window: the app's own screen is only the panel's picture (no world behind
+## it, so the window stayed black). The world is drawn once more from the headset, the app's
+## screen laid over it, and that is what goes to the window instead. Clicks still go to the
+## app's screen: it's the same size and in the same place.
+func _make_mirror() -> void:
+	_mirror = SubViewport.new()
+	_mirror.world_3d = vp.world_3d
+	_mirror.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_mirror.audio_listener_enable_3d = false
+	_mirror.positional_shadow_atlas_size = 0
+	add_child(_mirror)
+	_mirror_cam = Camera3D.new()
+	_mirror_cam.fov = 80.0
+	_mirror_cam.near = 0.05
+	_mirror_cam.far = 600.0
+	_mirror_cam.cull_mask = 0xFFFFF & ~HEADSET_ONLY
+	_mirror.add_child(_mirror_cam)
+	_mirror_cam.current = true
+	_window_view = SubViewport.new()
+	_window_view.disable_3d = true
+	_window_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_window_view)
+	for tex in [_mirror.get_texture(), get_tree().root.get_texture()]:
+		var r := TextureRect.new()
+		r.texture = tex
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_SCALE
+		r.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_window_view.add_child(r)
+	get_tree().root.size_changed.connect(_fit_mirror.call_deferred)
+	_fit_mirror()
+
+
+func _fit_mirror() -> void:
+	var size := DisplayServer.window_get_size()
+	_mirror.size = (Vector2(size) * MIRROR_SCALE).max(Vector2.ONE)
+	_window_view.size = size
+	# (The window puts its own screen back on every resize: taken off again here.)
+	RenderingServer.viewport_attach_to_screen(get_tree().root.get_viewport_rid(), Rect2(), DisplayServer.INVALID_WINDOW_ID)
+	RenderingServer.viewport_attach_to_screen(_window_view.get_viewport_rid(), Rect2(Vector2.ZERO, size), DisplayServer.MAIN_WINDOW_ID)
 
 
 # --- the panel ------------------------------------------------------------------------
@@ -554,6 +605,9 @@ func _process(delta: float) -> void:
 	_update_panel()
 	_update_pointer()
 	_poke()
+	if _mirror_cam:
+		_mirror_cam.global_transform = camera.global_transform
+		_mirror_cam.environment = camera.environment
 	# The pointing hand's stick scrolls lists on the panel.
 	_scroll_wait -= delta
 	if _pointing and _scroll_wait <= 0.0 and _menu_open():
