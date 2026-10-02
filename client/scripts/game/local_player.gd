@@ -50,6 +50,7 @@ var first_person := false
 var shift_locked := false
 ## Playing in a headset (VR): the body faces where you look, the camera is your head.
 var vr := false
+var hip := 0.0  # set_hip
 ## The headset's place this frame (set by VR), or null.
 var vr_head: Variant = null
 var _shoulder := 0.0
@@ -126,6 +127,23 @@ var admin_speed := 0.0
 var floating := false
 ## Player:Glide in progress: {from, to, t, dur}, empty when not gliding.
 var _glide := {}
+
+
+## The body got shorter or taller from the hips (a script hid or resized the legs): the
+## collision and the eyes follow, so a legless character rests on its torso.
+func set_hip(shift: float) -> void:
+	if is_equal_approx(shift, hip):
+		return
+	hip = shift
+	var shape := _collision.shape as CapsuleShape3D
+	shape.height = maxf(0.85, 1.8 + shift)
+	shape.radius = minf(0.4, shape.height / 2.0)
+	_collision.position.y = shape.height / 2.0
+
+
+## Eyes above the feet, with the body as it is now.
+func eye_height() -> float:
+	return maxf(0.5, EYE_HEIGHT + hip)
 
 
 func _ready() -> void:
@@ -649,7 +667,7 @@ func _update_camera(delta: float) -> void:
 		camera.top_level = false
 		camera.transform = Transform3D()
 	var body := get_global_transform_interpolated().origin
-	var target := body + _step_offset + Vector3(0, EYE_HEIGHT if first_person else 1.5, 0)
+	var target := body + _step_offset + Vector3(0, eye_height() if first_person else 1.5 + hip * 0.6, 0)
 	# Over the shoulder while shift-locked (eased in and out).
 	_shoulder = lerpf(_shoulder, 1.4 if shift_locked and not first_person else 0.0, minf(delta * 10.0, 1.0))
 	target += Basis(Vector3.UP, cam_yaw) * Vector3(_shoulder, 0, 0)

@@ -593,7 +593,7 @@ func _drive(_delta: float) -> void:
 	if _calibrate_in > 0.0:
 		_calibrate_in -= _delta
 		if _calibrate_in <= 0.0:
-			_lift = LocalPlayer.EYE_HEIGHT - camera.position.y
+			_lift = p.eye_height() - camera.position.y
 	var head_in_origin := origin.global_transform.basis * Vector3(camera.position.x, 0, camera.position.z)
 	origin.global_position = feet - head_in_origin + Vector3(0, _lift, 0)
 	# Where you look is where the stick walks; the game's own camera sits in your head

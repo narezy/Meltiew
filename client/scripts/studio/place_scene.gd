@@ -153,6 +153,52 @@ func joint_angles_of(id: String) -> Dictionary:
 	return out
 
 
+## A Rig's or Humanoid's body shape (*Scale, *Offset, *Visible) as { bone: {scale, offset,
+## visible} } for its Melly: only the parts scripts changed.
+func part_shapes_of(id: String) -> Dictionary:
+	var out := {}
+	for part in PART_BONES:
+		var sc: Variant = tree.prop(id, part + "Scale")
+		var off: Variant = tree.prop(id, part + "Offset")
+		var vis: Variant = tree.prop(id, part + "Visible")
+		var sh := {}
+		if sc is Vector3 and sc != Vector3.ONE:
+			sh.scale = sc
+		if off is Vector3 and off != Vector3.ZERO:
+			sh.offset = off
+		if vis == false:
+			sh.visible = false
+		if not sh.is_empty():
+			out[PART_BONES[part]] = sh
+	return out
+
+
+const PART_BONES := {"Head": "Head", "Torso": "Torso", "LeftArm": "ArmL", "RightArm": "ArmR", "LeftLeg": "LegL", "RightLeg": "LegR"}
+
+
+## A Melly's body parts swapped for the place's own objects (Humanoid / Rig *Part), rebuilt
+## only when what's swapped (or what it keeps) changes.
+func dress_parts(av: MellyAvatar, hum: String) -> void:
+	var sig := ""
+	var reps := {}
+	for part in PART_BONES:
+		var ref: Variant = tree.prop(hum, part + "Part")
+		var obj := str(ref["$i"]) if ref is Dictionary and ref.has("$i") else ""
+		if obj == "" or not tree.has(obj):
+			continue
+		var keeps := [tree.prop(hum, "HeadPartKeepsFace") == true, tree.prop(hum, "HeadPartKeepsAccessories") == true] if part == "Head" \
+			else [tree.prop(hum, part + "PartKeepsClothing") == true]
+		sig += "%s=%s%s;" % [part, obj, str(keeps)]
+		reps[PART_BONES[part]] = {"id": obj, "face": part == "Head" and keeps[0], "accessories": part == "Head" and keeps[1],
+			"clothing": part != "Head" and keeps[0]}
+	if sig == str(av.get_meta("parts_sig", "")):
+		return
+	av.set_meta("parts_sig", sig)
+	for bone in reps:
+		reps[bone].node = visual_copy(reps[bone].id)
+	av.set_part_replacements(reps)
+
+
 ## The Melly drawn for a Rig or a player's character Model (null for anything else).
 func avatar_for(id: String) -> Node:
 	if _rigs.has(id):
@@ -837,7 +883,73 @@ static func _spawn_texture() -> Texture2D:
 	return _spawn_tex
 
 
-func _material(id: String, transparency: float) -> StandardMaterial3D:
+## A look-only copy of a Part or Model (the parts in it too), centered on it, in studs:
+## shapes, colors, materials and textures. For body parts a script swapped for its own
+## object (Humanoid.HeadPart...). Null when there's nothing to draw.
+func visual_copy(id: String) -> Node3D:
+	if not tree.has(id):
+		return null
+	var ids: Array = []
+	if tree.is_a(id, "BasePart"):
+		ids.append(id)
+	for d in tree.descendants(id):
+		if tree.is_a(d, "BasePart"):
+			ids.append(d)
+	if ids.is_empty():
+		return null
+	var center := Transform3D()
+	if tree.is_a(id, "BasePart"):
+		center = Transform3D(Basis(), _transform_of(id).origin)
+	else:
+		var box := AABB()
+		for i in ids.size():
+			var sz: Vector3 = tree.prop(ids[i], "Size")
+			var b := AABB(_transform_of(ids[i]).origin - sz / 2.0, sz)
+			box = b if i == 0 else box.merge(b)
+		center = Transform3D(Basis(), box.get_center())
+	var root := Node3D.new()
+	for pid in ids:
+		var transparency := float(tree.prop(pid, "Transparency"))
+		if transparency >= 0.999:
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = _shape_mesh(pid)
+		mi.material_override = _material(pid, transparency, true)
+		mi.transform = center.affine_inverse() * _transform_of(pid)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(mi)
+	return root
+
+
+## A part's shape as a mesh, sized (as _style_part draws it).
+func _shape_mesh(id: String) -> Mesh:
+	var size: Vector3 = (tree.prop(id, "Size") as Vector3).max(Vector3.ONE * 0.05)
+	var kind := str(tree.prop(id, "Shape")) if tree.cls(id) == "Part" else "Block"
+	match kind:
+		"Ball":
+			var d := minf(size.x, minf(size.y, size.z))
+			var sm := SphereMesh.new()
+			sm.radius = d / 2.0
+			sm.height = d
+			sm.radial_segments = _round_segments(d)
+			sm.rings = sm.radial_segments / 2
+			return sm
+		"Cylinder":
+			var cm := CylinderMesh.new()
+			cm.top_radius = minf(size.x, size.z) / 2.0
+			cm.bottom_radius = cm.top_radius
+			cm.height = size.y
+			cm.radial_segments = _round_segments(cm.top_radius * 2.0)
+			cm.rings = 0
+			return cm
+		"Wedge":
+			return _wedge_mesh(_wedge_points(size))
+	var bm := BoxMesh.new()
+	bm.size = size
+	return bm
+
+
+func _material(id: String, transparency: float, copy := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	var color: Color = tree.prop(id, "Color")
 	var kind := str(tree.prop(id, "Material"))
@@ -876,7 +988,7 @@ func _material(id: String, transparency: float) -> StandardMaterial3D:
 		m.uv1_world_triplanar = false
 		m.uv1_scale = Vector3.ONE / scale
 		AssetCache.fetch(tex, func(t: Texture2D):
-			if t and is_instance_valid(self) and _parts.has(id):
+			if t and is_instance_valid(self) and (copy or _parts.has(id)):
 				m.albedo_texture = t)
 	return m
 
@@ -948,8 +1060,10 @@ func _style_rig(id: String, key: String) -> void:
 	if key == "Position" or key == "Rotation":
 		return
 	av.set_joint_angles(joint_angles_of(id))
-	# Scripts turn joints every frame: nothing else to redo for those.
-	if key.ends_with("Angle"):
+	av.set_part_shapes(part_shapes_of(id))
+	dress_parts(av, id)
+	# Scripts turn and reshape joints every frame: nothing else to redo for those.
+	if key.ends_with("Angle") or key.ends_with("Scale") or key.ends_with("Offset") or key.ends_with("Visible"):
 		return
 	var colors := {}
 	for pair in [["head", "HeadColor"], ["torso", "TorsoColor"], ["arm_l", "LeftArmColor"], ["arm_r", "RightArmColor"], ["leg_l", "LeftLegColor"], ["leg_r", "RightLegColor"]]:

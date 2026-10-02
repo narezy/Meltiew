@@ -46,6 +46,18 @@ var _head_top_above_bone := 0.35
 const HEAD_TOP := 1.81
 var _skeleton: Skeleton3D
 var _vr: VRPose
+var _hidden := {}  # bone names scripts hid
+var _leg_scale := {}  # "LegL" / "LegR" -> height scale scripts set
+var _rep_nodes := {}  # bone -> BoneAttachment3D holding a script's object for that part
+var _rep_info := {}  # bone -> {box: AABB, face, accessories}
+const PART_CLOTH_SHADER := preload("res://assets/shaders/body_part_cloth.gdshader")
+## Middle of each part from its bone, in the model (bone space, rest pose).
+const PART_CENTERS := {"Head": Vector3(0, 0.66, 0), "Torso": Vector3(0, 1.0, 0), "ArmL": Vector3(0.21, -1.0, 0),
+	"ArmR": Vector3(-0.21, -1.0, 0), "LegL": Vector3(-0.07, -1.0, 0), "LegR": Vector3(0.07, -1.0, 0)}
+var _hip := 0.0  # studs the hips moved (short or hidden legs)
+## The skeleton's bones in JOINT_ORDER (head, torso, arms, legs as the colors go).
+const BONES := ["Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]
+const LEG_LENGTH := 2.0 * MODEL_SCALE  # studs, hip to foot
 var _hand: Node3D
 var _hold: HoldArm
 var _joints: JointPose
@@ -111,6 +123,7 @@ func _ready() -> void:
 	skeleton.add_child(_hold)
 	# Scripts turning joints (Humanoid / Rig *Angle properties), on top of the animation.
 	_joints = JointPose.new()
+	_joints.avatar = self
 	skeleton.add_child(_joints)
 	# VR: the arms reach for the hands (last, over everything else).
 	_vr = VRPose.new()
@@ -175,6 +188,14 @@ func _paint_clothes() -> void:
 	for i in 5:
 		_body_mat.set_shader_parameter("cloth%d" % i, layers[i] if i < layers.size() else null)
 	_body_mat.set_shader_parameter("cloth_count", layers.size())
+	# Swapped parts that keep the shirt wear the same layers.
+	for bone in _rep_nodes:
+		for mi in (_rep_nodes[bone] as Node).find_children("*", "MeshInstance3D", true, false):
+			if mi.has_meta("cloth"):
+				var m := (mi as MeshInstance3D).material_override as ShaderMaterial
+				for i in 5:
+					m.set_shader_parameter("cloth%d" % i, layers[i] if i < layers.size() else null)
+				m.set_shader_parameter("cloth_count", layers.size())
 
 
 func set_face(id: String) -> void:
@@ -195,8 +216,11 @@ func _apply_face() -> void:
 func set_colors(colors: Dictionary) -> void:
 	_look_colors = colors.duplicate()
 	var arr := PackedColorArray()
-	for part in JOINT_ORDER:
-		arr.append(Color(str(colors.get(part, Session.DEFAULT_COLORS[part]))))
+	for i in JOINT_ORDER.size():
+		var part: String = JOINT_ORDER[i]
+		var c := Color(str(colors.get(part, Session.DEFAULT_COLORS[part])))
+		c.a = 0.0 if _hidden.has(BONES[i]) or _rep_info.has(BONES[i]) else 1.0  # (the shader leaves hidden parts out)
+		arr.append(c)
 	if _body_mat:
 		_body_mat.set_shader_parameter("part_colors", arr)
 
@@ -255,6 +279,7 @@ func set_accessories(ids: Array) -> void:
 		var node := Accessories.build(str(id))
 		if node:
 			(_torso_root if Accessories.bone_of(str(id)) == "Torso" else _hat_root).add_child(node)
+	_apply_head_extras()
 
 
 func get_accessories() -> Array:
@@ -444,12 +469,181 @@ class VRPose extends SkeletonModifier3D:
 	var _last := {"left": Vector3.ZERO, "right": Vector3.ZERO}
 
 
+## Scripts reshaping the body (Humanoid / Rig *Scale, *Offset, *Visible): { "Head": {scale:
+## Vector3, offset: Vector3 (studs), visible: bool}, ... } for the parts that differ.
+## With both legs hidden (or shrunk) the body comes down so it stands on what's left.
+func set_part_shapes(shapes: Dictionary) -> void:
+	if _joints == null:
+		return
+	var scales := {}
+	var offsets := {}
+	var hidden := {}
+	for bone_name in shapes:
+		var b := _skeleton.find_bone(bone_name)
+		if b < 0:
+			continue
+		var sh: Dictionary = shapes[bone_name]
+		if sh.get("scale", Vector3.ONE) != Vector3.ONE:
+			scales[b] = (sh.scale as Vector3).max(Vector3.ONE * 0.01)
+		if sh.get("offset", Vector3.ZERO) != Vector3.ZERO:
+			offsets[b] = sh.offset
+		if sh.get("visible", true) == false:
+			hidden[bone_name] = true
+	_joints.scales = scales
+	_joints.offsets = offsets
+	if hidden != _hidden:
+		_hidden = hidden
+		set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
+	for side in ["LegL", "LegR"]:
+		_leg_scale[side] = (shapes.get(side, {}).get("scale", Vector3.ONE) as Vector3).y
+	_apply_head_extras()
+	_update_hip()
+
+
+## How far the hips moved from the usual (studs): negative with short or hidden legs.
+func hip_shift() -> float:
+	return _hip
+
+
+## Body parts a script swapped for its own objects (Humanoid / Rig *Part): { bone: {node:
+## Node3D (studs, centered, facing -Z), face, accessories, clothing: bool} }. The part itself
+## isn't drawn; the object takes its place and moves with it. A new head can keep the face
+## and the hats, the other parts the shirt.
+func set_part_replacements(reps: Dictionary) -> void:
+	for bone in _rep_nodes:
+		if is_instance_valid(_rep_nodes[bone]):
+			_rep_nodes[bone].queue_free()
+	_rep_nodes.clear()
+	_rep_info = {}
+	if _skeleton == null:
+		return
+	for bone in reps:
+		var r: Dictionary = reps[bone]
+		var node: Node3D = r.get("node")
+		if node == null:
+			continue
+		var att := BoneAttachment3D.new()
+		att.bone_name = bone
+		_skeleton.add_child(att)
+		# Studs and the avatar's facing inside the scaled, turned-around model.
+		var holder := Node3D.new()
+		holder.transform = Transform3D(Basis(Vector3.UP, PI).scaled(Vector3.ONE / MODEL_SCALE), PART_CENTERS.get(bone, Vector3.ZERO))
+		att.add_child(holder)
+		holder.add_child(node)
+		_rep_nodes[bone] = att
+		var box := _box_of(node)
+		_rep_info[bone] = {"box": box, "face": r.get("face", false), "accessories": r.get("accessories", false)}
+		if bone == "Head" and r.get("face", false):
+			_face_on(node, box)
+		if bone != "Head" and r.get("clothing", false):
+			_cloth_on(node, box, BONES.find(bone))
+	set_colors(_look_colors if not _look_colors.is_empty() else Session.DEFAULT_COLORS)
+	_apply_head_extras()
+	_update_hip()
+
+
+## What a swapped head keeps: the face drawn on the object (the body's own face hides with
+## the head) and the hats moved up to its top, or neither.
+func _apply_head_extras() -> void:
+	var head: Dictionary = _rep_info.get("Head", {})
+	if _face_mat:
+		_face_mat.albedo_color.a = 0.0 if not head.is_empty() or _hidden.has("Head") else 1.0
+	if _hat_root:
+		_hat_root.visible = not _hidden.has("Head") and (head.is_empty() or head.accessories)
+		# Up to the new head's top (in the bone's own units).
+		var lift := 0.0
+		if not head.is_empty():
+			lift = (PART_CENTERS.Head.y + (head.box as AABB).end.y / MODEL_SCALE) - 2.0 * PART_CENTERS.Head.y
+		for c in _hat_root.get_children():
+			if not c.has_meta("base_y"):
+				c.set_meta("base_y", c.position.y)
+			c.position.y = float(c.get_meta("base_y")) + lift
+
+
+## Where the shown parts' boxes are, in the object's own space.
+static func _box_of(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for mi in [node] + node.find_children("*", "MeshInstance3D", true, false):
+		if not mi is MeshInstance3D or (mi as MeshInstance3D).mesh == null:
+			continue
+		var b: AABB = (node.global_transform.affine_inverse() * (mi as MeshInstance3D).global_transform) * (mi as MeshInstance3D).mesh.get_aabb() \
+			if node.is_inside_tree() else (mi as MeshInstance3D).transform * (mi as MeshInstance3D).mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+func _face_on(node: Node3D, box: AABB) -> void:
+	var quad := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	var side := minf(box.size.x, box.size.y) * 0.75
+	q.size = Vector2(side, side)
+	quad.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = Faces.texture(_face_id)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.4
+	quad.material_override = m
+	# On the front (-Z), just off it, facing out.
+	quad.transform = Transform3D(Basis(Vector3.UP, PI), Vector3(box.get_center().x, box.get_center().y, box.position.z - 0.01))
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(quad)
+
+
+func _cloth_on(node: Node3D, box: AABB, part: int) -> void:
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var src := (mi as MeshInstance3D).material_override as StandardMaterial3D
+		var m := ShaderMaterial.new()
+		m.shader = PART_CLOTH_SHADER
+		m.set_shader_parameter("base_color", src.albedo_color if src else Color.WHITE)
+		m.set_shader_parameter("part", part)
+		m.set_shader_parameter("obj_min", box.position)
+		m.set_shader_parameter("obj_size", box.size.max(Vector3.ONE * 0.01))
+		m.set_shader_parameter("to_object", Projection((mi as MeshInstance3D).transform))
+		(mi as MeshInstance3D).material_override = m
+		(mi as MeshInstance3D).set_meta("cloth", true)
+	_paint_clothes()
+
+
+## The feet on the ground: shorter legs (or none) bring the whole body down; swapped
+## legs as long as the objects are.
+func _update_hip() -> void:
+	var legs := []
+	for side in ["LegL", "LegR"]:
+		if _rep_info.has(side):
+			legs.append((_rep_info[side].box as AABB).size.y / LEG_LENGTH)
+		elif not _hidden.has(side):
+			legs.append(_leg_scale.get(side, 1.0))
+	_hip = (legs.max() - 1.0) * LEG_LENGTH if not legs.is_empty() else -LEG_LENGTH
+	if _model:
+		_model.position.y = _hip
+
+
 class JointPose extends SkeletonModifier3D:
 	var turns := {}  # bone index -> Quaternion
+	var scales := {}  # bone index -> Vector3
+	var offsets := {}  # bone index -> Vector3, avatar space (studs)
+	var avatar: Node3D
 
 	func _process_modification_with_delta(_delta: float) -> void:
-		if turns.is_empty():
+		if turns.is_empty() and scales.is_empty() and offsets.is_empty():
 			return
 		var sk := get_skeleton()
 		for b in turns:
 			sk.set_bone_pose_rotation(b, sk.get_bone_pose_rotation(b) * turns[b])
+		if not scales.is_empty():
+			# Each part keeps its own size: what hangs on a bigger torso moves out with it
+			# but isn't made bigger too.
+			for b in sk.get_bone_count():
+				var own: Vector3 = scales.get(b, Vector3.ONE)
+				var parent := sk.get_bone_parent(b)
+				var inherited: Vector3 = scales.get(parent, Vector3.ONE) if parent >= 0 else Vector3.ONE
+				if own != Vector3.ONE or inherited != Vector3.ONE:
+					sk.set_bone_pose_scale(b, sk.get_bone_pose_scale(b) * own / inherited)
+		if not offsets.is_empty() and avatar:
+			var to_sk := (sk.global_transform.affine_inverse() * avatar.global_transform).basis
+			for b in offsets:
+				var g := sk.get_bone_global_pose(b)
+				g.origin += to_sk * (offsets[b] as Vector3)
+				sk.set_bone_global_pose(b, g)

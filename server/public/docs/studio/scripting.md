@@ -134,6 +134,27 @@ humanoid.StepHeight = 1.5   -- big blocky stairs
 humanoid.StepSpeed = 3      -- straight up them, no stops
 ```
 
+### Reshaping the body
+
+Every body part of a character (and of a Rig) can be changed by scripts, on its own: `Head`, `Torso`, `LeftArm`, `RightArm`, `LeftLeg`, `RightLeg`.
+
+- `<Part>Scale` resizes it (`Vector3.new(1, 1, 1)` is normal), `<Part>Offset` moves it (studs), `<Part>Angle` turns it, `<Part>Visible = false` hides it. Without legs (hidden or tiny) the character stands on its torso; longer legs make it taller.
+- `<Part>Part` swaps the part for any Part or Model of yours (keep it in ReplicatedStorage): it's drawn in the part's place with its own colors, materials and textures, and moves with the body. A new head can keep the face (`HeadPartKeepsFace`) and the hats (`HeadPartKeepsAccessories`); other parts can keep the shirt (`<Part>PartKeepsClothing`). Swapped legs set the height too.
+
+```lua
+-- A werewolf: a wolf head that keeps the hats, furry arms that keep the shirt.
+local wolf = game.ReplicatedStorage.Wolf
+humanoid.HeadPart = wolf.Head
+humanoid.HeadPartKeepsAccessories = true
+humanoid.LeftArmPart = wolf.Arm
+humanoid.RightArmPart = wolf.Arm
+humanoid.LeftArmPartKeepsClothing = true
+humanoid.RightArmPartKeepsClothing = true
+humanoid.TorsoScale = Vector3.new(1.3, 1.2, 1.2)
+-- and back to normal:
+humanoid.HeadPart = nil
+```
+
 `humanoid:TakeDamage(20)` hurts; at 0 health the player dies and respawns after `StarterPlayer.RespawnTime`.
 
 Defaults for every new character come from **StarterPlayer**: the same humanoid settings plus `RespawnTime`, `ChatEnabled`, `CameraMode` (`Classic` or `LockFirstPerson`) and `CameraMaxZoom`.

@@ -1204,6 +1204,10 @@ func _sync_joints() -> void:
 		var av: MellyAvatar = player.avatar if uid == my_id else (remotes[uid].avatar if remotes.has(uid) else null)
 		if av:
 			av.set_joint_angles(place_host.scene.joint_angles_of(hum))
+			av.set_part_shapes(place_host.scene.part_shapes_of(hum))
+			place_host.scene.dress_parts(av, hum)
+			if uid == my_id:
+				player.set_hip(av.hip_shift())
 
 
 func _sync_emote_overrides() -> void:

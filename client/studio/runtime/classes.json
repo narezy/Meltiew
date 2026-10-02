@@ -758,6 +758,233 @@
        0
       ]
      }
+    },
+    "HeadScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the Head (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "HeadOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the Head from its place on the body (studs)."
+    },
+    "HeadVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the Head. With both legs hidden the character stands on its torso."
+    },
+    "TorsoScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the Torso (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "TorsoOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the Torso from its place on the body (studs)."
+    },
+    "TorsoVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the Torso. With both legs hidden the character stands on its torso."
+    },
+    "LeftArmScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the LeftArm (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "LeftArmOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the LeftArm from its place on the body (studs)."
+    },
+    "LeftArmVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the LeftArm. With both legs hidden the character stands on its torso."
+    },
+    "RightArmScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the RightArm (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "RightArmOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the RightArm from its place on the body (studs)."
+    },
+    "RightArmVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the RightArm. With both legs hidden the character stands on its torso."
+    },
+    "LeftLegScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the LeftLeg (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "LeftLegOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the LeftLeg from its place on the body (studs)."
+    },
+    "LeftLegVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the LeftLeg. With both legs hidden the character stands on its torso."
+    },
+    "RightLegScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the RightLeg (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "RightLegOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the RightLeg from its place on the body (studs)."
+    },
+    "RightLegVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the RightLeg. With both legs hidden the character stands on its torso."
+    },
+    "HeadPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the Head (keep it in ReplicatedStorage or Workspace)."
+    },
+    "TorsoPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the Torso (keep it in ReplicatedStorage or Workspace)."
+    },
+    "LeftArmPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the LeftArm (keep it in ReplicatedStorage or Workspace)."
+    },
+    "RightArmPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the RightArm (keep it in ReplicatedStorage or Workspace)."
+    },
+    "LeftLegPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the LeftLeg (keep it in ReplicatedStorage or Workspace)."
+    },
+    "RightLegPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the RightLeg (keep it in ReplicatedStorage or Workspace)."
+    },
+    "HeadPartKeepsFace": {
+     "type": "bool",
+     "default": false,
+     "doc": "The face stays, drawn on the front of the HeadPart."
+    },
+    "HeadPartKeepsAccessories": {
+     "type": "bool",
+     "default": false,
+     "doc": "Hats and other head accessories stay, on top of the HeadPart."
+    },
+    "TorsoPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the TorsoPart."
+    },
+    "LeftArmPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the LeftArmPart."
+    },
+    "RightArmPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the RightArmPart."
+    },
+    "LeftLegPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the LeftLegPart."
+    },
+    "RightLegPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the RightLegPart."
     }
    },
    "events": [
@@ -2092,6 +2319,233 @@
        0
       ]
      }
+    },
+    "HeadScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the Head (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "HeadOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the Head from its place on the body (studs)."
+    },
+    "HeadVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the Head. With both legs hidden the character stands on its torso."
+    },
+    "TorsoScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the Torso (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "TorsoOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the Torso from its place on the body (studs)."
+    },
+    "TorsoVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the Torso. With both legs hidden the character stands on its torso."
+    },
+    "LeftArmScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the LeftArm (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "LeftArmOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the LeftArm from its place on the body (studs)."
+    },
+    "LeftArmVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the LeftArm. With both legs hidden the character stands on its torso."
+    },
+    "RightArmScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the RightArm (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "RightArmOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the RightArm from its place on the body (studs)."
+    },
+    "RightArmVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the RightArm. With both legs hidden the character stands on its torso."
+    },
+    "LeftLegScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the LeftLeg (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "LeftLegOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the LeftLeg from its place on the body (studs)."
+    },
+    "LeftLegVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the LeftLeg. With both legs hidden the character stands on its torso."
+    },
+    "RightLegScale": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       1,
+       1,
+       1
+      ]
+     },
+     "doc": "Size of the RightLeg (1, 1, 1 is normal: a werewolf's big head, tiny legs...)."
+    },
+    "RightLegOffset": {
+     "type": "Vector3",
+     "default": {
+      "$v3": [
+       0,
+       0,
+       0
+      ]
+     },
+     "doc": "Moves the RightLeg from its place on the body (studs)."
+    },
+    "RightLegVisible": {
+     "type": "bool",
+     "default": true,
+     "doc": "Hides the RightLeg. With both legs hidden the character stands on its torso."
+    },
+    "HeadPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the Head (keep it in ReplicatedStorage or Workspace)."
+    },
+    "TorsoPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the Torso (keep it in ReplicatedStorage or Workspace)."
+    },
+    "LeftArmPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the LeftArm (keep it in ReplicatedStorage or Workspace)."
+    },
+    "RightArmPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the RightArm (keep it in ReplicatedStorage or Workspace)."
+    },
+    "LeftLegPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the LeftLeg (keep it in ReplicatedStorage or Workspace)."
+    },
+    "RightLegPart": {
+     "type": "Instance",
+     "default": null,
+     "doc": "A Part or Model drawn instead of the RightLeg (keep it in ReplicatedStorage or Workspace)."
+    },
+    "HeadPartKeepsFace": {
+     "type": "bool",
+     "default": false,
+     "doc": "The face stays, drawn on the front of the HeadPart."
+    },
+    "HeadPartKeepsAccessories": {
+     "type": "bool",
+     "default": false,
+     "doc": "Hats and other head accessories stay, on top of the HeadPart."
+    },
+    "TorsoPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the TorsoPart."
+    },
+    "LeftArmPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the LeftArmPart."
+    },
+    "RightArmPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the RightArmPart."
+    },
+    "LeftLegPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the LeftLegPart."
+    },
+    "RightLegPartKeepsClothing": {
+     "type": "bool",
+     "default": false,
+     "doc": "The shirt stays, wrapped around the RightLegPart."
     }
    },
    "events": [],

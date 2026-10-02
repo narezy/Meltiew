@@ -78,6 +78,37 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | RightArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 | LeftLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 | RightLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| HeadScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| HeadOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| HeadVisible | bool | true |  |
+| TorsoScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| TorsoOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| TorsoVisible | bool | true |  |
+| LeftArmScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| LeftArmOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftArmVisible | bool | true |  |
+| RightArmScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| RightArmOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightArmVisible | bool | true |  |
+| LeftLegScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| LeftLegOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftLegVisible | bool | true |  |
+| RightLegScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| RightLegOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightLegVisible | bool | true |  |
+| HeadPart | Instance |  |  |
+| TorsoPart | Instance |  |  |
+| LeftArmPart | Instance |  |  |
+| RightArmPart | Instance |  |  |
+| LeftLegPart | Instance |  |  |
+| RightLegPart | Instance |  |  |
+| HeadPartKeepsFace | bool | false |  |
+| HeadPartKeepsAccessories | bool | false |  |
+| TorsoPartKeepsClothing | bool | false |  |
+| LeftArmPartKeepsClothing | bool | false |  |
+| RightArmPartKeepsClothing | bool | false |  |
+| LeftLegPartKeepsClothing | bool | false |  |
+| RightLegPartKeepsClothing | bool | false |  |
 
 **Methods:** `TakeDamage(amount)`, `EquipTool(tool)`, `UnequipTools()`, `PlayAnimation(anim)`, `StopAnimation()`
 
@@ -430,6 +461,37 @@ A Melly that stands in your place: shopkeepers, guards, dancers. Paint it like i
 | RightArmAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 | LeftLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
 | RightLegAngle | Vector3 | Vector3.new(0, 0, 0) |  |
+| HeadScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| HeadOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| HeadVisible | bool | true |  |
+| TorsoScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| TorsoOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| TorsoVisible | bool | true |  |
+| LeftArmScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| LeftArmOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftArmVisible | bool | true |  |
+| RightArmScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| RightArmOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightArmVisible | bool | true |  |
+| LeftLegScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| LeftLegOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| LeftLegVisible | bool | true |  |
+| RightLegScale | Vector3 | Vector3.new(1, 1, 1) |  |
+| RightLegOffset | Vector3 | Vector3.new(0, 0, 0) |  |
+| RightLegVisible | bool | true |  |
+| HeadPart | Instance |  |  |
+| TorsoPart | Instance |  |  |
+| LeftArmPart | Instance |  |  |
+| RightArmPart | Instance |  |  |
+| LeftLegPart | Instance |  |  |
+| RightLegPart | Instance |  |  |
+| HeadPartKeepsFace | bool | false |  |
+| HeadPartKeepsAccessories | bool | false |  |
+| TorsoPartKeepsClothing | bool | false |  |
+| LeftArmPartKeepsClothing | bool | false |  |
+| RightArmPartKeepsClothing | bool | false |  |
+| LeftLegPartKeepsClothing | bool | false |  |
+| RightLegPartKeepsClothing | bool | false |  |
 
 **Methods:** `PlayAnimation(anim)`, `StopAnimation()`
 
