@@ -137,7 +137,7 @@ export function createApi({ db, hub, renderDir, store, supportDir, owner = proce
 
   const pq = {
     // Listed: the built-in games and published (public) studio places.
-    all: db.prepare("SELECT * FROM places WHERE deleted = 0 AND (kind = 'builtin' OR visibility = 'public') ORDER BY created_at"),
+    all: db.prepare("SELECT * FROM places WHERE deleted = 0 AND parent_id = '' AND (kind = 'builtin' OR visibility = 'public') ORDER BY created_at"),
     one: db.prepare('SELECT * FROM places WHERE id = ?'),
     votes: db.prepare('SELECT COALESCE(SUM(v.value = 1), 0) + p.extra_likes AS likes, COALESCE(SUM(v.value = -1), 0) + p.extra_dislikes AS dislikes FROM places p LEFT JOIN place_votes v ON v.place_id = p.id WHERE p.id = ?'),
     myVote: db.prepare('SELECT value FROM place_votes WHERE place_id = ? AND user_id = ?'),

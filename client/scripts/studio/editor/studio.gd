@@ -19,6 +19,9 @@ var assets: StudioAssets
 var animator: StudioAnimator
 var strings_ed: StudioStrings
 var settings: StudioSettings
+var places: StudioPlacesPanel
+var _game := {}  # this place's game: { id, name, places } (sub-places)
+var _back_main: Button
 var output: RichTextLabel
 
 var _title: Label
@@ -57,7 +60,18 @@ func _ready() -> void:
 	explorer = StudioExplorer.new()
 	explorer.custom_minimum_size.x = 250
 	explorer.setup(doc)
-	split.add_child(_panel(explorer))
+	# The Explorer on top, the game's places under it (like Roblox's Asset Manager).
+	var left_col := VSplitContainer.new()
+	left_col.add_child(_panel(explorer))
+	places = StudioPlacesPanel.new()
+	places.custom_minimum_size.y = 130
+	places.open_requested.connect(open_game_place)
+	places.changed.connect(func():
+		_game = places.game
+		Session.set_meta("studio_game", _game)
+		_update_title())
+	left_col.add_child(_panel(places))
+	split.add_child(left_col)
 	var right_split := HSplitContainer.new()
 	right_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(right_split)
@@ -223,6 +237,13 @@ func _build_top_bar() -> Control:
 	_title.custom_minimum_size.x = 90 if narrow else 140
 	_title.clip_text = true
 	left.add_child(_title)
+	# In a sub-place: one click back to the game's main place.
+	_back_main = UI.button("← " + L.t("st_places_back"), "ghost", 32)
+	_back_main.add_theme_font_size_override("font_size", 14)
+	_back_main.tooltip_text = L.t("st_places_back_tip")
+	_back_main.visible = false
+	_back_main.pressed.connect(func(): open_game_place(str(_game.get("id", ""))))
+	left.add_child(_back_main)
 
 	left.add_child(_menu("file", L.t("st_file"), [
 		[L.t("st_save") + "   Ctrl+S", func(): save()],
@@ -347,7 +368,39 @@ func _insert_menu() -> MenuButton:
 
 
 func _update_title() -> void:
-	_title.text = str(doc.meta.get("name", "")) + (" •" if doc.dirty else "")
+	var name := str(doc.meta.get("name", ""))
+	var main := str(_game.get("id", place_id))
+	# A sub-place: "Game › Place".
+	if main != place_id and _game.has("name"):
+		name = "%s › %s" % [_game.name, name]
+	_title.text = name + (" •" if doc.dirty else "")
+	if _back_main:
+		_back_main.visible = main != place_id and main != ""
+
+
+## The game's places panel and title, from the server's place view (or the last one).
+func _show_game(g: Dictionary) -> void:
+	_game = g
+	Session.set_meta("studio_game", g)
+	Session.set_meta("studio_game_id", str(g.get("id", place_id)))
+	places.set_game(g, place_id)
+	_update_title()
+
+
+## Opens another place of this game for editing (what's open now is saved first).
+func open_game_place(id: String) -> void:
+	if id == "" or id == place_id:
+		return
+	var name := id
+	for p: Dictionary in _game.get("places", []):
+		if str(p.id) == id:
+			name = str(p.name)
+	_status.text = L.t("st_places_switching", [name])
+	if doc.dirty and not await save():
+		return
+	Session.studio_place_id = id
+	Session.studio_melt = {}
+	UI.goto("res://scenes/studio.tscn")
 
 
 func _set_tool(t: String) -> void:
@@ -370,6 +423,7 @@ func _open_place() -> void:
 		for line in Session.get_meta("test_output", []):
 			log_line(line)
 		Session.set_meta("test_output", [])
+		_show_game(Session.get_meta("studio_game", {}))
 		return
 	_status.text = L.t("loading")
 	var r := await Api.request("GET", "/api/studio/places/" + place_id)
@@ -378,6 +432,7 @@ func _open_place() -> void:
 		return
 	_load(r.data.melt if r.data.melt is Dictionary else {})
 	_set_version(int(r.data.get("place", {}).get("version", -1)))
+	_show_game(r.data.get("place", {}).get("game", {}))
 	_status.text = ""
 
 
@@ -543,6 +598,9 @@ func play_test() -> void:
 	Session.studio_melt = melt
 	Session.set_meta("studio_dirty", doc.dirty)
 	Session.test_melt = melt
+	# A fresh test: starts in this place, with no saved data and nothing from a teleport.
+	for k in ["test_place", "tp_join", "test_ds"]:
+		Session.remove_meta(k)
 	Session.pending_game = "test"
 	Session.pending_server = "auto"
 	UI.goto("res://scenes/game.tscn")

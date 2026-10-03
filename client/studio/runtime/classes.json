@@ -212,7 +212,20 @@
   },
   "DataModel": {
    "base": "Instance",
-   "props": {},
+   "props": {
+    "PlaceId": {
+     "type": "string",
+     "default": "",
+     "readonly": true,
+     "doc": "This place's id (p...): the one players are in right now."
+    },
+    "GameId": {
+     "type": "string",
+     "default": "",
+     "readonly": true,
+     "doc": "The game's main place id: the same in every sub-place of the game."
+    }
+   },
    "events": [],
    "service": true,
    "hidden": true
@@ -2613,6 +2626,105 @@
     }
    },
    "doc": "A seat: touch it and you sit down, jump to get up. Paint it like any part, or set Transparency to 1 to hide it inside a chair you built. It faces its front (−Z). `Occupant` is the Humanoid sitting on it (or nil): `seat:GetPropertyChangedSignal(\"Occupant\"):Connect(...)`. `seat:Sit(humanoid)` sits a player down from a script; Disabled = true stops anyone sitting."
+  },
+  "VehicleSeat": {
+   "base": "Seat",
+   "props": {
+    "MaxSpeed": {
+     "type": "number",
+     "default": 60,
+     "min": 0,
+     "max": 400,
+     "doc": "Top speed forward, studs a second (backwards: half)."
+    },
+    "Torque": {
+     "type": "number",
+     "default": 40,
+     "min": 0,
+     "max": 1000,
+     "doc": "How quickly it speeds up (studs a second, each second); brakes twice as hard."
+    },
+    "TurnSpeed": {
+     "type": "number",
+     "default": 90,
+     "min": 0,
+     "max": 720,
+     "doc": "Degrees a second it turns at full steer once it's moving."
+    },
+    "Grip": {
+     "type": "number",
+     "default": 0.85,
+     "min": 0,
+     "max": 1,
+     "doc": "How well it holds the road in turns: 1 never slides, low values drift."
+    },
+    "HoverHeight": {
+     "type": "number",
+     "default": 0,
+     "min": 0,
+     "max": 50,
+     "doc": "Above 0: it floats this many studs over whatever is under it (a hovercraft, a boat over water parts) instead of rolling on the ground."
+    },
+    "HeadsUpDisplay": {
+     "type": "bool",
+     "default": true,
+     "doc": "Shows the driver how fast they go."
+    },
+    "Throttle": {
+     "type": "number",
+     "default": 0,
+     "readonly": true,
+     "doc": "The driver's gas: 1 forward, -1 back, 0 neither."
+    },
+    "Steer": {
+     "type": "number",
+     "default": 0,
+     "readonly": true,
+     "doc": "The driver's steering: 1 right, -1 left, 0 straight."
+    },
+    "ThrottleFloat": {
+     "type": "number",
+     "default": 0,
+     "readonly": true,
+     "doc": "Throttle from -1 to 1 (a stick or trigger pushed part way)."
+    },
+    "SteerFloat": {
+     "type": "number",
+     "default": 0,
+     "readonly": true,
+     "doc": "Steer from -1 to 1."
+    },
+    "Speed": {
+     "type": "number",
+     "default": 0,
+     "readonly": true,
+     "doc": "How fast it goes forward right now (studs a second; negative backwards)."
+    }
+   },
+   "events": [],
+   "icon": "car",
+   "category": "3D",
+   "creatable": true,
+   "overrides": {
+    "Size": {
+     "$v3": [
+      2,
+      0.4,
+      2
+     ]
+    },
+    "Color": {
+     "$c3": "#3b3a46"
+    },
+    "Position": {
+     "$v3": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   },
+   "doc": "The driver's seat of a vehicle. Put it in a **Model** with the parts of your car (body, wheels, other Seats for passengers): whoever sits on it drives the whole Model, with the movement keys, a gamepad's stick, a phone's joystick or a VR controller's stick, and jumps out with jump. Parts named with **Wheel** in them turn as it rolls (the front ones steer). It faces its front (−Z), like a Seat. Tune it with **MaxSpeed**, **Torque**, **TurnSpeed**, **Grip** and **HoverHeight**; scripts read the driver's **Throttle** and **Steer** (and **Speed**) to add sounds, lights or rules: `seat:GetPropertyChangedSignal(\"Throttle\"):Connect(...)`. While it drives, the Model's parts move together as one (build it from Anchored parts, the default)."
   },
   "Appearance": {
    "base": "Instance",

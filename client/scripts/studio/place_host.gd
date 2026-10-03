@@ -38,6 +38,8 @@ const TIME_LIMIT := 0.1
 ## Sent to the scripts with every frame: the local character ("p", "v") and, in VR, where
 ## the headset and hands are ("vr"); kept fresh by the game.
 var step_info := {}
+## This place's id, its game's main place id, and what a teleport here brought along.
+var place_info := {}
 var tree := PlaceTree.new()
 var scene: PlaceScene
 var gui: PlaceGui
@@ -119,7 +121,8 @@ func start(p_user_id: int, p_lang: String, p_strings: Dictionary, snapshot: Arra
 	var device := {"touch": touch, "keyboard": not touch or OS.has_feature("pc"), "mouse": not touch or OS.has_feature("pc"),
 		"gamepad": not Input.get_connected_joypads().is_empty(), "vr": Session.vr, "tv": Controls.tv,
 		"platform": platform_name(), "preferred": preferred_input()}
-	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device, "passes": passes, "pass_info": pass_info, "badges": badges, "badge_info": badge_info})
+	_call("__init", {"role": "client", "userId": user_id, "lang": lang, "strings": strings, "schema": StudioSchema.data(), "device": device, "passes": passes, "pass_info": pass_info, "badges": badges, "badge_info": badge_info,
+		"placeId": place_info.get("id", ""), "gameId": place_info.get("game_id", ""), "join": place_info.get("join")})
 	_call("__dispatch", snapshot)
 	_call("__start", "")
 	return true
@@ -375,6 +378,8 @@ func _apply(ops: Array) -> void:
 				var v: Variant = SValue.decode(op.get("v"))
 				if v is Vector3:
 					velocity_requested.emit(v)
+			"tp":
+				send.emit({"t": "tp", "place": str(op.get("place", "")), "data": op.get("data")})
 			"coregui":
 				core_gui[str(op.k)] = op.get("on", true) == true
 				core_gui_changed.emit(str(op.k), core_gui[str(op.k)])

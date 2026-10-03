@@ -65,6 +65,8 @@ func send(m: Dictionary) -> void:
 			_events.append({"e": "tool", "userId": int(_me.id), "id": m.get("id"), "ev": str(m.get("ev", "")), "p": m.get("p")})
 		"dead":
 			_events.append({"e": "died", "userId": int(_me.id)})
+		"tp":
+			message.emit({"t": "teleport", "game": str(m.get("place", "")), "server": "test", "data": m.get("data")})
 		"chat":
 			message.emit({"t": "chat", "id": int(_me.id), "name": str(_me.display_name), "m": str(m.m)})
 		"ping":
@@ -89,7 +91,10 @@ func _join() -> void:
 		message.emit({"t": "error", "code": "not_found", "m": "runtime: " + err})
 		return
 	_vm.sandbox()
-	_route(_call("__init", {"role": "server", "place": melt, "seed": randi(), "schema": StudioSchema.data()}))
+	# Teleports in a test go from place to place of the game being edited (game.gd).
+	var here := str(Session.get_meta("test_place", Session.studio_place_id))
+	var game_id := str(Session.get_meta("studio_game_id", here))
+	_route(_call("__init", {"role": "server", "place": melt, "seed": randi(), "schema": StudioSchema.data(), "placeId": here, "gameId": game_id}))
 	_route(_call("__start", ""))
 	var snap: Variant = JSON.parse_string(_vm.call_function("__snapshot", "", TIME_LIMIT))
 	var starter: Dictionary = {}
@@ -102,11 +107,11 @@ func _join() -> void:
 		"you": int(_me.id),
 		"chat": starter.get("ChatEnabled", true) != false,
 		"emotes": starter.get("EmotesEnabled", true) != false,
-		"place": {"id": "test", "strings": melt.get("strings", {}), "snapshot": snap if snap is Array else []},
+		"place": {"id": here, "game_id": game_id, "join": Session.get_meta("tp_join", null), "strings": melt.get("strings", {}), "snapshot": snap if snap is Array else []},
 		"spawn": [0, 5, 0],
 		"players": [],
 	})
-	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info, "vr": VR.active}]))
+	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info, "vr": VR.active, "join": Session.get_meta("tp_join", null)}]))
 	_flush()
 
 
@@ -167,9 +172,16 @@ func _route(ops: Array) -> void:
 			"ds":
 				# A play test keeps saved data in memory, for this test only.
 				_events.append(_datastore(op))
+			"tp":
+				message.emit({"t": "teleport", "game": str(op.get("place", "")), "server": "test", "data": op.get("data")})
 
 
-var _ds := {}  # "store/key" -> value
+## "store/key" -> value; the whole test shares it, through teleports to other places too.
+var _ds: Dictionary:
+	get:
+		if not Session.has_meta("test_ds"):
+			Session.set_meta("test_ds", {})
+		return Session.get_meta("test_ds")
 
 
 func _datastore(op: Dictionary) -> Dictionary:

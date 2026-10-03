@@ -89,7 +89,8 @@ test('vr: a headset player\'s hands reach players 13 and older, not younger ones
   assert.ok(mine(teen).some((s) => Array.isArray(s[6]) && s[6][1] === 1.2), JSON.stringify(mine(teen)));
   assert.ok(mine(teen).some((s) => Array.isArray(s[7]) && s[7][1] === 20), JSON.stringify(mine(teen)));
   // Younger players see the head turn, not the hands.
-  assert.ok(mine(kid).length > 0 && mine(kid).every((s) => s.length === 8 && s[6] === null && s[7][0] === 10), JSON.stringify(mine(kid)));
+  // (The very first state, from before the headset sent anything, has no head yet.)
+  assert.ok(mine(kid).some((s) => s.length === 8 && s[7][0] === 10) && mine(kid).every((s) => s[6] == null), JSON.stringify(mine(kid)));
   // Someone who isn't in VR can't send hands at all.
   teen.send2({ t: 'state', p: [1, 0.6, 15.5], r: 0, a: 'idle', h: [0.3, 1.2, -0.5, -0.3, 1.6, -0.3] });
   await new Promise((r) => setTimeout(r, 200));

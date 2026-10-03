@@ -35,9 +35,24 @@ func open() -> void:
 		c.queue_free()
 	_v.add_child(Loading.block())
 	var r := await Api.request("GET", "/api/studio/places/" + place_id)
+	_sub_name = ""
 	if r.ok:
 		place = r.data.place
+		# A sub-place: who plays, covers, passes, badges and stats belong to the whole game.
+		if str(place.get("parent_id", "")) != "":
+			_sub_name = str(place.get("name", ""))
+			var g := await Api.request("GET", "/api/studio/places/" + str(place.parent_id))
+			if g.ok:
+				place = g.data.place
 	_render()
+
+
+var _sub_name := ""
+
+
+## The game's main place: what visibility, covers, passes, badges and stats are about.
+func _gid() -> String:
+	return str(place.get("id", place_id))
 
 
 func _section(title: String) -> VBoxContainer:
@@ -60,6 +75,10 @@ func _render() -> void:
 	head.add_child(close)
 	_v.add_child(head)
 
+	if _sub_name != "":
+		var note := UI.label(L.t("st_sub_settings", [_sub_name, str(place.get("name", ""))]), 15, UI.MUTED)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_v.add_child(note)
 	var basics := _section(L.t("st_basics"))
 	var name := UI.input(L.t("st_place_name"))
 	name.text = str(doc.meta.get("name", ""))
@@ -216,7 +235,7 @@ func _upload_cover(kind: String, img: Image) -> void:
 	if img == null:
 		return
 	var png := img.save_png_to_buffer()
-	var r := await Api.request("POST", "/api/studio/places/%s/cover" % place_id, {"kind": kind, "image": Marshalls.raw_to_base64(png)})
+	var r := await Api.request("POST", "/api/studio/places/%s/cover" % _gid(), {"kind": kind, "image": Marshalls.raw_to_base64(png)})
 	if r.ok:
 		place = r.data.place
 		UI.toast(L.t("saved"), "ok")
@@ -226,7 +245,7 @@ func _upload_cover(kind: String, img: Image) -> void:
 
 
 func _patch(body: Dictionary) -> void:
-	var r := await Api.request("PATCH", "/api/studio/places/" + place_id, body)
+	var r := await Api.request("PATCH", "/api/studio/places/" + _gid(), body)
 	if r.ok:
 		place = r.data.place
 		UI.toast(L.t("saved"), "ok")
@@ -235,7 +254,7 @@ func _patch(body: Dictionary) -> void:
 
 
 func _load_stats(box: VBoxContainer) -> void:
-	var r := await Api.request("GET", "/api/studio/places/%s/stats" % place_id)
+	var r := await Api.request("GET", "/api/studio/places/%s/stats" % _gid())
 	if not is_instance_valid(box):
 		return
 	for c in box.get_children():
@@ -300,7 +319,7 @@ static func stats_view(s: Dictionary) -> Control:
 func _load_passes(box: VBoxContainer) -> void:
 	var list := UI.vbox(6)
 	box.add_child(list)
-	var r := await Api.request("GET", "/api/places/%s/passes" % place_id)
+	var r := await Api.request("GET", "/api/places/%s/passes" % _gid())
 	if not is_instance_valid(list):
 		return
 	for p in (r.data.get("passes", []) if r.ok else []):
@@ -315,7 +334,7 @@ func _load_passes(box: VBoxContainer) -> void:
 		del.custom_minimum_size.x = 40
 		var pid := int(p.id)
 		del.pressed.connect(func():
-			var d := await Api.request("DELETE", "/api/studio/places/%s/passes/%d" % [place_id, pid])
+			var d := await Api.request("DELETE", "/api/studio/places/%s/passes/%d" % [_gid(), pid])
 			if d.ok:
 				row.queue_free()
 			else:
@@ -350,7 +369,7 @@ func _load_passes(box: VBoxContainer) -> void:
 		var body := {"name": name.text.strip_edges(), "price": int(price.value)}
 		if image[0] != "":
 			body.image = image[0]
-		var c := await Api.request("POST", "/api/studio/places/%s/passes" % place_id, body)
+		var c := await Api.request("POST", "/api/studio/places/%s/passes" % _gid(), body)
 		if not c.ok:
 			UI.toast(c.message, "error")
 			return
@@ -367,7 +386,7 @@ func _load_passes(box: VBoxContainer) -> void:
 func _load_badges(box: VBoxContainer) -> void:
 	var list := UI.vbox(6)
 	box.add_child(list)
-	var r := await Api.request("GET", "/api/places/%s/badges" % place_id)
+	var r := await Api.request("GET", "/api/places/%s/badges" % _gid())
 	if not is_instance_valid(list):
 		return
 	var all: Array = r.data.get("badges", []) if r.ok else []
@@ -393,7 +412,7 @@ func _load_badges(box: VBoxContainer) -> void:
 		del.pressed.connect(func():
 			if not await UI.confirm(self, L.t("bg_delete_q"), L.t("bg_delete_text"), L.t("delete"), true):
 				return
-			var d := await Api.request("DELETE", "/api/studio/places/%s/badges/%d" % [place_id, bid])
+			var d := await Api.request("DELETE", "/api/studio/places/%s/badges/%d" % [_gid(), bid])
 			if d.ok:
 				row.queue_free()
 			else:
@@ -428,7 +447,7 @@ func _load_badges(box: VBoxContainer) -> void:
 		var body := {"name": name.text.strip_edges(), "description": desc.text.strip_edges()}
 		if image[0] != "":
 			body.image = image[0]
-		var c := await Api.request("POST", "/api/studio/places/%s/badges" % place_id, body)
+		var c := await Api.request("POST", "/api/studio/places/%s/badges" % _gid(), body)
 		if not c.ok:
 			UI.toast(c.message, "error")
 			return

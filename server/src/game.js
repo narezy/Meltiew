@@ -165,6 +165,14 @@ function finite(n, lim) {
 // How far a VR hand may be from the middle of the chest (avatar space, studs): an arm is
 // 0.7 long from a shoulder 0.4 to the side; a little more for lag and leaning.
 const VR_REACH = 1.6;
+// Vehicles: how long after getting out the vehicle may still roll on; extra for falling;
+// how far from the driver's seat a rider can be (a long bus).
+const VEHICLE_COAST_MS = 6000;
+// TeleportService: how long a player has to arrive, and how much data may go along.
+const TELEPORT_TICKET_MS = 60_000;
+const TELEPORT_DATA_BYTES = 16 * 1024;
+const VEHICLE_FALL = 60;
+const VEHICLE_RIDER_RADIUS = 30;
 const VR_CHEST = [0, 1.32, 0];
 
 /** A VR player's hands from their app, checked: [lx, ly, lz, rx, ry, rz] (nulls for a
@@ -219,6 +227,7 @@ export class GameHub {
     this.timer = setInterval(() => this.tick(), 1000 / TICK_HZ);
     this.timer.unref?.();
     this.nameCounter = 0;
+    this.tickets = new Map(); // user id -> { place, server, data, from, until }: on their way somewhere
   }
 
   stop() {
@@ -277,12 +286,21 @@ export class GameHub {
       physOwn: {}, // ownership changes to announce this tick
       physVm: new Map(), // latest update per part, for the scripts
       physAt: 0,
+      vehicles: new Map(), // VehicleSeat id -> { driver, riders, max, p, r, at, last, coastUntil }
+      riders: new Map(), // user id -> the VehicleSeat id of the vehicle they're in
+      vehOut: new Map(), // latest pose per vehicle, to relay this tick
+      vehVm: new Map(), // the same, for the scripts (a few times a second)
+      vehVmAt: 0,
+      // The game this place belongs to (its main place): DataStores, badges and passes are
+      // the game's, and TeleportService only moves players within it.
+      root: this.places.root?.(placeId) || placeId,
+      reserved: false, // made for a party teleport: only players sent there get in
       // The place builds solid parts in players' apps (a LocalScript's Instance.new):
       // the server can't know what they stand on, so it doesn't judge flying there.
       clientWorld: buildsWorldInApp(melt),
     };
     this.servers.set(id, server);
-    this.routeOps(server, vm.init({ role: 'server', place: melt, seed: crypto.randomInt(1 << 30) }));
+    this.routeOps(server, vm.init({ role: 'server', place: melt, seed: crypto.randomInt(1 << 30), placeId, gameId: server.root }));
     this.routeOps(server, vm.start());
     this.log(`place server ${id} created for ${placeId}`);
     return server;
@@ -336,7 +354,7 @@ export class GameHub {
           // A script awards one of this place's badges (other places' ids are refused).
           const uid = Number(op.to);
           if (!server.players.has(uid)) break;
-          const res = this.badges?.award(server.game, uid, op.id);
+          const res = this.badges?.award(server.root || server.game, uid, op.id);
           if (res?.ok && res.fresh) {
             const b = res.badge;
             this.byUser.get(uid)?.conn.send({ t: 'badge', badge: { id: b.id, name: b.name, description: b.description, image: this.badges.imageUrl(b) } });
@@ -367,6 +385,27 @@ export class GameHub {
           this.target(server, op.to, { o: 'vel', v: op.v });
           break;
         }
+        case 'vehicle': {
+          // Who drives a vehicle (only they may move it) and who rides in it.
+          const v = server.vehicles.get(op.id) || { driver: 0, riders: [], p: null, r: null, at: 0 };
+          const driver = Number(op.driver) || 0;
+          // Got out: their app lets it roll to a stop, so it may still report a moment.
+          if (v.driver && v.driver !== driver) {
+            v.last = v.driver;
+            v.coastUntil = Date.now() + VEHICLE_COAST_MS;
+          }
+          for (const uid of v.riders) if (server.riders.get(uid) === op.id) server.riders.delete(uid);
+          v.driver = driver;
+          v.riders = (Array.isArray(op.riders) ? op.riders : []).map(Number).filter(Boolean);
+          for (const uid of v.riders) server.riders.set(uid, op.id);
+          v.max = Math.max(0, Number(op.max) || 0);
+          server.vehicles.set(op.id, v);
+          break;
+        }
+        case 'tp':
+          // TeleportService: players go to another place of this game.
+          this.teleport(server, op).catch((err) => this.log(`teleport failed: ${err.message}`));
+          break;
         case 'sit':
           // Seat:Sit from a script: that player's app sits them down.
           this.target(server, op.to, { o: 'sit', id: String(op.id || '') });
@@ -381,7 +420,7 @@ export class GameHub {
           break;
         case 'ds': {
           // DataStore: answered on the next step (scripts wait for it).
-          const res = this.places?.datastore ? this.places.datastore(server.game, server.id, op) : { ok: false, err: 'DataStore is not available' };
+          const res = this.places?.datastore ? this.places.datastore(server.root || server.game, server.id, op) : { ok: false, err: 'DataStore is not available' };
           server.inbox.push({ e: 'ds_ret', rid: op.rid, ok: res.ok, value: res.value ?? null, err: res.err || '' });
           break;
         }
@@ -484,6 +523,68 @@ export class GameHub {
     }
   }
 
+  /**
+   * The driver's app moved their vehicle (a VehicleSeat's Model): checked (only the driver,
+   * or the one who just got out while it rolls to a stop; no faster than it can go), then
+   * relayed to everyone else and, a few times a second, to the scripts.
+   */
+  vehicleIn(conn, m) {
+    const server = conn.server;
+    if (!server?.vm || !conn.player || !Array.isArray(m.p) || !Array.isArray(m.r)) return;
+    const id = String(m.id ?? '').slice(0, 20);
+    const v = server.vehicles.get(id);
+    const uid = conn.user.id;
+    const now = Date.now();
+    if (!v || (v.driver !== uid && !(v.last === uid && now < (v.coastUntil || 0)))) return;
+    const p = [0, 1, 2].map((i) => finite(m.p[i], WORLD_LIMIT));
+    const r = [0, 1, 2].map((i) => finite(m.r[i], 360));
+    if (v.p && v.at) {
+      const secs = Math.max((now - v.at) / 1000, 0.05);
+      if (dist(p, v.p) > (v.max * 1.5 + VEHICLE_FALL) * secs + 2) return; // faster than it goes
+    }
+    v.p = p;
+    v.r = r;
+    v.at = now;
+    const sp = Math.round(finite(m.sp, 2000) * 100) / 100;
+    const th = Math.max(-1, Math.min(1, finite(m.th, 1)));
+    const st = Math.max(-1, Math.min(1, finite(m.st, 1)));
+    server.vehOut.set(id, [id, ...p.map((x) => Math.round(x * 1000) / 1000), ...r.map((x) => Math.round(x * 100) / 100), sp, Math.round(st * 100) / 100]);
+    server.vehVm.set(id, { e: 'veh', id, p, r, th, st, sp });
+  }
+
+  /**
+   * TeleportService: send players (op.to, user ids) to another place of the same game
+   * (op.place). op.party: all of them into one new server of their own (an elevator that
+   * takes a group into a round); otherwise each to whichever server has room. op.data goes
+   * along (player:GetJoinData().TeleportData there).
+   */
+  async teleport(server, op) {
+    const place = String(op.place ?? '');
+    const uids = (Array.isArray(op.to) ? op.to : [op.to]).map(Number).filter((u) => server.players.has(u));
+    if (!uids.length) return;
+    const root = this.places?.root?.(place);
+    if (!this.isStudio(place) || root !== server.root) {
+      server.logs?.push({ level: 'error', msg: `TeleportService: ${place} is not a place of this game` });
+      this.routeOps(server, server.vm.dispatch(uids.map((u) => ({ e: 'tp_failed', userId: u, place, err: 'not a place of this game' }))));
+      return;
+    }
+    let target = 'auto';
+    if (op.party) {
+      const s = await this.createPlaceServer(place);
+      s.reserved = true;
+      s.maxPlayers = Math.max(s.maxPlayers, uids.length);
+      target = s.id;
+    }
+    let data = op.data ?? null;
+    if (JSON.stringify(data ?? null).length > TELEPORT_DATA_BYTES) data = null;
+    for (const uid of uids) {
+      const pl = server.players.get(uid);
+      if (!pl) continue;
+      this.tickets.set(uid, { place, server: target, data, from: server.game, until: Date.now() + TELEPORT_TICKET_MS });
+      pl.conn.send({ t: 'teleport', game: place, server: target });
+    }
+  }
+
   /** An app bumped into a part someone else simulates: hand it over if it's really closer. */
   physClaim(conn, m) {
     const server = conn.server;
@@ -524,6 +625,16 @@ export class GameHub {
     if (server.physOut.length) {
       this.broadcast(server, { t: 'phys', u: server.physOut });
       server.physOut = [];
+    }
+    // Vehicles: to everyone (the driver's app skips its own), and the scripts 5 times a second.
+    if (server.vehOut.size) {
+      this.broadcast(server, { t: 'vh', v: [...server.vehOut.values()] });
+      server.vehOut.clear();
+    }
+    if (server.vehVm.size && now - server.vehVmAt > 200) {
+      server.vehVmAt = now;
+      server.inbox.push(...server.vehVm.values());
+      server.vehVm.clear();
     }
     if (Object.keys(server.physOwn).length) {
       this.broadcast(server, { t: 'phys_own', o: server.physOwn });
@@ -642,7 +753,7 @@ export class GameHub {
     let best = null;
     let bestScore = -1;
     for (const s of this.servers.values()) {
-      if (s.game !== game || s.retired || s.players.size >= (s.maxPlayers || MAX_PLAYERS)) continue;
+      if (s.game !== game || s.retired || s.reserved || s.players.size >= (s.maxPlayers || MAX_PLAYERS)) continue;
       let friends = 0;
       for (const id of s.players.keys()) if (friendIds.has(id)) friends += 1;
       const score = friends * 100 + s.players.size;
@@ -741,8 +852,16 @@ export class GameHub {
         return this.adminCommand(conn, m);
       case 'phys':
         return this.physIn(conn, m);
+      case 'tp':
+        // A LocalScript's TeleportService:Teleport for its own player.
+        if (conn.server?.vm && conn.player) {
+          this.teleport(conn.server, { to: [conn.user.id], place: m.place, data: m.data }).catch((err) => this.log(`teleport failed: ${err.message}`));
+        }
+        return;
       case 'phys_claim':
         return this.physClaim(conn, m);
+      case 'veh':
+        return this.vehicleIn(conn, m);
       default:
     }
   }
@@ -790,10 +909,16 @@ export class GameHub {
     const studio = !GAMES[game];
     // Studio places run scripts on the device too; apps without the Luau library can't.
     if (studio && !conn.luau) return conn.send({ t: 'error', code: 'device', m: msg('device_unsupported', conn.lang) });
+    // Sent here by TeleportService: which server, and what the place handed over.
+    const ticket = this.tickets.get(conn.user.id);
+    const tp = ticket && ticket.place === game && Date.now() < ticket.until ? ticket : null;
+    this.tickets.delete(conn.user.id);
     let server;
     if (m.server && m.server !== 'auto' && m.server !== 'new') {
       server = this.servers.get(String(m.server));
       if (!server || server.game !== game) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
+      // A party's own server: only the ones teleported there.
+      if (server.reserved && tp?.server !== server.id) return conn.send({ t: 'error', code: 'not_found', m: msg('server_gone', conn.lang) });
       // A server replaced by a newer version of the place: go to a current one instead.
       if (server.retired) server = this.pickServer(game, this.loadFriends(conn.user.id)) || (await this.createPlaceServer(game));
     } else {
@@ -830,13 +955,14 @@ export class GameHub {
     // Studio places: the joining app gets the current world first, then hears about
     // its own arrival (Player, character, spawn point) like everyone else.
     // Gamepasses: which of this place's passes the player owns, and what's on sale.
-    const passes = studio ? this.economy?.passesOwned(conn.user.id, game) || [] : [];
-    const passInfo = studio ? this.economy?.passesInfo(game) || [] : [];
-    const badges = studio ? this.badges?.ownedIn(conn.user.id, game) || [] : [];
-    const badgeInfo = studio ? this.badges?.info(game) || [] : [];
+    const root = server.root || game;
+    const passes = studio ? this.economy?.passesOwned(conn.user.id, root) || [] : [];
+    const passInfo = studio ? this.economy?.passesInfo(root) || [] : [];
+    const badges = studio ? this.badges?.ownedIn(conn.user.id, root) || [] : [];
+    const badgeInfo = studio ? this.badges?.info(root) || [] : [];
     // A big world doesn't fit the welcome: what's in Workspace follows it as replication.
     const snap = studio ? splitSnapshot(server.vm.snapshot(), Math.min(conn.out.buffer / 2, 8 * 1024 * 1024) - CHUNK_BYTES) : null;
-    const place = studio ? { id: game, strings: server.strings, snapshot: snap.head, passes, pass_info: passInfo, badges, badge_info: badgeInfo } : null;
+    const place = studio ? { id: game, game_id: root, strings: server.strings, snapshot: snap.head, passes, pass_info: passInfo, badges, badge_info: badgeInfo } : null;
     conn.send({
       t: 'welcome',
       server: this.describe(server),
@@ -857,7 +983,8 @@ export class GameHub {
     }
     if (studio) {
       const look = { colors: player.user.colors, face: player.user.face, accessories: player.user.accessories };
-      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, vr: player.vr, look, passes, pass_info: passInfo, badges, badge_info: badgeInfo }]));
+      const join = tp ? { data: tp.data ?? null, from: tp.from } : null;
+      this.routeOps(server, server.vm.dispatch([{ e: 'player_add', userId: conn.user.id, name: conn.user.username, display: conn.user.display_name, lang: conn.lang, vr: player.vr, look, passes, pass_info: passInfo, badges, badge_info: badgeInfo, join }]));
       this.flushPlace(server);
     }
     // Every place (the playground too) keeps visit history: stats and "recently played".
@@ -871,8 +998,12 @@ export class GameHub {
     const pl = conn.player;
     if (!pl || !Array.isArray(m.p)) return;
     const pos = [finite(m.p[0], WORLD_LIMIT), finite(m.p[1], WORLD_LIMIT), finite(m.p[2], WORLD_LIMIT)];
+    // Riding a vehicle: they go where it goes (its own speed is checked in vehicleIn).
+    const ride = conn.server?.riders?.get(conn.user.id);
+    const car = ride && conn.server.vehicles.get(ride);
+    const riding = car?.p && dist(pos, car.p) < VEHICLE_RIDER_RADIUS;
     // The platform owner flies and speeds around with the in-game admin panel.
-    if (!this.anticheat || isOwner(conn.user)) pl.guard.reset(pos);
+    if (!this.anticheat || isOwner(conn.user) || riding) pl.guard.reset(pos);
     else {
       const lim = { ...this.limitsFor(conn.server, conn.user.id) };
       // Footing for this very position against the place's solids (the runtime's own
@@ -1087,6 +1218,12 @@ export class GameHub {
         } catch (err) {
           this.log(`player_remove failed: ${err.message}`);
         }
+      }
+      // Driving or riding: not any more.
+      server.riders?.delete(conn.user.id);
+      for (const v of server.vehicles?.values() || []) {
+        if (v.driver === conn.user.id) v.driver = 0;
+        v.riders = v.riders.filter((u) => u !== conn.user.id);
       }
       // Parts this app simulated: nobody's for now (the next report or the nearest player takes them).
       if (server.phys) {

@@ -133,7 +133,7 @@ export function createCommunities({ db, economy, HttpError, bad, cleanText, requ
     message: db.prepare('SELECT m.*, c.community_id FROM community_messages m JOIN community_channels c ON c.id = m.channel_id WHERE m.id = ?'),
     insertMessage: db.prepare('INSERT INTO community_messages (channel_id, user_id, body, created_at) VALUES (?, ?, ?, ?)'),
     deleteMessage: db.prepare('DELETE FROM community_messages WHERE id = ?'),
-    places: db.prepare("SELECT * FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY visits DESC"),
+    places: db.prepare("SELECT * FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = '' ORDER BY visits DESC"),
     releasePlaces: db.prepare('UPDATE places SET community_id = NULL, owner_id = ? WHERE community_id = ?'),
     userById: db.prepare('SELECT * FROM users WHERE id = ?'),
     setChannelPos: db.prepare('UPDATE community_channels SET position = ? WHERE id = ?'),

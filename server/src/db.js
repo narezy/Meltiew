@@ -189,6 +189,9 @@ function migrate(db) {
   // Votes the platform owner adds on top of the real ones (no accounts behind them).
   add('extra_likes', 'INTEGER NOT NULL DEFAULT 0');
   add('extra_dislikes', 'INTEGER NOT NULL DEFAULT 0');
+  // Sub-places: other places of the same game (TeleportService moves players between them).
+  // They share the main place's DataStores, badges, passes and stats, and aren't listed.
+  add('parent_id', "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS place_players (
       place_id    TEXT NOT NULL,

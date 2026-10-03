@@ -166,6 +166,13 @@ func _draw() -> void:
 			_line([Vector2(7, 3), Vector2(7, 21)])
 			_line([Vector2(7, 13), Vector2(18, 13), Vector2(18, 21)])
 			_line([Vector2(7, 13), Vector2(7, 13)])
+		"car":
+			# A little car from the side: body, cabin, two wheels.
+			_line([Vector2(3, 16), Vector2(3, 12.5), Vector2(6.5, 11.5), Vector2(9, 7.5), Vector2(15.5, 7.5),
+				Vector2(18, 11.5), Vector2(21, 12.5), Vector2(21, 16), Vector2(3, 16)])
+			_line([Vector2(9.5, 11.5), Vector2(17.5, 11.5)])
+			_circle(Vector2(7.5, 17), 2.4, true)
+			_circle(Vector2(16.5, 17), 2.4, true)
 		"smile":
 			_circle(Vector2(12, 12), 9.0)
 			_circle(Vector2(9, 10), 1.3, true)

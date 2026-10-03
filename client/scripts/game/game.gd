@@ -351,6 +351,8 @@ func _on_message(m: Dictionary) -> void:
 						net.send({"t": "join", "game": Session.pending_game, "server": "auto"})],
 					[L.t("to_menu"), _leave, "ghost"],
 				])
+		"teleport":
+			_teleport(m)
 		"kicked":
 			_leaving = true
 			net.close()
@@ -483,7 +485,9 @@ func _start_place(p: Dictionary) -> void:
 	place_host.pass_info = p.get("pass_info", [])
 	place_host.badges = p.get("badges", [])
 	place_host.badge_info = p.get("badge_info", [])
-	var place_id := str(p.get("id", ""))
+	# Gamepasses belong to the game (its main place), in every sub-place.
+	var place_id := str(p.get("game_id", p.get("id", "")))
+	place_host.place_info = {"id": str(p.get("id", "")), "game_id": place_id, "join": p.get("join")}
 	place_host.pass_prompt.connect(func(pass_id: int):
 		hud.release_touches()
 		var bought: bool = await Economy.gamepass_prompt(self, place_id, pass_id)
@@ -1319,6 +1323,37 @@ func _confirm_leave() -> void:
 
 
 var _confirming := false
+
+
+## TeleportService sent us to another place of this game (in a Studio test: another place
+## of the game being edited, loaded from the server or the editor itself).
+func _teleport(m: Dictionary) -> void:
+	if _leaving:
+		return
+	_leaving = true
+	var place := str(m.get("game", ""))
+	hud.show_overlay(L.t("teleporting"))
+	net.close()
+	if not Session.test_melt.is_empty():
+		var melt: Dictionary = {}
+		if place == Session.studio_place_id:
+			melt = Session.studio_melt
+		else:
+			var r := await Api.request("GET", "/api/studio/places/" + place)
+			if r.ok and r.data.get("melt") is Dictionary:
+				melt = r.data.melt
+		if melt.is_empty():
+			_leaving = false
+			hud.show_overlay(L.t("teleport_failed"), [[L.t("to_menu"), _leave]])
+			return
+		Session.set_meta("tp_join", {"data": m.get("data"), "from": str(Session.get_meta("test_place", Session.studio_place_id))})
+		Session.set_meta("test_place", place)
+		Session.test_melt = melt
+	else:
+		Session.pending_game = place
+		Session.pending_server = str(m.get("server", "auto"))
+	await get_tree().create_timer(0.4).timeout
+	get_tree().reload_current_scene()
 
 
 func _leave() -> void:

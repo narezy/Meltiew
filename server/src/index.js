@@ -81,18 +81,23 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, render
     log,
     loadBlocks: (id) => api.blockSet(id),
     loadFriends: (id) => api.friendSet(id),
-    onJoin: (game) => api.countVisit(game),
+    onJoin: (game) => api.countVisit(placeRow.get(game)?.parent_id || game),
     onCheat: (user, reason, game) => api.cheatReport(user, reason, game),
     places: {
       row: (id) => placeRow.get(id),
       load: (id) => store.load(id),
-      canJoin: (user, id) => store.canSee(placeRow.get(id), user, api.isFriend),
-      visit: (id, userId) => store.recordVisit(id, userId),
+      // A sub-place is as open as its game's main place.
+      root: (id) => placeRow.get(id)?.parent_id || id,
+      canJoin: (user, id) => {
+        const row = placeRow.get(id);
+        return !!row && store.canSee(row.parent_id ? placeRow.get(row.parent_id) : row, user, api.isFriend);
+      },
+      visit: (id, userId) => store.recordVisit(placeRow.get(id)?.parent_id || id, userId),
       datastore: (placeId, serverId, op) => datastore.handle(placeId, serverId, op),
       // Players leaving during shutdown may arrive after the database closed.
       playtime: (id, userId, ms) => {
         try {
-          store.recordPlaytime(id, userId, ms);
+          store.recordPlaytime(placeRow.get(id)?.parent_id || id, userId, ms);
         } catch {}
       },
     },

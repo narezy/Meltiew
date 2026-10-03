@@ -2143,6 +2143,72 @@ Methods.Model = {
 -- Raycasts and area queries (plain math over the parts: same answer on server and client)
 ---------------------------------------------------------------------------
 -- A part's rotation (degrees) as a row-major 3x3 matrix, in the renderer's Y * X * Z order.
+-- Vehicles: a VehicleSeat drives the Model it's in (or only itself, out on its own).
+do
+	-- The Model a VehicleSeat drives (nil: the seat alone).
+	function later.vehicleModel(vs)
+		local cur = D[vs].parent
+		while cur and D[cur] and cur ~= services.Workspace do
+			if D[cur].class.name == "Model" then
+				return cur
+			end
+			cur = D[cur].parent
+		end
+		return nil
+	end
+	-- The VehicleSeat a seat rides with: itself, or the one in the same Model.
+	function later.vehicleOf(seat)
+		if D[seat].class.name == "VehicleSeat" then
+			return seat
+		end
+		local model = later.vehicleModel(seat)
+		if model then
+			for _, d in descendants(model, {}) do
+				if D[d].class.name == "VehicleSeat" then
+					return d
+				end
+			end
+		end
+		return nil
+	end
+	local function userOf(hum)
+		local d = hum and D[hum]
+		if not d or d.destroyed or not d.parent then
+			return nil
+		end
+		local player = Methods.Players.GetPlayerFromCharacter(nil, d.parent)
+		return player and D[player].props.UserId
+	end
+	-- Someone sat down or got up somewhere in a vehicle: the server learns who drives it
+	-- (only they may move it) and who rides along (their movement is the vehicle's).
+	function later.vehicleChanged(seat)
+		if role ~= "server" then
+			return
+		end
+		local vs = later.vehicleOf(seat)
+		if not vs then
+			return
+		end
+		local model = later.vehicleModel(vs)
+		local riders = {}
+		for _, s in model and descendants(model, {}) or { vs } do
+			if D[s].class.isA.Seat then
+				local uid = userOf(D[s].props.Occupant)
+				if uid then
+					table.insert(riders, uid)
+				end
+			end
+		end
+		local driver = userOf(D[vs].props.Occupant) or 0
+		if driver == 0 then
+			for _, k in { "Throttle", "Steer", "ThrottleFloat", "SteerFloat" } do
+				setProp(vs, k, 0)
+			end
+		end
+		emit({ o = "vehicle", id = D[vs].id, driver = driver, riders = riders, max = D[vs].props.MaxSpeed })
+	end
+end
+
 local function rotMatrix(r)
 	local x, y, z = math.rad(r.X), math.rad(r.Y), math.rad(r.Z)
 	local cx, sx, cy, sy, cz, sz = math.cos(x), math.sin(x), math.cos(y), math.sin(y), math.cos(z), math.sin(z)
@@ -2154,6 +2220,54 @@ local function rotMatrix(r)
 		a21 * cz + a22 * sz, -a21 * sz + a22 * cz, a23,
 		a31 * cz + a32 * sz, -a31 * sz + a32 * cz, a33,
 	}
+end
+
+-- Moves a vehicle so its VehicleSeat is at `pos` turned `rot` (degrees): every part of its
+-- Model goes along, keeping its place on the vehicle (quietly: the apps move it themselves).
+do
+	local function mul(a, b)
+		local out = {}
+		for r = 0, 2 do
+			for c = 1, 3 do
+				out[r * 3 + c] = a[r * 3 + 1] * b[c] + a[r * 3 + 2] * b[3 + c] + a[r * 3 + 3] * b[6 + c]
+			end
+		end
+		return out
+	end
+	local function transposed(m)
+		return { m[1], m[4], m[7], m[2], m[5], m[8], m[3], m[6], m[9] }
+	end
+	-- Back to degrees in the same Y * X * Z order as rotMatrix.
+	local function eulerOf(m)
+		local sx = math.clamp(-m[6], -1, 1)
+		local x, y, z = math.asin(sx), 0, 0
+		if math.abs(sx) < 0.99999 then
+			y = math.atan2(m[3], m[9])
+			z = math.atan2(m[4], m[5])
+		else
+			y = math.atan2(-m[7], m[1])
+		end
+		return v3(math.deg(x), math.deg(y), math.deg(z))
+	end
+	function later.moveVehicle(vs, pos, rot)
+		local sp = D[vs].props
+		local turn = mul(rotMatrix(rot), transposed(rotMatrix(sp.Rotation)))
+		local from = sp.Position
+		local model = later.vehicleModel(vs)
+		for _, part in model and descendants(model, {}) or { vs } do
+			local d = D[part]
+			if d.class.isA.BasePart then
+				local rel = d.props.Position - from
+				local at = pos + v3(
+					turn[1] * rel.X + turn[2] * rel.Y + turn[3] * rel.Z,
+					turn[4] * rel.X + turn[5] * rel.Y + turn[6] * rel.Z,
+					turn[7] * rel.X + turn[8] * rel.Y + turn[9] * rel.Z
+				)
+				setProp(part, "Position", at, true)
+				setProp(part, "Rotation", part == vs and rot or eulerOf(mul(turn, rotMatrix(d.props.Rotation))), true)
+			end
+		end
+	end
 end
 
 local RaycastParams = {}
@@ -3595,6 +3709,14 @@ Methods.Player = {
 		end
 		applyLook(self, nil)
 	end,
+	-- Where they came from and what TeleportService sent along (nil when they just joined).
+	GetJoinData = function(self)
+		local j = D[self].joinData
+		if not j and role == "client" and D[self].props.UserId == localUserId then
+			j = later.clientJoin
+		end
+		return { TeleportData = j and j.data or nil, SourcePlaceId = j and j.from or nil }
+	end,
 	Kick = function(self, message)
 		if role ~= "server" then
 			-- A LocalScript may kick its own player (shown the same way).
@@ -3961,6 +4083,66 @@ end
 ---------------------------------------------------------------------------
 -- DataModel (game) and the globals scripts see
 ---------------------------------------------------------------------------
+-- TeleportService: moves players to another place of the same game (its main place and
+-- sub-places share DataStores, badges and passes). Teleport sends one player to a server
+-- with room; TeleportPartyAsync takes a group into a new server of their own (an elevator
+-- into a round). TeleportData goes along: player:GetJoinData().TeleportData there.
+do
+	local TeleportService = { TeleportInitFailed = Signal.new("TeleportInitFailed") }
+	local function placeId(p)
+		p = tostring(p or "")
+		if not string.match(p, "^p%w+$") then
+			error("TeleportService needs a place id like \"p1a2b3c4d5\" (Studio: Game > Places)", 3)
+		end
+		return p
+	end
+	local function players(list)
+		local out = {}
+		for _, pl in (typeof(list) == "Instance" and { list } or list or {}) do
+			if typeOf(pl) == "Instance" and D[pl] and D[pl].class.name == "Player" then
+				table.insert(out, D[pl].props.UserId)
+			end
+		end
+		return out
+	end
+	local function send(place, list, data, party)
+		local uids = players(list)
+		if role == "server" then
+			if #uids > 0 then
+				emit({ o = "tp", to = uids, place = place, data = data, party = party })
+			end
+		else
+			-- A LocalScript can only send its own player.
+			if #uids ~= 1 or uids[1] ~= localUserId then
+				error("a LocalScript can only teleport the LocalPlayer", 3)
+			end
+			emit({ o = "tp", place = place, data = data })
+		end
+	end
+	function TeleportService:Teleport(place, player, teleportData)
+		send(placeId(place), { player }, teleportData)
+	end
+	function TeleportService:TeleportAsync(place, list, options)
+		local data = type(options) == "table" and options.TeleportData or nil
+		local party = type(options) == "table" and options.ShouldReserveServer == true
+		send(placeId(place), list, data, party)
+	end
+	function TeleportService:TeleportPartyAsync(place, list, teleportData)
+		if role ~= "server" then
+			error("TeleportPartyAsync can only be called from a Script", 2)
+		end
+		send(placeId(place), list, teleportData, true)
+	end
+	function TeleportService:GetLocalPlayerTeleportData()
+		return later.clientJoin and later.clientJoin.data or nil
+	end
+	later.TeleportService = setmetatable(TeleportService, {
+		__tostring = function()
+			return "TeleportService"
+		end,
+	})
+end
+
 -- VRService: where this app's VR player has their head and hands (world space, studs and
 -- degrees like a part's Position / Rotation), fresh every frame, for places that move
 -- players by hand in their own way (see the gorilla example). Only on the player's own app.
@@ -3998,6 +4180,7 @@ do
 end
 
 local specialServices = {
+	TeleportService = later.TeleportService,
 	VRService = later.VRService,
 	RunService = RunService,
 	TweenService = TweenService,
@@ -4340,6 +4523,7 @@ function handlers.player_add(e)
 	d.props.UserId = tonumber(e.userId) or 0
 	d.props.Language = tostring(e.lang or "en")
 	d.props.VREnabled = e.vr == true
+	d.joinData = type(e.join) == "table" and e.join or nil
 	setPassOwner(d.props.UserId, e.passes)
 	setPassInfo(e.pass_info)
 	setBadgeOwner(d.props.UserId, e.badges)
@@ -4407,6 +4591,13 @@ function handlers.phys(e)
 		end
 	end
 end
+-- TeleportService couldn't send this player (not a place of this game).
+function handlers.tp_failed(e)
+	local player = playersByUser[tonumber(e.userId)]
+	if player then
+		later.TeleportService.TeleportInitFailed:_fire(player, "InvalidPlace", tostring(e.err or ""), tostring(e.place or ""))
+	end
+end
 function handlers.died(e)
 	local hum = humanoidOf(playersByUser[tonumber(e.userId)])
 	if hum and D[hum].props.Health > 0 then
@@ -4462,12 +4653,13 @@ function handlers.seat(e)
 		return
 	end
 	for _, s in descendants(services.Workspace, {}) do
-		if D[s].class.name == "Seat" and D[s].props.Occupant == hum then
+		if D[s].class.isA.Seat and D[s].props.Occupant == hum then
 			setProp(s, "Occupant", nil)
+			later.vehicleChanged(s)
 		end
 	end
 	local seat = e.id and byId[e.id]
-	if seat and D[seat].class.name == "Seat" and not D[seat].props.Disabled then
+	if seat and D[seat].class.isA.Seat and not D[seat].props.Disabled then
 		-- One per seat: someone (alive) is already on it, so this player stands back up.
 		local occ = D[seat].props.Occupant
 		if occ and occ ~= hum and D[occ] and not D[occ].destroyed and (D[occ].props.Health or 0) > 0 then
@@ -4475,7 +4667,32 @@ function handlers.seat(e)
 			return
 		end
 		setProp(seat, "Occupant", hum)
+		later.vehicleChanged(seat)
 	end
+end
+
+-- The driver's app drove a VehicleSeat somewhere: the whole vehicle is there now (quietly:
+-- everyone's apps already move it), and scripts see the driver's throttle and steering.
+function handlers.veh(e)
+	local vs = byId[tostring(e.id)]
+	if not vs or D[vs].class.name ~= "VehicleSeat" or type(e.p) ~= "table" or type(e.r) ~= "table" then
+		return
+	end
+	local function num(t, i)
+		return tonumber(t[i]) or 0
+	end
+	later.moveVehicle(vs, v3(num(e.p, 1), num(e.p, 2), num(e.p, 3)), v3(num(e.r, 1), num(e.r, 2), num(e.r, 3)))
+	local th = math.clamp(tonumber(e.th) or 0, -1, 1)
+	local st = math.clamp(tonumber(e.st) or 0, -1, 1)
+	local function sign(x)
+		return x > 0.1 and 1 or (x < -0.1 and -1 or 0)
+	end
+	-- (Everything else first: a script woken by Throttle sees the rest as it is now.)
+	setProp(vs, "Speed", math.round((tonumber(e.sp) or 0) * 10) / 10)
+	setProp(vs, "ThrottleFloat", math.round(th * 100) / 100)
+	setProp(vs, "SteerFloat", math.round(st * 100) / 100)
+	setProp(vs, "Steer", sign(st))
+	setProp(vs, "Throttle", sign(th))
 end
 
 function handlers.touch(e)
@@ -4836,6 +5053,9 @@ G.__init = hostCall(function(cfg)
 	math.randomseed(tonumber(cfg.seed) or 1)
 	DataModel = create("DataModel", "0")
 	D[DataModel].name = "Game"
+	D[DataModel].props.PlaceId = tostring(cfg.placeId or "")
+	D[DataModel].props.GameId = tostring(cfg.gameId or cfg.placeId or "")
+	later.clientJoin = cfg.join
 	if role == "server" then
 		if cfg.place and cfg.place.tree then
 			buildFromPlace(cfg.place.tree, nil)

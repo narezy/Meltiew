@@ -37,7 +37,7 @@ Every object is an **Instance**, so everything listed under Instance works on al
 | TeamColor | Color3 | Color3.fromHex("#ffffff") |  |
 | Neutral | bool | true |  |
 
-**Methods:** `GetMouse()`, `ApplyAppearance(app)`, `ResetAppearance()`, `Kick(message)`, `LoadCharacter()`, `Glide(pos, seconds)`, `GetNetworkIdle()`, `Teleport(pos)`
+**Methods:** `GetMouse()`, `ApplyAppearance(app)`, `ResetAppearance()`, `GetJoinData()`, `Kick(message)`, `LoadCharacter()`, `Glide(pos, seconds)`, `GetNetworkIdle()`, `Teleport(pos)`
 
 **Events:** `CharacterAdded`
 
@@ -507,6 +507,26 @@ A seat: touch it and you sit down, jump to get up. Paint it like any part, or se
 | Occupant | Instance |  | read-only |
 
 **Methods:** `Sit(humanoid)`
+
+### VehicleSeat
+
+*inherits [Seat](#seat) · can be created with `Instance.new`*
+
+The driver's seat of a vehicle. Put it in a **Model** with the parts of your car (body, wheels, other Seats for passengers): whoever sits on it drives the whole Model, with the movement keys, a gamepad's stick, a phone's joystick or a VR controller's stick, and jumps out with jump. Parts named with **Wheel** in them turn as it rolls (the front ones steer). It faces its front (−Z), like a Seat. Tune it with **MaxSpeed**, **Torque**, **TurnSpeed**, **Grip** and **HoverHeight**; scripts read the driver's **Throttle** and **Steer** (and **Speed**) to add sounds, lights or rules: `seat:GetPropertyChangedSignal("Throttle"):Connect(...)`. While it drives, the Model's parts move together as one (build it from Anchored parts, the default).
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| MaxSpeed | number | 60 | min 0, max 400 |
+| Torque | number | 40 | min 0, max 1000 |
+| TurnSpeed | number | 90 | min 0, max 720 |
+| Grip | number | 0.85 | min 0, max 1 |
+| HoverHeight | number | 0 | min 0, max 50 |
+| HeadsUpDisplay | bool | true |  |
+| Throttle | number | 0 | read-only |
+| Steer | number | 0 | read-only |
+| ThrottleFloat | number | 0 | read-only |
+| SteerFloat | number | 0 | read-only |
+| Speed | number | 0 | read-only |
 
 ### Highlight
 

@@ -28,12 +28,15 @@ function decodeSound(b64, maxBytes) {
 }
 const COVER_MAX_BYTES = 3 * 1024 * 1024;
 const MAX_PLACES_PER_USER = 50;
+const MAX_SUBPLACES = 30;
 
 export function createStudioRoutes(ctx) {
   const { db, hub, store, communities, requireAuth, requireStaff, HttpError, bad, cleanText, writeLimiter, publicProfile, authorCard, isFriend, placeView, pickLang } = ctx;
   const q = {
-    mine: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY updated_at DESC"),
-    countMine: db.prepare("SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0"),
+    mine: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = '' ORDER BY updated_at DESC"),
+    countMine: db.prepare("SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = ''"),
+    subs: db.prepare("SELECT * FROM places WHERE parent_id = ? AND deleted = 0 ORDER BY created_at"),
+    setParent: db.prepare('UPDATE places SET parent_id = ?, community_id = ? WHERE id = ?'),
     insert: db.prepare(`INSERT INTO places (id, name, name_ru, description, description_ru, author_username, cover, created_at,
       kind, owner_id, visibility, i18n, version, updated_at) VALUES (?, ?, ?, '', '', ?, '', ?, 'studio', ?, 'private', '{}', 1, ?)`),
     one: db.prepare('SELECT * FROM places WHERE id = ? AND deleted = 0'),
@@ -43,7 +46,7 @@ export function createStudioRoutes(ctx) {
     setCover: db.prepare('UPDATE places SET cover = ? WHERE id = ?'),
     setSquare: db.prepare('UPDATE places SET cover_square = ? WHERE id = ?'),
     del: db.prepare('UPDATE places SET deleted = 1 WHERE id = ?'),
-    byOwnerPublic: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 AND visibility IN (SELECT value FROM json_each(?)) ORDER BY visits DESC"),
+    byOwnerPublic: db.prepare("SELECT * FROM places WHERE owner_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = '' AND visibility IN (SELECT value FROM json_each(?)) ORDER BY visits DESC"),
     daily: db.prepare('SELECT day, visits, playtime_ms FROM place_daily WHERE place_id = ? AND day >= ? ORDER BY day'),
     uniques: db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(playtime_ms), 0) AS t FROM place_players WHERE place_id = ?'),
     returning: db.prepare('SELECT COUNT(*) AS n FROM place_players WHERE place_id = ? AND visits > 1'),
@@ -61,8 +64,8 @@ export function createStudioRoutes(ctx) {
     deleteComment: db.prepare('DELETE FROM place_comments WHERE id = ?'),
     userByName: db.prepare('SELECT * FROM users WHERE username = ?'),
     userById: db.prepare('SELECT * FROM users WHERE id = ?'),
-    ofCommunity: db.prepare("SELECT * FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 ORDER BY updated_at DESC"),
-    countCommunity: db.prepare("SELECT COUNT(*) AS n FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0"),
+    ofCommunity: db.prepare("SELECT * FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = '' ORDER BY updated_at DESC"),
+    countCommunity: db.prepare("SELECT COUNT(*) AS n FROM places WHERE community_id = ? AND kind = 'studio' AND deleted = 0 AND parent_id = ''"),
     setCommunity: db.prepare('UPDATE places SET community_id = ? WHERE id = ?'),
     setEditor: db.prepare('UPDATE places SET edited_by = ? WHERE id = ?'),
   };
@@ -99,6 +102,17 @@ export function createStudioRoutes(ctx) {
       edited_by: row.edited_by ? q.userById.get(row.edited_by)?.display_name || '' : '',
       published_at: row.published_at,
       i18n,
+      ...gameView(row),
+    };
+  }
+
+  // The game a place belongs to: its main place and every sub-place (TeleportService ids).
+  function gameView(row) {
+    const root = row.parent_id ? q.one.get(row.parent_id) : row;
+    if (!root) return { parent_id: row.parent_id };
+    return {
+      parent_id: row.parent_id,
+      game: { id: root.id, name: root.name, places: [root, ...q.subs.all(root.id)].map((r) => ({ id: r.id, name: r.name, main: r.id === root.id })) },
     };
   }
 
@@ -161,6 +175,33 @@ export function createStudioRoutes(ctx) {
       q.setEditor.run(user.id, id);
       store.write(id, melt);
       q.saveMeta.run(name, melt.meta.i18n.name.ru || name, melt.meta.description, melt.meta.i18n.description.ru || melt.meta.description, JSON.stringify(melt.meta.i18n), now, id);
+      return { place: studioView(q.one.get(id), user, pickLang(req)) };
+    },
+
+    // A new sub-place in the game of place :id (made from the template, or `melt`).
+    'POST /api/studio/places/:id/subplaces': (req, body, _u, params) => {
+      const { user, row } = ownPlace(req, params.id);
+      if (!writeLimiter.allow('studio:' + user.id)) throw new HttpError(429, 'slow_down');
+      const root = row.parent_id ? q.one.get(row.parent_id) : row;
+      if (!root) throw new HttpError(404, 'no_place');
+      if (q.subs.all(root.id).length >= MAX_SUBPLACES) throw bad('too_many_places');
+      const name = cleanText(body.name, 60) || 'Sub-place';
+      let melt = templatePlace(name);
+      if (body.melt) {
+        try {
+          melt = validateMelt(body.melt);
+        } catch (e) {
+          throw new HttpError(400, 'bad_place', { r: e.reason || '' });
+        }
+        melt.meta.name = name;
+      }
+      const id = store.newId();
+      const now = Date.now();
+      q.insert.run(id, name, name, root.author_username, now, root.owner_id, now);
+      q.setParent.run(root.id, root.community_id ?? null, id);
+      q.setEditor.run(user.id, id);
+      store.write(id, melt);
+      q.saveMeta.run(name, name, '', '', JSON.stringify(melt.meta.i18n), now, id);
       return { place: studioView(q.one.get(id), user, pickLang(req)) };
     },
 
@@ -259,9 +300,12 @@ export function createStudioRoutes(ctx) {
         const mem = communities?.membership(row.community_id, user.id);
         if (!mem || (mem.rank < 255 && !mem.perms.has('manage'))) throw new HttpError(403, 'forbidden');
       }
-      q.del.run(row.id);
-      hub.closePlace?.(row.id);
-      store.remove(row.id);
+      // The main place takes its sub-places with it.
+      for (const r of [row, ...(row.parent_id ? [] : q.subs.all(row.id))]) {
+        q.del.run(r.id);
+        hub.closePlace?.(r.id);
+        store.remove(r.id);
+      }
       return { ok: true };
     },
 
