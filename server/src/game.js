@@ -821,6 +821,7 @@ export class GameHub {
       case 'tool':
       case 'seat':
       case 'prompt':
+      case 'drag':
         return this.placeEvent(conn, m);
       case 'state':
         return this.state(conn, m);
@@ -889,6 +890,10 @@ export class GameHub {
     else if (m.t === 'click') server.inbox.push({ e: 'click', userId, id });
     else if (m.t === 'prompt') server.inbox.push({ e: 'prompt', userId, id });
     else if (m.t === 'seat') server.inbox.push({ e: 'seat', userId, id: m.id == null ? undefined : id });
+    else if (m.t === 'drag' && ['start', 'move', 'end'].includes(m.phase)) {
+      const v3 = (a) => (Array.isArray(a) ? a.slice(0, 3).map((x) => finite(x, WORLD_LIMIT)) : undefined);
+      server.inbox.push({ e: 'drag', userId, id, phase: m.phase, p: v3(m.p), pos: v3(m.pos) });
+    }
     else if (m.t === 'tool' && TOOL_EVENTS.has(m.ev)) {
       const p = Array.isArray(m.p?.$v3) ? { $v3: m.p.$v3.slice(0, 3).map(Number) } : undefined;
       server.inbox.push({ e: 'tool', userId, id: m.id == null ? undefined : id, ev: m.ev, p });

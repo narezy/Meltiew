@@ -4886,6 +4886,40 @@ function handlers.click(e)
 		fireEvent(det, "MouseClick", player)
 	end
 end
+-- A player drags a part with a DragDetector: the events, and (Geometric, anchored) the part
+-- goes where they drag it, if they're close enough to be holding it.
+function handlers.drag(e)
+	local det = byId[e.id]
+	local player = playersByUser[tonumber(e.userId)]
+	local d = det and D[det]
+	if not d or not player or d.class.name ~= "DragDetector" or not d.props.Enabled then
+		return
+	end
+	local part = d.parent
+	if not part or not D[part] or not D[part].class.isA.BasePart then
+		return
+	end
+	local function vec(t)
+		return type(t) == "table" and v3(tonumber(t[1]) or 0, tonumber(t[2]) or 0, tonumber(t[3]) or 0) or nil
+	end
+	local cursor = vec(e.p) or D[part].props.Position
+	local root = characterRoot(player)
+	local reach = (tonumber(d.props.MaxActivationDistance) or 30) + D[part].props.Size.Magnitude / 2 + 6
+	if root and (D[root].props.Position - cursor).Magnitude > reach then
+		return
+	end
+	if e.phase == "start" then
+		fireEvent(det, "DragStart", player, cursor)
+	elseif e.phase == "move" then
+		local to = vec(e.pos)
+		if to and d.props.ResponseStyle ~= "Custom" and D[part].props.Anchored ~= false and (not root or (D[root].props.Position - to).Magnitude <= reach + D[part].props.Size.Magnitude) then
+			setProp(part, "Position", to)
+		end
+		fireEvent(det, "DragContinue", player, cursor)
+	elseif e.phase == "end" then
+		fireEvent(det, "DragEnd", player)
+	end
+end
 -- client: buttons, text boxes and hover from the rendered UI
 function handlers.gui(e)
 	local inst = byId[e.id]
@@ -4901,6 +4935,17 @@ function handlers.gui(e)
 		fireEvent(inst, "FocusLost", e.value == true)
 	elseif e.ev == "focused" then
 		fireEvent(inst, "Focused")
+	elseif e.ev == "drag" and type(e.value) == "table" and D[inst].props.Draggable then
+		-- Dragged on the screen (GuiObject.Draggable): where it is now; the host moved it already.
+		local u = e.value
+		local pos = udim2(tonumber(u[1]) or 0, tonumber(u[2]) or 0, tonumber(u[3]) or 0, tonumber(u[4]) or 0)
+		if u[5] == "start" then
+			fireEvent(inst, "DragBegin", D[inst].props.Position)
+		end
+		setProp(inst, "Position", pos, true)
+		if u[5] == "end" then
+			fireEvent(inst, "DragStopped", tonumber(u[6]) or 0, tonumber(u[7]) or 0)
+		end
 	elseif e.ev == "enter" then
 		fireEvent(inst, "MouseEnter")
 	elseif e.ev == "leave" then

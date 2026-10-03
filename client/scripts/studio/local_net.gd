@@ -67,6 +67,8 @@ func send(m: Dictionary) -> void:
 			_events.append({"e": "died", "userId": int(_me.id)})
 		"tp":
 			message.emit({"t": "teleport", "game": str(m.get("place", "")), "server": "test", "data": m.get("data")})
+		"drag":
+			_events.append({"e": "drag", "userId": int(_me.id), "id": m.get("id"), "phase": m.get("phase"), "p": m.get("p"), "pos": m.get("pos")})
 		"veh":
 			_events.append({"e": "veh", "id": m.get("id"), "p": m.get("p"), "r": m.get("r"), "th": m.get("th"), "st": m.get("st"), "sp": m.get("sp")})
 		"chat":

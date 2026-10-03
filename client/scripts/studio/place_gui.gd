@@ -190,6 +190,8 @@ func _build(id: String) -> void:
 				ctl.mouse_entered.connect(func(): gui_event.emit(id, "enter", null))
 				ctl.mouse_exited.connect(func(): gui_event.emit(id, "leave", null))
 	ctl.set_meta("place_id", id)
+	# GuiObject.Draggable: picked up and moved with the mouse or a finger.
+	ctl.gui_input.connect(func(e): _drag_input(id, ctl, e))
 	holder.add_child(ctl)
 	_controls[id] = ctl
 	_style(id)
@@ -278,7 +280,7 @@ func _style(id: String) -> void:
 				n.use_parent_material = true
 	elif ctl.material is ShaderMaterial and (ctl.material as ShaderMaterial).shader == GRADIENT:
 		ctl.material = null
-	var catches := bg.a > 0.01 or c in ["TextButton", "ImageButton", "TextBox", "ScrollingFrame"]
+	var catches: bool = bg.a > 0.01 or c in ["TextButton", "ImageButton", "TextBox", "ScrollingFrame"] or tree.prop(id, "Draggable") == true
 	ctl.mouse_filter = Control.MOUSE_FILTER_STOP if catches else Control.MOUSE_FILTER_IGNORE
 	if ctl is LineEdit:
 		var le := ctl as LineEdit
@@ -351,6 +353,36 @@ func _process(_delta: float) -> void:
 					ctl.position = Vector2.ZERO
 					ctl.size = screen
 					_layout_children(sg, screen)
+
+
+var _dragging := {}  # { id, from (mouse, global), start (Position) }
+
+
+## A Draggable GuiObject: follows the pointer from where it was picked up; the place's
+## LocalScripts hear DragBegin and DragStopped and see the new Position.
+func _drag_input(id: String, ctl: Control, e: InputEvent) -> void:
+	if tree.prop(id, "Draggable") != true:
+		return
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		var start: Variant = tree.prop(id, "Position")
+		if not start is PackedFloat32Array:
+			start = PackedFloat32Array([0, 0, 0, 0])
+		if e.pressed:
+			_dragging = {"id": id, "from": ctl.get_global_mouse_position(), "start": start}
+			gui_event.emit(id, "drag", [start[0], start[1], start[2], start[3], "start"])
+		elif _dragging.get("id", "") == id:
+			var at := ctl.get_global_mouse_position()
+			gui_event.emit(id, "drag", [start[0], start[1], start[2], start[3], "end", at.x, at.y])
+			_dragging = {}
+		ctl.accept_event()
+	elif e is InputEventMouseMotion and _dragging.get("id", "") == id:
+		var scale := ctl.get_global_transform().get_scale()
+		var d: Vector2 = (ctl.get_global_mouse_position() - _dragging.from) / Vector2(maxf(scale.x, 0.01), maxf(scale.y, 0.01))
+		var s: PackedFloat32Array = _dragging.start
+		var pos := PackedFloat32Array([s[0], s[1] + d.x, s[2], s[3] + d.y])
+		tree.set_prop(id, "Position", pos)
+		gui_event.emit(id, "drag", [pos[0], pos[1], pos[2], pos[3], "move"])
+		ctl.accept_event()
 
 
 func _udim(u: Variant, parent: Vector2) -> Vector2:

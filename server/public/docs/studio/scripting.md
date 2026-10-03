@@ -384,6 +384,70 @@ seat:Sit(player.Character.Humanoid) -- sit someone down from a script
 seat.Disabled = true                -- nobody can sit
 ```
 
+## Vehicles
+
+Insert a **VehicleSeat** into a **Model** with your car's parts (the body, the wheels, Seats for passengers). Whoever sits on it drives the whole Model: the movement keys, a gamepad's stick, a phone's joystick or a VR stick give gas and steering, jump gets out. Build it from Anchored parts (the default): while it drives, every part of the Model moves together as one.
+
+- Parts with **Wheel** in their name roll as it goes, and the front ones turn when it steers.
+- **MaxSpeed** (studs a second), **Torque** (how fast it speeds up; it brakes twice as hard), **TurnSpeed** (degrees a second), **Grip** (1 holds the road, lower drifts) and **HoverHeight** (above 0 it floats that high over whatever is under it, a hovercraft) tune it.
+- It slides along walls, leans with slopes, falls off edges, and rolls to a stop after the driver gets out. Players in its Seats ride along.
+- **HeadsUpDisplay** shows the driver a speedometer.
+
+Scripts read what the driver does, for sounds, lights or rules:
+
+```lua
+local seat = workspace.Car.VehicleSeat
+seat:GetPropertyChangedSignal("Throttle"):Connect(function()
+	print("gas:", seat.Throttle, "steering:", seat.Steer, "speed:", seat.Speed)
+end)
+```
+
+`Throttle` and `Steer` are -1, 0 or 1; `ThrottleFloat` and `SteerFloat` go in between (a stick pushed part way). The server checks the car can't go faster than its MaxSpeed allows.
+
+## Dragging things
+
+Put a **DragDetector** in a part and players can pick it up and drag it with the mouse, a finger or the VR laser. An anchored part goes where it's dragged, for everyone; an unanchored one is carried and thrown by physics. **DragStyle** TranslatePlane drags it along the ground, TranslateViewPlane up, down and sideways as the camera sees it. **MaxActivationDistance** is how close a player has to be. Set **ResponseStyle** to Custom to leave the part where it is and decide yourself:
+
+```lua
+local d = workspace.Lever.DragDetector
+d.DragStart:Connect(function(player, cursor) print(player.Name, "grabbed it at", cursor) end)
+d.DragContinue:Connect(function(player, cursor) end)
+d.DragEnd:Connect(function(player) print("let go") end)
+```
+
+On the screen, any frame, label, button or image with **Draggable** = true can be dragged around by the player (their own screen only). A LocalScript hears it:
+
+```lua
+local window = script.Parent.Window
+window.DragBegin:Connect(function(startPosition) end)
+window.DragStopped:Connect(function(x, y) print("left at", window.Position) end)
+```
+
+## Sub-places and teleporting
+
+A game can have more places than one: a lobby and the levels, a town and the houses you go into. In Studio, the **Places** panel under the Explorer lists the game's main place and its sub-places. **+** makes a new one; double-click one to edit it (what's open is saved first); **← Main place** at the top goes back. Right-click a place to rename it, delete it, or copy its id.
+
+Sub-places aren't listed anywhere by themselves: players get there by teleporting. They're as open as the main place, and they all share its **DataStores**, badges, gamepasses and settings, so coins earned in a level are there in the lobby.
+
+```lua
+local TeleportService = game:GetService("TeleportService")
+local LEVEL = "p1a2b3c4d5" -- the sub-place's id (Places panel > right-click > Copy id)
+
+-- One player, to a server of that place with room:
+TeleportService:Teleport(LEVEL, player, { checkpoint = 3 })
+
+-- A group into a new server of their own (an elevator into a round):
+TeleportService:TeleportPartyAsync(LEVEL, { player1, player2, player3 }, { mode = "hard" })
+
+-- Over there, what came along:
+game.Players.PlayerAdded:Connect(function(player)
+	local join = player:GetJoinData()
+	print(join.SourcePlaceId, join.TeleportData and join.TeleportData.checkpoint)
+end)
+```
+
+`TeleportService:TeleportAsync(place, players, { TeleportData = ..., ShouldReserveServer = true })` does either. A LocalScript can teleport its own player (`TeleportService:Teleport(place, game.Players.LocalPlayer)`) and read `TeleportService:GetLocalPlayerTeleportData()`. `TeleportInitFailed(player, reason, message)` fires when the place isn't one of this game's. `game.PlaceId` is the place you're in, `game.GameId` the game's main place. Teleports work in a Studio test too, between the places of the game you're editing (with DataStores kept in memory across them).
+
 ## Appearance: dressing players in your place
 
 An **Appearance** says how players look **in your place only**: body colors, a face and any

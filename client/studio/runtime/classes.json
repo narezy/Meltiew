@@ -185,6 +185,14 @@
    "Bottom",
    "Left",
    "Right"
+  ],
+  "DragDetectorDragStyle": [
+   "TranslatePlane",
+   "TranslateViewPlane"
+  ],
+  "DragDetectorResponseStyle": [
+   "Geometric",
+   "Custom"
   ]
  },
  "classes": {
@@ -1407,6 +1415,41 @@
    "category": "3D",
    "creatable": true
   },
+  "DragDetector": {
+   "base": "Instance",
+   "props": {
+    "Enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "MaxActivationDistance": {
+     "type": "number",
+     "default": 30,
+     "min": 0,
+     "max": 1000,
+     "doc": "How far from the part a player can be to grab it (studs)."
+    },
+    "DragStyle": {
+     "type": "enum:DragDetectorDragStyle",
+     "default": "TranslatePlane",
+     "doc": "TranslatePlane: along the ground (a flat plane through where it was grabbed). TranslateViewPlane: up, down and sideways as seen by the camera."
+    },
+    "ResponseStyle": {
+     "type": "enum:DragDetectorResponseStyle",
+     "default": "Geometric",
+     "doc": "Geometric: the part goes where it's dragged. Custom: it stays put, and your scripts decide from the events."
+    }
+   },
+   "events": [
+    "DragStart",
+    "DragContinue",
+    "DragEnd"
+   ],
+   "icon": "hand",
+   "category": "Logic",
+   "creatable": true,
+   "doc": "Put it in a part to let players drag that part around with the mouse or a finger (in VR, the trigger). **DragStart(player, cursor)**, **DragContinue(player, cursor)** and **DragEnd(player)** fire on the server (`cursor`: where the pointer is, a Vector3). An anchored part moves for everyone; an unanchored one is carried and thrown by physics."
+  },
   "Sound": {
    "base": "Instance",
    "props": {
@@ -1646,11 +1689,18 @@
     "Rotation": {
      "type": "number",
      "default": 0.0
+    },
+    "Draggable": {
+     "type": "bool",
+     "default": false,
+     "doc": "The player can drag it around with the mouse or a finger (only on their own screen). DragBegin fires when they pick it up, DragStopped(x, y) when they let go; its Position is where they left it."
     }
    },
    "events": [
     "MouseEnter",
-    "MouseLeave"
+    "MouseLeave",
+    "DragBegin",
+    "DragStopped"
    ],
    "abstract": true
   },

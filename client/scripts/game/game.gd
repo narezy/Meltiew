@@ -468,6 +468,7 @@ func _start_place(p: Dictionary) -> void:
 		player.velocity = Vector3.ZERO)
 	place_host.mouse_settings_changed.connect(_apply_cursor)
 	place_host.camera_control.connect(_camera_control)
+	hud.drag_handler = _touch_drag
 	place_host.velocity_requested.connect(func(v: Vector3):
 		if not player.dead and not player.seated:
 			player.velocity = v)
@@ -582,6 +583,7 @@ func _sync_place(delta: float) -> void:
 	_sync_joints()
 	_check_seats()
 	_step_vehicles(delta)
+	_move_drag(delta)
 	_sync_tools()
 	if not player.dead:
 		for i in player.get_slide_collision_count():
@@ -656,12 +658,48 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		place_host.pointer_event(kind, event.pressed, at)
 		if kind == "MouseButton1":
+			# A part with a DragDetector under the mouse: picked up.
+			if event.pressed:
+				var cam := player.camera
+				_drag.try_start(cam.project_ray_origin(at), cam.project_ray_normal(at))
+			else:
+				_drag.end()
 			_use_tool(event.pressed)
 			# A click (not a drag) on a part with a ClickDetector.
 			if event.pressed:
 				_press_pos = event.position
 			elif event.position.distance_to(_press_pos) < 12.0:
 				_click_at(at)
+
+
+var _drag := PartDrag.new()
+var _drag_finger := Vector2.INF  # where the finger dragging a part is (phones)
+
+
+## Phones: a finger that comes down on a draggable part drags it (not the camera).
+func _touch_drag(phase: String, pos: Vector2) -> bool:
+	var cam := player.camera
+	match phase:
+		"start":
+			if _drag.try_start(cam.project_ray_origin(pos), cam.project_ray_normal(pos)):
+				_drag_finger = pos
+				return true
+			return false
+		"move":
+			_drag_finger = pos
+		"end":
+			_drag.end()
+			_drag_finger = Vector2.INF
+	return true
+
+
+## Every frame while dragging a part: it follows the mouse or the finger.
+func _move_drag(delta: float) -> void:
+	if not _drag.active() or VR.active:
+		return
+	var at := _drag_finger if _drag_finger != Vector2.INF else _pointer_pos(get_viewport().get_mouse_position())
+	var cam := player.camera
+	_drag.move(cam.project_ray_origin(at), cam.project_ray_normal(at), delta)
 
 
 func _click_at(screen: Vector2) -> void:
@@ -680,6 +718,9 @@ func vr_point(from: Vector3, dir: Vector3) -> Variant:
 	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 500.0, PlaceScene.LAYER_WORLD | PlaceScene.LAYER_GHOST)
 	q.exclude = [player.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	# Dragging a part with the laser: it follows the hand.
+	if _drag.active():
+		_drag.move(from, dir, 0.05)
 	var at: Vector3 = hit.position if not hit.is_empty() else from + dir * 500.0
 	var part := PlaceScene.id_of(hit.collider) if not hit.is_empty() else ""
 	place_host.mouse_state(get_viewport().get_visible_rect().size / 2.0, from, dir, at, part)
@@ -697,6 +738,10 @@ func vr_click(down: bool, from: Vector3, dir: Vector3) -> void:
 		_use_tool(down)
 		return
 	vr_point(from, dir)
+	if down:
+		_drag.try_start(from, dir)
+	else:
+		_drag.end()
 	place_host.pointer_event("MouseButton1", down, get_viewport().get_visible_rect().size / 2.0)
 	_use_tool(down)
 	if not down:

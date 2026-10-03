@@ -54,6 +54,10 @@ var _overlay_text: Label
 var _overlay_buttons: HBoxContainer
 var _blockers: Array[Control] = []
 var _cam_finger := -1
+## Phones: a finger coming down on something the game drags (a part with a DragDetector):
+## ("start" | "move" | "end", position) -> whether the game took that finger.
+var drag_handler: Callable
+var _grab_finger := -1
 var _pinch := {}
 var _mouse_look := false
 var _cam_btn: Button  # (gone: the leaderboard button took its place)
@@ -1142,6 +1146,9 @@ func _touch(e: InputEventScreenTouch) -> void:
 				return
 		if _blocked(e.position) or ui_under(e.position):
 			return
+		if _grab_finger < 0 and drag_handler.is_valid() and drag_handler.call("start", e.position):
+			_grab_finger = e.index
+			return
 		var w := get_viewport().get_visible_rect().size.x
 		if e.position.x < w * 0.42 and not joystick.active():
 			joystick.begin(e.index, e.position)
@@ -1150,6 +1157,10 @@ func _touch(e: InputEventScreenTouch) -> void:
 			if _cam_finger < 0:
 				_cam_finger = e.index
 	else:
+		if e.index == _grab_finger:
+			_grab_finger = -1
+			drag_handler.call("end", e.position)
+			return
 		for b in _touch_buttons():
 			b.touch_release(e.index)
 		joystick.end(e.index)
@@ -1159,6 +1170,9 @@ func _touch(e: InputEventScreenTouch) -> void:
 
 
 func _drag(e: InputEventScreenDrag) -> void:
+	if e.index == _grab_finger:
+		drag_handler.call("move", e.position)
+		return
 	if joystick.owns_finger(e.index):
 		joystick.drag(e.index, e.position)
 		return

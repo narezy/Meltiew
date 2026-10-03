@@ -159,8 +159,9 @@ The player's inventory: the Tools they carry but don't hold. `player.Backpack`. 
 | ZIndex | number | 1 |  |
 | LayoutOrder | number | 0 |  |
 | Rotation | number | 0 |  |
+| Draggable | bool | false |  |
 
-**Events:** `MouseEnter`, `MouseLeave`
+**Events:** `MouseEnter`, `MouseLeave`, `DragBegin`, `DragStopped`
 
 ### Camera
 
@@ -863,6 +864,21 @@ A GUI that floats over the Part or Model it's in and always faces the camera: pu
 
 *can be created with `Instance.new`*
 
+### DragDetector
+
+*can be created with `Instance.new`*
+
+Put it in a part to let players drag that part around with the mouse or a finger (in VR, the trigger). **DragStart(player, cursor)**, **DragContinue(player, cursor)** and **DragEnd(player)** fire on the server (`cursor`: where the pointer is, a Vector3). An anchored part moves for everyone; an unanchored one is carried and thrown by physics.
+
+| Property | Type | Default | Notes |
+|---|---|---|---|
+| Enabled | bool | true |  |
+| MaxActivationDistance | number | 30 | min 0, max 1000 |
+| DragStyle | [DragDetectorDragStyle](#dragdetectordragstyle) | "TranslatePlane" |  |
+| ResponseStyle | [DragDetectorResponseStyle](#dragdetectorresponsestyle) | "Geometric" |  |
+
+**Events:** `DragStart`, `DragContinue`, `DragEnd`
+
 ### RemoteEvent
 
 *can be created with `Instance.new`*
@@ -1113,3 +1129,11 @@ A team inside the Teams service. **TeamColor** marks its players and its SpawnLo
 ### NormalId
 
 `Front`, `Back`, `Top`, `Bottom`, `Left`, `Right`
+
+### DragDetectorDragStyle
+
+`TranslatePlane`, `TranslateViewPlane`
+
+### DragDetectorResponseStyle
+
+`Geometric`, `Custom`
