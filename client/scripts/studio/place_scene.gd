@@ -47,6 +47,7 @@ var _texts := {}  # id -> Label3D
 var _worn_texts := {}  # Text3D id -> the character Model or Rig whose head it sits on
 var _lights := {}  # id -> OmniLight3D
 var _targets := {}  # id -> Transform3D (smoothed replicated movement)
+var _rig_targets := {}  # Rig id -> Transform3D (the same for Rigs)
 var _held := {}  # part id -> tool id, for parts of a Tool someone is holding
 ## Still parts are drawn merged (see PartBatcher); the game only, not Studio.
 var _batcher: PartBatcher
@@ -765,6 +766,14 @@ func _follow_hands() -> void:
 func _physics_process(delta: float) -> void:
 	if not editing:
 		_step_phys(delta)
+	for id in _rig_targets.keys():
+		var r: Dictionary = _rigs.get(id, {})
+		if r.is_empty():
+			_rig_targets.erase(id)
+			continue
+		var b: Node3D = r.body
+		var want: Transform3D = _rig_targets[id]
+		b.global_transform = b.global_transform.interpolate_with(want, minf(1.0, delta * 14.0))
 	for id in _targets.keys():
 		var entry: Dictionary = _parts.get(id, {})
 		if entry.is_empty():
@@ -1121,7 +1130,13 @@ func _style_rig(id: String, key: String) -> void:
 	var body: StaticBody3D = r.body
 	var av: MellyAvatar = r.avatar
 	var t := _transform_of(id)
-	body.global_transform = Transform3D(Basis(Vector3.UP, t.basis.get_euler().y), t.origin)
+	var want := Transform3D(Basis(Vector3.UP, t.basis.get_euler().y), t.origin)
+	# A script walking a Rig around: it glides between the updates (a jump stays a jump).
+	if (key == "Position" or key == "Rotation") and not editing and body.global_position.distance_to(want.origin) < 12.0:
+		_rig_targets[id] = want
+		return
+	body.global_transform = want
+	_rig_targets.erase(id)
 	if key == "Position" or key == "Rotation":
 		return
 	av.set_joint_angles(joint_angles_of(id))

@@ -78,7 +78,10 @@ func _process(_delta: float) -> void:
 		var s: Variant = tree.prop(id, "Size")
 		var px := Vector2(200, 50)
 		if s is PackedFloat32Array and s.size() == 4:
-			px = Vector2(s[1], s[3])
+			# Offset in pixels, scale in studs (it grows as you come closer, like a thing
+			# in the world).
+			var per_stud := get_viewport().get_visible_rect().size.y / (2.0 * maxf(dist, 0.1) * tan(deg_to_rad(cam.fov) / 2.0))
+			px = Vector2(s[1] + s[0] * per_stud, s[3] + s[2] * per_stud)
 		box.size = px
 		box.position = cam.unproject_position(point) - px / 2.0
 		box.visible = true
@@ -94,7 +97,9 @@ func _anchor(id: String) -> Variant:
 	if av and av is MellyAvatar:
 		return (av as MellyAvatar).head_center() if av.is_visible_in_tree() else null
 	if StudioSchema.is_a(tree.cls(target), "BasePart"):
-		return tree.prop(target, "Position")
+		# Where it's drawn (a moving part glides between updates).
+		var body := scene.body_of(target)
+		return body.global_position if body else tree.prop(target, "Position")
 	for d in tree.descendants(target):
 		if StudioSchema.is_a(tree.cls(d), "BasePart"):
 			return tree.prop(d, "Position")

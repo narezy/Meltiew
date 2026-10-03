@@ -826,7 +826,7 @@ Put in the Workspace (by a server Script) to blow up at **Position**: characters
 
 *can be created with `Instance.new`*
 
-A GUI that floats over the Part or Model it's in and always faces the camera: put Frames, TextLabels and ImageLabels in it. **Size** is in pixels; **StudsOffset** lifts it; with **AlwaysOnTop** off, walls hide it.
+A GUI that floats over the Part or Model it's in and always faces the camera: put Frames, TextLabels and ImageLabels in it. **Size**: its offset is pixels (the same size on the screen however far away), its scale is studs (it grows as you come closer, like a thing in the world: `UDim2.new(6, 0, 6, 0)` is 6 by 6 studs); **StudsOffset** lifts it; with **AlwaysOnTop** off, walls hide it.
 
 | Property | Type | Default | Notes |
 |---|---|---|---|
