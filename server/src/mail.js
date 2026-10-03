@@ -67,7 +67,6 @@ const TEXT = {
   },
 };
 
-const SITE = 'https://meltiew.narez.xyz';
 
 // Colours from the site (public/style.css). Tables and inline styles: that's what every
 // mail app (Gmail, Outlook, phones) draws the same way.
@@ -79,8 +78,7 @@ function codeHtml(code, t) {
 <tr><td align="center">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px">
   <tr><td align="center" style="padding-bottom:20px">
-    <a href="${SITE}" style="text-decoration:none"><img src="${SITE}/img/icon.png" width="56" height="56" alt="" style="display:block;border:0;border-radius:14px">
-    <div style="font:800 22px/1.2 'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f4f1ec;padding-top:10px;letter-spacing:.5px">Meltiew</div></a>
+    <div style="font:800 22px/1.2 'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f4f1ec;letter-spacing:.5px">Meltiew</div>
   </td></tr>
   <tr><td style="background:#242030;border-radius:20px;padding:32px 28px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
     <div style="font-size:22px;font-weight:800;color:#f4f1ec">${t.title}</div>
@@ -90,7 +88,7 @@ function codeHtml(code, t) {
     <div style="font-size:13px;line-height:1.5;color:#9d96b0;padding-top:10px">${t.ignore}</div>
   </td></tr>
   <tr><td align="center" style="padding-top:18px;font:13px/1.5 'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#9d96b0">
-    <a href="${SITE}" style="color:#b89cff;text-decoration:none">${t.footer}</a>
+    ${t.footer}
   </td></tr>
   </table>
 </td></tr></table></body></html>`;
@@ -98,7 +96,9 @@ function codeHtml(code, t) {
 
 export function sendCode(to, code, lang = 'en', env = process.env) {
   const t = TEXT[lang] || TEXT.en;
-  const text = `${t.title}: ${code}\n\n${t.lead}\n${t.expires}\n\n${t.ignore}\n\n${SITE}`;
+  // No links and no pictures from the site: mail filters judge an email by the domains in
+  // it, and narez.xyz sits on a blocklist through no fault of its own.
+  const text = `${t.title}: ${code}\n\n${t.lead}\n${t.expires}\n\n${t.ignore}\n\n${t.footer}`;
   return sendMail({ to, subject: t.subject(code), text, html: codeHtml(code, t) }, env);
 }
 
@@ -123,10 +123,12 @@ const headerName = (s) => (/^[\x20-\x7e]*$/.test(s) ? `"${s.replace(/["\\]/g, ''
  * Sent as the service's address unless `from` is given (support answers as support@);
  * `headers` are extra lines, like In-Reply-To.
  */
-export function sendMail({ to, subject, text, html, from: fromAddr, name = 'Meltiew', messageId, headers = [] }, env = process.env) {
-  const host = env.MELTIEW_SMTP_HOST;
-  const port = Number(env.MELTIEW_SMTP_PORT) || 465;
-  const user = env.MELTIEW_SMTP_USER;
+export function sendMail({ to, subject, text, html, from: fromAddr, name = 'Meltiew', messageId, headers = [], local = false }, env = process.env) {
+  // `local`: through our own Postfix on this machine (support answers as support@narez.xyz,
+  // which a provider like Gmail would rewrite to its own address).
+  const host = local ? '127.0.0.1' : env.MELTIEW_SMTP_HOST;
+  const port = local ? 25 : Number(env.MELTIEW_SMTP_PORT) || 465;
+  const user = local ? '' : env.MELTIEW_SMTP_USER;
   const from = fromAddr || env.MELTIEW_MAIL_FROM || user;
   const message = [
     `From: ${headerName(name)} <${from}>`,

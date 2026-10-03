@@ -430,7 +430,7 @@ export function createSupport({ db, dir, HttpError, bad, cleanText, requireAuth,
     const messageId = `<t${t.id}.${crypto.randomBytes(8).toString('hex')}@${domain}>`;
     const thread = t.thread.split(' ').filter(Boolean);
     const headers = thread.length ? [`In-Reply-To: ${thread.at(-1)}`, `References: ${thread.slice(-10).join(' ')}`] : [];
-    await sendMail({ to, subject, text: `${text}\n\n${sign}\n${site}${quoteOf(t, text)}`, from: address, name: sign, messageId, headers });
+    await sendMail({ to, subject, text: `${text}\n\n${sign}\n${site}${quoteOf(t, text)}`, from: address, name: sign, messageId, headers, local: true });
     return { emailed: true, messageId };
   }
 
