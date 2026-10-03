@@ -194,7 +194,7 @@
       "c": "Sound",
       "n": "HotelHum",
       "p": {
-       "SoundId": "",
+       "SoundId": "asset://8d62566f000206d3",
        "Volume": 0.5,
        "Looped": true,
        "Playing": false
@@ -204,7 +204,7 @@
       "c": "Sound",
       "n": "ChaseMusic",
       "p": {
-       "SoundId": "",
+       "SoundId": "asset://96caf1d78559c5b2",
        "Volume": 0.8,
        "Looped": true,
        "Playing": false
@@ -214,7 +214,7 @@
       "c": "Sound",
       "n": "HowlNear",
       "p": {
-       "SoundId": "",
+       "SoundId": "asset://2810ad6c4c805909",
        "Volume": 1.2,
        "Looped": false,
        "Playing": false
@@ -269,70 +269,70 @@
         "c": "StringValue",
         "n": "Howl",
         "p": {
-         "Value": ""
+         "Value": "asset://31e6e9997f60ac95"
         }
        },
        {
         "c": "StringValue",
         "n": "Eye",
         "p": {
-         "Value": ""
+         "Value": "asset://ed9904d8b373c21b"
         }
        },
        {
         "c": "StringValue",
         "n": "Door",
         "p": {
-         "Value": ""
+         "Value": "asset://077ca8dd8b04937d"
         }
        },
        {
         "c": "StringValue",
         "n": "Drawer",
         "p": {
-         "Value": ""
+         "Value": "asset://00464a53c1df19c4"
         }
        },
        {
         "c": "StringValue",
         "n": "HowlScream",
         "p": {
-         "Value": ""
+         "Value": "asset://ce9078921f2abf5c"
         }
        },
        {
         "c": "StringValue",
         "n": "HowlNear",
         "p": {
-         "Value": ""
+         "Value": "asset://2810ad6c4c805909"
         }
        },
        {
         "c": "StringValue",
         "n": "Sting",
         "p": {
-         "Value": ""
+         "Value": "asset://4f29f7f6f035ad9e"
         }
        },
        {
         "c": "StringValue",
         "n": "Chase",
         "p": {
-         "Value": ""
+         "Value": "asset://96caf1d78559c5b2"
         }
        },
        {
         "c": "StringValue",
         "n": "Hum",
         "p": {
-         "Value": ""
+         "Value": "asset://8d62566f000206d3"
         }
        },
        {
         "c": "StringValue",
         "n": "Lobby",
         "p": {
-         "Value": ""
+         "Value": "asset://b194abb7b43dacf2"
         }
        }
       ]
@@ -345,14 +345,14 @@
         "c": "StringValue",
         "n": "LobbyPlaceId",
         "p": {
-         "Value": ""
+         "Value": "p918cee06e7"
         }
        },
        {
         "c": "StringValue",
         "n": "HotelPlaceId",
         "p": {
-         "Value": ""
+         "Value": "p06f135471a"
         }
        }
       ]
