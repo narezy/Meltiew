@@ -1,0 +1,5925 @@
+{
+ "format": "melt",
+ "version": 1,
+ "meta": {
+  "name": "Midnight Hotel",
+  "description": "A hotel of 100 doors. Find the keys, hide from the Howl when the lights flicker, outrun the Watcher. Play with up to 6 friends: the elevator takes you in together.",
+  "i18n": {
+   "name": {
+    "ru": "Отель «Полночь»"
+   },
+   "description": {
+    "ru": "Отель из 100 дверей. Ищи ключи, прячься от Вопля, когда мигает свет, убегай от Следящего. Играй с друзьями, до 6 человек: лифт увозит вас вместе."
+   }
+  }
+ },
+ "strings": {
+  "title": {
+   "en": "MIDNIGHT HOTEL",
+   "ru": "ОТЕЛЬ «ПОЛНОЧЬ»"
+  },
+  "elevator": {
+   "en": "ELEVATOR",
+   "ru": "ЛИФТ"
+  },
+  "lobby_hint": {
+   "en": "Step into the elevator with your friends: it takes up to 6 of you into the hotel. Get through 100 doors. Hide when the lights flicker. Run when the eyes look at you.",
+   "ru": "Заходи в лифт с друзьями: он увозит в отель до 6 человек. Пройди 100 дверей. Прячься, когда мигает свет. Беги, когда на тебя смотрят глаза."
+  },
+  "lobby_coins": {
+   "en": "Coins: {0}",
+   "ru": "Монеты: {0}"
+  },
+  "lobby_best": {
+   "en": "Best door: {0}",
+   "ru": "Лучшая дверь: {0}"
+  },
+  "lobby_escapes": {
+   "en": "Escaped: {0}",
+   "ru": "Выбрался: {0}"
+  },
+  "result_died": {
+   "en": "You fell at door {0}. Try again!",
+   "ru": "Ты пал у двери {0}. Попробуй ещё раз!"
+  },
+  "result_escaped": {
+   "en": "You got out of the hotel! +30 coins",
+   "ru": "Ты выбрался из отеля! +30 монет"
+  },
+  "welcome": {
+   "en": "WELCOME, GUEST",
+   "ru": "ДОБРО ПОЖАЛОВАТЬ, ГОСТЬ"
+  },
+  "way_out": {
+   "en": "WAY OUT",
+   "ru": "ВЫХОД"
+  },
+  "door_n": {
+   "en": "Door {0}",
+   "ru": "Дверь {0}"
+  },
+  "coins_run": {
+   "en": "Coins: {0}",
+   "ru": "Монеты: {0}"
+  },
+  "hide": {
+   "en": "Hide",
+   "ru": "Спрятаться"
+  },
+  "leave": {
+   "en": "Get out",
+   "ru": "Выйти"
+  },
+  "wardrobe": {
+   "en": "Wardrobe",
+   "ru": "Шкаф"
+  },
+  "open": {
+   "en": "Open",
+   "ru": "Открыть"
+  },
+  "drawer": {
+   "en": "Drawer",
+   "ru": "Ящик"
+  },
+  "take": {
+   "en": "Take",
+   "ru": "Взять"
+  },
+  "key": {
+   "en": "Key",
+   "ru": "Ключ"
+  },
+  "unlock": {
+   "en": "Unlock",
+   "ru": "Отпереть"
+  },
+  "locked_door": {
+   "en": "Locked door",
+   "ru": "Запертая дверь"
+  },
+  "got_coins": {
+   "en": "+{0} coins",
+   "ru": "+{0} монет"
+  },
+  "empty": {
+   "en": "Empty...",
+   "ru": "Пусто..."
+  },
+  "got_key": {
+   "en": "The key to door {0}",
+   "ru": "Ключ от двери {0}"
+  },
+  "need_key": {
+   "en": "Locked. The key is somewhere in this room",
+   "ru": "Заперто. Ключ где-то в этой комнате"
+  },
+  "died_howl": {
+   "en": "You died to the Howl...",
+   "ru": "Тебя забрал Вопль..."
+  },
+  "advice_howl": {
+   "en": "When the lights flicker and the walls rumble, it's coming. Hide in a wardrobe, quick!",
+   "ru": "Когда мигает свет и гудят стены, он уже летит. Скорее прячься в шкаф!"
+  },
+  "died_watcher": {
+   "en": "You died to the Watcher...",
+   "ru": "Тебя поймал Следящий..."
+  },
+  "advice_watcher": {
+   "en": "Eyes on the walls mean it's near. When it comes, don't look back: sprint and keep running.",
+   "ru": "Глаза на стенах значат, что он рядом. Когда появится, не оборачивайся: зажми бег и беги не останавливаясь."
+  },
+  "died_fall": {
+   "en": "You died...",
+   "ru": "Ты погиб..."
+  },
+  "advice_fall": {
+   "en": "The hotel doesn't let go easily. Try again, and stay together.",
+   "ru": "Отель так просто не отпускает. Попробуй ещё, и держитесь вместе."
+  },
+  "back_to_lobby": {
+   "en": "Back to the lobby...",
+   "ru": "Возвращаемся в лобби..."
+  },
+  "escaped": {
+   "en": "You got out!",
+   "ru": "Ты выбрался!"
+  },
+  "escaped_sub": {
+   "en": "100 doors behind you. +30 coins",
+   "ru": "Позади 100 дверей. +30 монет"
+  },
+  "reception": {
+   "en": "RECEPTION",
+   "ru": "РЕСЕПШН"
+  }
+ },
+ "tree": {
+  "c": "DataModel",
+  "k": [
+   {
+    "c": "Workspace",
+    "n": "Workspace",
+    "p": {
+     "Gravity": 22,
+     "FallHeight": -30
+    },
+    "k": [
+     {
+      "c": "Model",
+      "n": "Floor",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -12.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           8.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           16.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           -16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           -12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           -8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           -4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           0.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           4.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           12.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass",
+         "CastShadow": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Tile",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.0,
+           1,
+           4.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.0,
+           -0.5,
+           16.0
+          ]
+         },
+         "Color": {
+          "$c3": "#e9e2d6"
+         },
+         "Material": "SmoothPlastic",
+         "CastShadow": false
+        }
+       }
+      ]
+     },
+     {
+      "c": "Part",
+      "n": "Rug",
+      "p": {
+       "Size": {
+        "$v3": [
+         10,
+         0.06,
+         22
+        ]
+       },
+       "Position": {
+        "$v3": [
+         0,
+         0.03,
+         4
+        ]
+       },
+       "Color": {
+        "$c3": "#6b1e2a"
+       },
+       "Material": "Fabric",
+       "CanCollide": false
+      }
+     },
+     {
+      "c": "Part",
+      "n": "RugTrim",
+      "p": {
+       "Size": {
+        "$v3": [
+         11,
+         0.04,
+         23
+        ]
+       },
+       "Position": {
+        "$v3": [
+         0,
+         0.02,
+         4
+        ]
+       },
+       "Color": {
+        "$c3": "#c9a14a"
+       },
+       "Material": "Fabric",
+       "CanCollide": false
+      }
+     },
+     {
+      "c": "Model",
+      "n": "Walls",
+      "k": [
+       {
+        "c": "Part",
+        "n": "WallBackL",
+        "p": {
+         "Size": {
+          "$v3": [
+           18.0,
+           14.0,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -13.0,
+           7.0,
+           -18.5
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "WallFront",
+        "p": {
+         "Size": {
+          "$v3": [
+           44.0,
+           14.0,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           7.0,
+           18.5
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "WallLeft",
+        "p": {
+         "Size": {
+          "$v3": [
+           1,
+           14.0,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -22.5,
+           7.0,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "WallRight",
+        "p": {
+         "Size": {
+          "$v3": [
+           1,
+           14.0,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           22.5,
+           7.0,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Ceiling",
+        "p": {
+         "Size": {
+          "$v3": [
+           44.0,
+           1,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           14.5,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#1f1820"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Panel",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           4,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.85,
+           2,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Trim",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.4,
+           0.3,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.8,
+           4.1,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Panel",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           4,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           21.85,
+           2,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Trim",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.4,
+           0.3,
+           36.0
+          ]
+         },
+         "Position": {
+          "$v3": [
+           21.8,
+           4.1,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "PanelFront",
+        "p": {
+         "Size": {
+          "$v3": [
+           44.0,
+           4,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           2,
+           17.85
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "WallBackR",
+        "p": {
+         "Size": {
+          "$v3": [
+           18.0,
+           14.0,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           13.0,
+           7.0,
+           -18.5
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "WallBackTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           8,
+           4.0,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           12.0,
+           -18.5
+          ]
+         },
+         "Color": {
+          "$c3": "#3b2a3a"
+         },
+         "Material": "SmoothPlastic"
+        }
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Columns",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           7.0,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           0.5,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           13.6,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           7.0,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           0.5,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           13.6,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           7.0,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           0.5,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -15,
+           13.6,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           7.0,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           0.5,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           13.6,
+           -10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           7.0,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           0.5,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           13.6,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Column",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           14.0,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           7.0,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#d8d0c2"
+         },
+         "Material": "SmoothPlastic",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnBase",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           1,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           0.5,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ColumnTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.8,
+           0.8,
+           2.8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           15,
+           13.6,
+           10
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Chandelier",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Chain",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.2,
+           3,
+           0.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           12.5,
+           -6
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Ring",
+        "p": {
+         "Size": {
+          "$v3": [
+           5,
+           0.4,
+           5
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           11.0,
+           -6
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           2.2,
+           11.5,
+           -6.0
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           1.556,
+           11.5,
+           -4.444
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           11.5,
+           -3.8
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -1.556,
+           11.5,
+           -4.444
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -2.2,
+           11.5,
+           -6.0
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -1.556,
+           11.5,
+           -7.556
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -0.0,
+           11.5,
+           -8.2
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           1.556,
+           11.5,
+           -7.556
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Glow",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.4,
+           1.4,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           10.4,
+           -6
+          ]
+         },
+         "Color": {
+          "$c3": "#ffe7b0"
+         },
+         "Material": "Neon",
+         "Shape": "Ball",
+         "CanCollide": false
+        },
+        "k": [
+         {
+          "c": "PointLight",
+          "n": "PointLight",
+          "p": {
+           "Color": {
+            "$c3": "#ffd9a0"
+           },
+           "Brightness": 2.2,
+           "Range": 34
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Chandelier",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Chain",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.2,
+           3,
+           0.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           12.5,
+           8
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Ring",
+        "p": {
+         "Size": {
+          "$v3": [
+           5,
+           0.4,
+           5
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           11.0,
+           8
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           2.2,
+           11.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           1.556,
+           11.5,
+           9.556
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0.0,
+           11.5,
+           10.2
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -1.556,
+           11.5,
+           9.556
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -2.2,
+           11.5,
+           8.0
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -1.556,
+           11.5,
+           6.444
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -0.0,
+           11.5,
+           5.8
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Candle",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.35,
+           0.9,
+           0.35
+          ]
+         },
+         "Position": {
+          "$v3": [
+           1.556,
+           11.5,
+           6.444
+          ]
+         },
+         "Color": {
+          "$c3": "#fff2c8"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Glow",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.4,
+           1.4,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           10.4,
+           8
+          ]
+         },
+         "Color": {
+          "$c3": "#ffe7b0"
+         },
+         "Material": "Neon",
+         "Shape": "Ball",
+         "CanCollide": false
+        },
+        "k": [
+         {
+          "c": "PointLight",
+          "n": "PointLight",
+          "p": {
+           "Color": {
+            "$c3": "#ffd9a0"
+           },
+           "Brightness": 2.2,
+           "Range": 34
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Reception",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Desk",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           3.6,
+           12
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -17,
+           1.8,
+           2
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "DeskTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           4.6,
+           0.3,
+           12.6
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -17,
+           3.75,
+           2
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "Glass"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Bell",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.6,
+           0.4,
+           0.6
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -16.4,
+           4.1,
+           0
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Lamp",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.5,
+           1.2,
+           0.5
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -17.5,
+           4.5,
+           6
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "LampShade",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.4,
+           0.9,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -17.5,
+           5.4,
+           6
+          ]
+         },
+         "Color": {
+          "$c3": "#f5e2b8"
+         },
+         "Material": "Neon",
+         "Shape": "Cylinder"
+        },
+        "k": [
+         {
+          "c": "PointLight",
+          "n": "PointLight",
+          "p": {
+           "Color": {
+            "$c3": "#ffd9a0"
+           },
+           "Brightness": 1.2,
+           "Range": 12
+          }
+         }
+        ]
+       },
+       {
+        "c": "Part",
+        "n": "KeyBoard",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           5,
+           9
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.8,
+           7.5,
+           2
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           6.0,
+           -1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           6.0,
+           1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           6.0,
+           3
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           6.0,
+           5
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           7.4,
+           -1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           7.4,
+           1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           7.4,
+           3
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           7.4,
+           5
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           8.8,
+           -1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           8.8,
+           1
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           8.8,
+           3
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Hook",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.3,
+           0.3,
+           0.3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -21.5,
+           8.8,
+           5
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Text3D",
+        "n": "Reception",
+        "p": {
+         "Text": "$reception",
+         "Position": {
+          "$v3": [
+           -14.9,
+           5.2,
+           2
+          ]
+         },
+         "Rotation": {
+          "$v3": [
+           0,
+           90,
+           0
+          ]
+         },
+         "TextColor": {
+          "$c3": "#f2d48a"
+         },
+         "TextSize": 34,
+         "Font": "Black",
+         "OutlineColor": {
+          "$c3": "#120d0a"
+         }
+        }
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Sofas",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Seat",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           1.6,
+           7
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17,
+           0.8,
+           -2
+          ]
+         },
+         "Color": {
+          "$c3": "#6b1e2a"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Back",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.2,
+           3,
+           7
+          ]
+         },
+         "Position": {
+          "$v3": [
+           19.3,
+           1.5,
+           -2
+          ]
+         },
+         "Color": {
+          "$c3": "#6b1e2a"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ArmA",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           2.2,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17.3,
+           1.1,
+           -5.5
+          ]
+         },
+         "Color": {
+          "$c3": "#5a1824"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ArmB",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           2.2,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17.3,
+           1.1,
+           1.5
+          ]
+         },
+         "Color": {
+          "$c3": "#5a1824"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Seat",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           1.6,
+           7
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17,
+           0.8,
+           8
+          ]
+         },
+         "Color": {
+          "$c3": "#6b1e2a"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Back",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.2,
+           3,
+           7
+          ]
+         },
+         "Position": {
+          "$v3": [
+           19.3,
+           1.5,
+           8
+          ]
+         },
+         "Color": {
+          "$c3": "#6b1e2a"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ArmA",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           2.2,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17.3,
+           1.1,
+           4.5
+          ]
+         },
+         "Color": {
+          "$c3": "#5a1824"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "ArmB",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           2.2,
+           1
+          ]
+         },
+         "Position": {
+          "$v3": [
+           17.3,
+           1.1,
+           11.5
+          ]
+         },
+         "Color": {
+          "$c3": "#5a1824"
+         },
+         "Material": "Fabric"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CoffeeTable",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           1.4,
+           4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           12.5,
+           0.7,
+           3
+          ]
+         },
+         "Color": {
+          "$c3": "#4a2c1a"
+         },
+         "Material": "Wood"
+        }
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Plants",
+      "k": [
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20,
+           1,
+           15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20,
+           3.2,
+           15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -19.4,
+           4.4,
+           14.6
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20,
+           1,
+           15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20,
+           3.2,
+           15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.6,
+           4.4,
+           14.6
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20,
+           1,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -20,
+           3.2,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -19.4,
+           4.4,
+           -15.4
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20,
+           1,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20,
+           3.2,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           20.6,
+           4.4,
+           -15.4
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -9,
+           1,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -9,
+           3.2,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -8.4,
+           4.4,
+           -15.4
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Pot",
+        "p": {
+         "Size": {
+          "$v3": [
+           2,
+           2,
+           2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           9,
+           1,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal",
+         "Shape": "Cylinder"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           3,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           9,
+           3.2,
+           -15
+          ]
+         },
+         "Color": {
+          "$c3": "#2f6b3a"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Leaves",
+        "p": {
+         "Size": {
+          "$v3": [
+           2.2,
+           2.2,
+           2.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           9.6,
+           4.4,
+           -15.4
+          ]
+         },
+         "Color": {
+          "$c3": "#3a7d45"
+         },
+         "Material": "Grass",
+         "Shape": "Ball"
+        }
+       }
+      ]
+     },
+     {
+      "c": "Model",
+      "n": "Elevator",
+      "k": [
+       {
+        "c": "Part",
+        "n": "FrameL",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.2,
+           10,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.6,
+           5,
+           -17.8
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "FrameR",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.2,
+           10,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.6,
+           5,
+           -17.8
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "FrameTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           10.4,
+           1.2,
+           1.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           10.6,
+           -17.8
+          ]
+         },
+         "Color": {
+          "$c3": "#c9a14a"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "DoorL",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           9.4,
+           0.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -6.1,
+           4.7,
+           -17.4
+          ]
+         },
+         "Color": {
+          "$c3": "#9aa0a8"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "DoorR",
+        "p": {
+         "Size": {
+          "$v3": [
+           4,
+           9.4,
+           0.4
+          ]
+         },
+         "Position": {
+          "$v3": [
+           6.1,
+           4.7,
+           -17.4
+          ]
+         },
+         "Color": {
+          "$c3": "#9aa0a8"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinFloor",
+        "p": {
+         "Size": {
+          "$v3": [
+           8,
+           0.4,
+           8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           0.2,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#3a3036"
+         },
+         "Material": "Metal"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinBack",
+        "p": {
+         "Size": {
+          "$v3": [
+           8,
+           10,
+           0.5
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           5,
+           -26.2
+          ]
+         },
+         "Color": {
+          "$c3": "#5a4a3a"
+         },
+         "Material": "Wood"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinL",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.5,
+           10,
+           8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           -4.2,
+           5,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#5a4a3a"
+         },
+         "Material": "Wood"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinR",
+        "p": {
+         "Size": {
+          "$v3": [
+           0.5,
+           10,
+           8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           4.2,
+           5,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#5a4a3a"
+         },
+         "Material": "Wood"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinTop",
+        "p": {
+         "Size": {
+          "$v3": [
+           8,
+           0.5,
+           8
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           10.2,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#2b2630"
+         },
+         "Material": "SmoothPlastic"
+        }
+       },
+       {
+        "c": "Part",
+        "n": "CabinLight",
+        "p": {
+         "Size": {
+          "$v3": [
+           3,
+           0.2,
+           3
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           9.9,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#ffe7b0"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        },
+        "k": [
+         {
+          "c": "PointLight",
+          "n": "PointLight",
+          "p": {
+           "Color": {
+            "$c3": "#ffe0a8"
+           },
+           "Brightness": 1.4,
+           "Range": 14
+          }
+         }
+        ]
+       },
+       {
+        "c": "Part",
+        "n": "Zone",
+        "p": {
+         "Size": {
+          "$v3": [
+           7.6,
+           6,
+           7.6
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           3,
+           -22.0
+          ]
+         },
+         "Color": {
+          "$c3": "#ffffff"
+         },
+         "Material": "SmoothPlastic",
+         "CanCollide": false,
+         "Transparency": 1,
+         "CanTouch": false
+        }
+       },
+       {
+        "c": "Part",
+        "n": "Arrow",
+        "p": {
+         "Size": {
+          "$v3": [
+           1.2,
+           1.2,
+           0.2
+          ]
+         },
+         "Position": {
+          "$v3": [
+           0,
+           12,
+           -17.8
+          ]
+         },
+         "Color": {
+          "$c3": "#ff6b5a"
+         },
+         "Material": "Neon",
+         "CanCollide": false
+        }
+       },
+       {
+        "c": "Text3D",
+        "n": "Title",
+        "p": {
+         "Text": "$elevator",
+         "Position": {
+          "$v3": [
+           0,
+           13.1,
+           -17.05
+          ]
+         },
+         "Rotation": {
+          "$v3": [
+           0,
+           0,
+           0
+          ]
+         },
+         "TextColor": {
+          "$c3": "#f2d48a"
+         },
+         "TextSize": 40,
+         "Font": "Black",
+         "OutlineColor": {
+          "$c3": "#120d0a"
+         }
+        }
+       },
+       {
+        "c": "Text3D",
+        "n": "Sign",
+        "p": {
+         "Text": "",
+         "Position": {
+          "$v3": [
+           0,
+           11.2,
+           -17.05
+          ]
+         },
+         "Rotation": {
+          "$v3": [
+           0,
+           0,
+           0
+          ]
+         },
+         "TextColor": {
+          "$c3": "#ff8a70"
+         },
+         "TextSize": 34,
+         "Font": "Black",
+         "OutlineColor": {
+          "$c3": "#120d0a"
+         }
+        }
+       }
+      ]
+     },
+     {
+      "c": "Text3D",
+      "n": "Title",
+      "p": {
+       "Text": "$title",
+       "Position": {
+        "$v3": [
+         0,
+         11.5,
+         17.9
+        ]
+       },
+       "Rotation": {
+        "$v3": [
+         0,
+         180,
+         0
+        ]
+       },
+       "TextColor": {
+        "$c3": "#ffd36b"
+       },
+       "TextSize": 96,
+       "Font": "Black",
+       "OutlineColor": {
+        "$c3": "#120d0a"
+       }
+      }
+     },
+     {
+      "c": "Part",
+      "n": "Board",
+      "p": {
+       "Size": {
+        "$v3": [
+         16,
+         5,
+         0.3
+        ]
+       },
+       "Position": {
+        "$v3": [
+         -8,
+         6,
+         -17.7
+        ]
+       },
+       "Color": {
+        "$c3": "#1c1418"
+       },
+       "Material": "Wood"
+      }
+     },
+     {
+      "c": "Text3D",
+      "n": "Hint",
+      "p": {
+       "Text": "$lobby_hint",
+       "Position": {
+        "$v3": [
+         -8,
+         6,
+         -17.5
+        ]
+       },
+       "Rotation": {
+        "$v3": [
+         0,
+         0,
+         0
+        ]
+       },
+       "TextColor": {
+        "$c3": "#f4f1ec"
+       },
+       "TextSize": 20,
+       "Font": "Bold",
+       "OutlineColor": {
+        "$c3": "#120d0a"
+       }
+      }
+     },
+     {
+      "c": "SpawnLocation",
+      "n": "Spawn",
+      "p": {
+       "Position": {
+        "$v3": [
+         0,
+         0.15,
+         12
+        ]
+       },
+       "Size": {
+        "$v3": [
+         6,
+         0.3,
+         6
+        ]
+       },
+       "Color": {
+        "$c3": "#6b1e2a"
+       },
+       "Material": "Fabric"
+      }
+     },
+     {
+      "c": "Sound",
+      "n": "LobbyMusic",
+      "p": {
+       "SoundId": "",
+       "Volume": 0.45,
+       "Looped": true,
+       "Playing": true
+      }
+     }
+    ]
+   },
+   {
+    "c": "Lighting",
+    "n": "Lighting",
+    "p": {
+     "ClockTime": 21,
+     "Brightness": 0.6,
+     "Ambient": {
+      "$c3": "#5a4c58"
+     },
+     "FogEnabled": false,
+     "SkyTop": {
+      "$c3": "#0e0b16"
+     },
+     "SkyHorizon": {
+      "$c3": "#2a1c2c"
+     }
+    },
+    "k": [
+     {
+      "c": "Sky",
+      "n": "Sky"
+     }
+    ]
+   },
+   {
+    "c": "ReplicatedStorage",
+    "n": "ReplicatedStorage",
+    "k": [
+     {
+      "c": "ModuleScript",
+      "n": "Shared",
+      "p": {
+       "Source": "-- ReplicatedStorage.Shared: what the lobby and the hotel agree on.\nlocal Shared = {}\n\nShared.LAST_DOOR = 100\nShared.MAX_PARTY = 6\n\n-- Door numbers as they're painted on the plates: 0007, 0042, 0100.\nfunction Shared.door(n)\n\treturn string.format(\"%04d\", n)\nend\n\n-- Saved per player (DataStore \"Hotel\", the same in the lobby and the hotel):\n-- { coins = total coins, best = the furthest door reached, escapes = times out }\nfunction Shared.key(player)\n\treturn \"u\" .. player.UserId\nend\n\nfunction Shared.blank()\n\treturn { coins = 0, best = 0, escapes = 0 }\nend\n\nreturn Shared\n"
+      }
+     },
+     {
+      "c": "Folder",
+      "n": "Assets",
+      "k": [
+       {
+        "c": "StringValue",
+        "n": "Howl",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Eye",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Door",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Drawer",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HowlScream",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HowlNear",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Sting",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Chase",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Hum",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Lobby",
+        "p": {
+         "Value": ""
+        }
+       }
+      ]
+     },
+     {
+      "c": "Folder",
+      "n": "Config",
+      "k": [
+       {
+        "c": "StringValue",
+        "n": "LobbyPlaceId",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HotelPlaceId",
+        "p": {
+         "Value": ""
+        }
+       }
+      ]
+     },
+     {
+      "c": "IntValue",
+      "n": "Countdown",
+      "p": {
+       "Value": -1
+      }
+     },
+     {
+      "c": "RemoteEvent",
+      "n": "Result"
+     }
+    ]
+   },
+   {
+    "c": "ServerScriptService",
+    "n": "ServerScriptService",
+    "k": [
+     {
+      "c": "Script",
+      "n": "Lobby",
+      "p": {
+       "Source": "-- ServerScriptService.Lobby: the hotel's lobby. Step into the elevator: once someone is in,\n-- it counts down and takes everyone inside (up to six) into the hotel together, on a\n-- server of their own. Coins, the best door and escapes are saved (DataStore \"Hotel\",\n-- the hotel adds to them) and shown on the board and over your head.\nlocal Players = game:GetService(\"Players\")\nlocal TeleportService = game:GetService(\"TeleportService\")\nlocal TweenService = game:GetService(\"TweenService\")\nlocal RS = game.ReplicatedStorage\nlocal Shared = require(RS.Shared)\nlocal Store = game:GetService(\"DataStoreService\"):GetDataStore(\"Hotel\")\n\nlocal HOTEL = RS.Config.HotelPlaceId.Value\nlocal zone = workspace.Elevator.Zone\nlocal doorL = workspace.Elevator.DoorL\nlocal doorR = workspace.Elevator.DoorR\nlocal sign = workspace.Elevator.Sign\nlocal Countdown = RS.Countdown\n\nlocal openL, openR = doorL.Position, doorR.Position\nlocal shutL = openL + Vector3.new(2, 0, 0)\nlocal shutR = openR - Vector3.new(2, 0, 0)\n\nlocal function rootOf(player)\n\tlocal c = player.Character\n\treturn c and c:FindFirstChild(\"HumanoidRootPart\")\nend\n\nlocal function stat(parent, name, value)\n\tlocal v = Instance.new(\"IntValue\")\n\tv.Name = name\n\tv.Value = value\n\tv.Parent = parent\n\treturn v\nend\n\nPlayers.PlayerAdded:Connect(function(player)\n\tlocal ok, data = pcall(function()\n\t\treturn Store:GetAsync(Shared.key(player))\n\tend)\n\tdata = ok and type(data) == \"table\" and data or Shared.blank()\n\tlocal ls = Instance.new(\"Folder\")\n\tls.Name = \"leaderstats\"\n\tls.Parent = player\n\tstat(ls, \"Coins\", data.coins or 0)\n\tstat(ls, \"Best\", data.best or 0)\n\tstat(ls, \"Escapes\", data.escapes or 0)\n\t-- Back from the hotel: how it went (the lobby screen says it).\n\tlocal j = player:GetJoinData().TeleportData\n\tif type(j) == \"table\" then\n\t\ttask.delay(1.5, function()\n\t\t\tRS.Result:FireClient(player, j.escaped == true, tonumber(j.door) or 0)\n\t\tend)\n\tend\nend)\n\nlocal function inside()\n\tlocal list = {}\n\tlocal c, s = zone.Position, zone.Size / 2\n\tfor _, player in Players:GetPlayers() do\n\t\tlocal root = rootOf(player)\n\t\tif root then\n\t\t\tlocal p = root.Position - c\n\t\t\tif math.abs(p.X) <= s.X and math.abs(p.Z) <= s.Z and p.Y > -s.Y - 2 and p.Y < s.Y + 4 then\n\t\t\t\ttable.insert(list, player)\n\t\t\tend\n\t\tend\n\t\tif #list >= Shared.MAX_PARTY then\n\t\t\tbreak\n\t\tend\n\tend\n\treturn list\nend\n\nlocal function doors(shut)\n\tlocal t = TweenInfo.new(0.8, \"Quad\", \"InOut\")\n\tTweenService:Create(doorL, t, { Position = shut and shutL or openL }):Play()\n\tTweenService:Create(doorR, t, { Position = shut and shutR or openR }):Play()\nend\n\n-- The elevator: waits for riders, counts down, goes.\nlocal left = 0\nwhile true do\n\ttask.wait(1)\n\tlocal riders = inside()\n\tif #riders == 0 then\n\t\tleft = 0\n\t\tCountdown.Value = -1\n\t\tsign.Text = \"\"\n\telse\n\t\tif left <= 0 then\n\t\t\tleft = 12\n\t\tend\n\t\tleft -= 1\n\t\tCountdown.Value = left\n\t\t-- (numbers only: the sign reads the same in every language)\n\t\tsign.Text = string.format(\"%d   ·   %d/%d\", left, #riders, Shared.MAX_PARTY)\n\t\tif left <= 0 then\n\t\t\tdoors(true)\n\t\t\tsign.Text = \"▲\"\n\t\t\ttask.wait(1.2)\n\t\t\triders = inside()\n\t\t\tif #riders > 0 and HOTEL ~= \"\" then\n\t\t\t\tTeleportService:TeleportPartyAsync(HOTEL, riders, { party = #riders })\n\t\t\tend\n\t\t\ttask.wait(3)\n\t\t\tdoors(false)\n\t\t\tleft = 0\n\t\tend\n\tend\nend\n"
+      }
+     }
+    ]
+   },
+   {
+    "c": "ServerStorage",
+    "n": "ServerStorage"
+   },
+   {
+    "c": "StarterGui",
+    "n": "StarterGui"
+   },
+   {
+    "c": "StarterPlayer",
+    "n": "StarterPlayer",
+    "p": {
+     "CameraMaxZoom": 14
+    },
+    "k": [
+     {
+      "c": "StarterPlayerScripts",
+      "n": "StarterPlayerScripts",
+      "k": [
+       {
+        "c": "LocalScript",
+        "n": "LobbyUI",
+        "p": {
+         "Source": "-- StarterPlayerScripts.LobbyUI: your coins, best door and escapes; how the last trip went.\nlocal Players = game:GetService(\"Players\")\nlocal TweenService = game:GetService(\"TweenService\")\nlocal RS = game.ReplicatedStorage\nlocal Shared = require(RS.Shared)\n\nlocal me = Players.LocalPlayer\nlocal gui = Instance.new(\"ScreenGui\")\ngui.Name = \"LobbyUI\"\ngui.Parent = me:WaitForChild(\"PlayerGui\")\n\nlocal card = Instance.new(\"Frame\")\ncard.Size = UDim2.new(0, 230, 0, 96)\ncard.Position = UDim2.new(1, -246, 0, 70)\ncard.BackgroundColor = Color3.fromHex(\"#16141d\")\ncard.BackgroundTransparency = 0.3\ncard.Parent = gui\nlocal corner = Instance.new(\"UICorner\")\ncorner.CornerRadius = 14\ncorner.Parent = card\n\nlocal function line(y, color)\n\tlocal l = Instance.new(\"TextLabel\")\n\tl.Size = UDim2.new(1, -24, 0, 26)\n\tl.Position = UDim2.new(0, 12, 0, y)\n\tl.BackgroundTransparency = 1\n\tl.TextColor = color\n\tl.TextSize = 18\n\tl.Font = \"Bold\"\n\tl.TextXAlignment = \"Left\"\n\tl.Parent = card\n\treturn l\nend\nlocal coins = line(8, Color3.fromHex(\"#ffd36b\"))\nlocal best = line(36, Color3.fromHex(\"#f4f1ec\"))\nlocal escapes = line(62, Color3.fromHex(\"#9cffb0\"))\n\ntask.spawn(function()\n\tlocal ls = me:WaitForChild(\"leaderstats\")\n\tlocal function show()\n\t\tcoins.Text = Strings.get(\"lobby_coins\", ls.Coins.Value)\n\t\tbest.Text = Strings.get(\"lobby_best\", Shared.door(ls.Best.Value))\n\t\tescapes.Text = Strings.get(\"lobby_escapes\", ls.Escapes.Value)\n\tend\n\tfor _, k in { \"Coins\", \"Best\", \"Escapes\" } do\n\t\tls:WaitForChild(k).Changed:Connect(show)\n\tend\n\tshow()\nend)\n\n-- How the last trip went, for a few seconds.\nRS.Result.OnClientEvent:Connect(function(escaped, door)\n\tlocal l = Instance.new(\"TextLabel\")\n\tl.Size = UDim2.new(0, 640, 0, 50)\n\tl.Position = UDim2.new(0.5, -320, 0, 110)\n\tl.BackgroundTransparency = 1\n\tl.TextColor = escaped and Color3.fromHex(\"#9cffb0\") or Color3.fromHex(\"#8fd0ff\")\n\tl.TextSize = 28\n\tl.Font = \"Black\"\n\tl.TextWrapped = true\n\tl.Text = escaped and Strings.get(\"result_escaped\") or Strings.get(\"result_died\", Shared.door(door))\n\tl.Parent = gui\n\ttask.wait(6)\n\tTweenService:Create(l, TweenInfo.new(1), { TextTransparency = 1 }):Play()\n\ttask.wait(1)\n\tl:Destroy()\nend)\n"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "c": "StarterPack",
+    "n": "StarterPack"
+   }
+  ]
+ }
+}

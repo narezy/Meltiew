@@ -46,6 +46,7 @@ var _mouse_rest := Vector2.INF  # where the cursor waits while the camera turns
 
 
 func _ready() -> void:
+	_drag.game = self
 	# Android back button should open the menu, not kill the app.
 	get_tree().quit_on_go_back = false
 	get_tree().set_auto_accept_quit(false)

@@ -1099,6 +1099,54 @@ end
 -- new player on a team.
 local later = {}
 
+-- Random.new(seed): a random number generator of its own (the same seed, the same numbers).
+-- (In a block: the runtime's top level is out of room for more locals.)
+do
+local Random = {}
+later.Random = Random
+local RandomMT = { __type = "Random" }
+RandomMT.__index = RandomMT
+local randomCount = 0
+function Random.new(seed)
+	randomCount += 1
+	local s = tonumber(seed) or (math.floor(os.clock() * 1e6) + math.random(1, 1e9) + randomCount * 7919)
+	s = bit32.band(math.floor(math.abs(s)), 0xffffffff)
+	if s == 0 then
+		s = 0x9e3779b9
+	end
+	return setmetatable({ _s = s }, RandomMT)
+end
+local function nextRandom(self)
+	-- xorshift32
+	local x = self._s
+	x = bit32.bxor(x, bit32.lshift(x, 13))
+	x = bit32.bxor(x, bit32.rshift(x, 17))
+	x = bit32.bxor(x, bit32.lshift(x, 5))
+	self._s = x
+	return x / 4294967296
+end
+function RandomMT:NextNumber(a, b)
+	a = tonumber(a) or 0
+	b = tonumber(b) or 1
+	return a + (b - a) * nextRandom(self)
+end
+function RandomMT:NextInteger(a, b)
+	a = math.floor(tonumber(a) or 0)
+	b = math.floor(tonumber(b) or a)
+	if b < a then
+		a, b = b, a
+	end
+	return a + math.floor(nextRandom(self) * (b - a + 1))
+end
+function RandomMT:Shuffle(t)
+	for i = #t, 2, -1 do
+		local j = self:NextInteger(1, i)
+		t[i], t[j] = t[j], t[i]
+	end
+end
+end
+
+
 local function setParent(inst, parent)
 	local d = D[inst]
 	if d.destroyed then
@@ -4222,6 +4270,7 @@ local function buildEnv()
 		UDim = table.freeze(UDim),
 		UDim2 = table.freeze(UDim2),
 		TweenInfo = table.freeze(TweenInfo),
+		Random = table.freeze(later.Random),
 		RaycastParams = RaycastParams,
 		OverlapParams = RaycastParams,
 		Enum = Enum,

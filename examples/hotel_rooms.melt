@@ -1,0 +1,446 @@
+{
+ "format": "melt",
+ "version": 1,
+ "meta": {
+  "name": "The Hotel",
+  "description": "",
+  "i18n": {
+   "name": {
+    "ru": "Отель"
+   },
+   "description": {}
+  }
+ },
+ "strings": {
+  "title": {
+   "en": "MIDNIGHT HOTEL",
+   "ru": "ОТЕЛЬ «ПОЛНОЧЬ»"
+  },
+  "elevator": {
+   "en": "ELEVATOR",
+   "ru": "ЛИФТ"
+  },
+  "lobby_hint": {
+   "en": "Step into the elevator with your friends: it takes up to 6 of you into the hotel. Get through 100 doors. Hide when the lights flicker. Run when the eyes look at you.",
+   "ru": "Заходи в лифт с друзьями: он увозит в отель до 6 человек. Пройди 100 дверей. Прячься, когда мигает свет. Беги, когда на тебя смотрят глаза."
+  },
+  "lobby_coins": {
+   "en": "Coins: {0}",
+   "ru": "Монеты: {0}"
+  },
+  "lobby_best": {
+   "en": "Best door: {0}",
+   "ru": "Лучшая дверь: {0}"
+  },
+  "lobby_escapes": {
+   "en": "Escaped: {0}",
+   "ru": "Выбрался: {0}"
+  },
+  "result_died": {
+   "en": "You fell at door {0}. Try again!",
+   "ru": "Ты пал у двери {0}. Попробуй ещё раз!"
+  },
+  "result_escaped": {
+   "en": "You got out of the hotel! +30 coins",
+   "ru": "Ты выбрался из отеля! +30 монет"
+  },
+  "welcome": {
+   "en": "WELCOME, GUEST",
+   "ru": "ДОБРО ПОЖАЛОВАТЬ, ГОСТЬ"
+  },
+  "way_out": {
+   "en": "WAY OUT",
+   "ru": "ВЫХОД"
+  },
+  "door_n": {
+   "en": "Door {0}",
+   "ru": "Дверь {0}"
+  },
+  "coins_run": {
+   "en": "Coins: {0}",
+   "ru": "Монеты: {0}"
+  },
+  "hide": {
+   "en": "Hide",
+   "ru": "Спрятаться"
+  },
+  "leave": {
+   "en": "Get out",
+   "ru": "Выйти"
+  },
+  "wardrobe": {
+   "en": "Wardrobe",
+   "ru": "Шкаф"
+  },
+  "open": {
+   "en": "Open",
+   "ru": "Открыть"
+  },
+  "drawer": {
+   "en": "Drawer",
+   "ru": "Ящик"
+  },
+  "take": {
+   "en": "Take",
+   "ru": "Взять"
+  },
+  "key": {
+   "en": "Key",
+   "ru": "Ключ"
+  },
+  "unlock": {
+   "en": "Unlock",
+   "ru": "Отпереть"
+  },
+  "locked_door": {
+   "en": "Locked door",
+   "ru": "Запертая дверь"
+  },
+  "got_coins": {
+   "en": "+{0} coins",
+   "ru": "+{0} монет"
+  },
+  "empty": {
+   "en": "Empty...",
+   "ru": "Пусто..."
+  },
+  "got_key": {
+   "en": "The key to door {0}",
+   "ru": "Ключ от двери {0}"
+  },
+  "need_key": {
+   "en": "Locked. The key is somewhere in this room",
+   "ru": "Заперто. Ключ где-то в этой комнате"
+  },
+  "died_howl": {
+   "en": "You died to the Howl...",
+   "ru": "Тебя забрал Вопль..."
+  },
+  "advice_howl": {
+   "en": "When the lights flicker and the walls rumble, it's coming. Hide in a wardrobe, quick!",
+   "ru": "Когда мигает свет и гудят стены, он уже летит. Скорее прячься в шкаф!"
+  },
+  "died_watcher": {
+   "en": "You died to the Watcher...",
+   "ru": "Тебя поймал Следящий..."
+  },
+  "advice_watcher": {
+   "en": "Eyes on the walls mean it's near. When it comes, don't look back: sprint and keep running.",
+   "ru": "Глаза на стенах значат, что он рядом. Когда появится, не оборачивайся: зажми бег и беги не останавливаясь."
+  },
+  "died_fall": {
+   "en": "You died...",
+   "ru": "Ты погиб..."
+  },
+  "advice_fall": {
+   "en": "The hotel doesn't let go easily. Try again, and stay together.",
+   "ru": "Отель так просто не отпускает. Попробуй ещё, и держитесь вместе."
+  },
+  "back_to_lobby": {
+   "en": "Back to the lobby...",
+   "ru": "Возвращаемся в лобби..."
+  },
+  "escaped": {
+   "en": "You got out!",
+   "ru": "Ты выбрался!"
+  },
+  "escaped_sub": {
+   "en": "100 doors behind you. +30 coins",
+   "ru": "Позади 100 дверей. +30 монет"
+  },
+  "reception": {
+   "en": "RECEPTION",
+   "ru": "РЕСЕПШН"
+  }
+ },
+ "tree": {
+  "c": "DataModel",
+  "k": [
+   {
+    "c": "Workspace",
+    "n": "Workspace",
+    "p": {
+     "Gravity": 22,
+     "FallHeight": -40
+    },
+    "k": [
+     {
+      "c": "Folder",
+      "n": "Rooms"
+     },
+     {
+      "c": "SpawnLocation",
+      "n": "Spawn",
+      "p": {
+       "Position": {
+        "$v3": [
+         0,
+         0.2,
+         -6
+        ]
+       },
+       "Size": {
+        "$v3": [
+         4,
+         0.4,
+         4
+        ]
+       },
+       "Transparency": 1,
+       "CanCollide": false
+      }
+     },
+     {
+      "c": "Sound",
+      "n": "HotelHum",
+      "p": {
+       "SoundId": "",
+       "Volume": 0.5,
+       "Looped": true,
+       "Playing": false
+      }
+     },
+     {
+      "c": "Sound",
+      "n": "ChaseMusic",
+      "p": {
+       "SoundId": "",
+       "Volume": 0.8,
+       "Looped": true,
+       "Playing": false
+      }
+     },
+     {
+      "c": "Sound",
+      "n": "HowlNear",
+      "p": {
+       "SoundId": "",
+       "Volume": 1.2,
+       "Looped": false,
+       "Playing": false
+      }
+     }
+    ]
+   },
+   {
+    "c": "Lighting",
+    "n": "Lighting",
+    "p": {
+     "ClockTime": 0,
+     "Brightness": 0.25,
+     "Ambient": {
+      "$c3": "#3a3040"
+     },
+     "FogEnabled": true,
+     "FogColor": {
+      "$c3": "#0b0910"
+     },
+     "FogEnd": 140,
+     "SkyTop": {
+      "$c3": "#05040a"
+     },
+     "SkyHorizon": {
+      "$c3": "#0b0910"
+     }
+    },
+    "k": [
+     {
+      "c": "Sky",
+      "n": "Sky"
+     }
+    ]
+   },
+   {
+    "c": "ReplicatedStorage",
+    "n": "ReplicatedStorage",
+    "k": [
+     {
+      "c": "ModuleScript",
+      "n": "Shared",
+      "p": {
+       "Source": "-- ReplicatedStorage.Shared: what the lobby and the hotel agree on.\nlocal Shared = {}\n\nShared.LAST_DOOR = 100\nShared.MAX_PARTY = 6\n\n-- Door numbers as they're painted on the plates: 0007, 0042, 0100.\nfunction Shared.door(n)\n\treturn string.format(\"%04d\", n)\nend\n\n-- Saved per player (DataStore \"Hotel\", the same in the lobby and the hotel):\n-- { coins = total coins, best = the furthest door reached, escapes = times out }\nfunction Shared.key(player)\n\treturn \"u\" .. player.UserId\nend\n\nfunction Shared.blank()\n\treturn { coins = 0, best = 0, escapes = 0 }\nend\n\nreturn Shared\n"
+      }
+     },
+     {
+      "c": "Folder",
+      "n": "Assets",
+      "k": [
+       {
+        "c": "StringValue",
+        "n": "Howl",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Eye",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Door",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Drawer",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HowlScream",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HowlNear",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Sting",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Chase",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Hum",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "Lobby",
+        "p": {
+         "Value": ""
+        }
+       }
+      ]
+     },
+     {
+      "c": "Folder",
+      "n": "Config",
+      "k": [
+       {
+        "c": "StringValue",
+        "n": "LobbyPlaceId",
+        "p": {
+         "Value": ""
+        }
+       },
+       {
+        "c": "StringValue",
+        "n": "HotelPlaceId",
+        "p": {
+         "Value": ""
+        }
+       }
+      ]
+     },
+     {
+      "c": "Folder",
+      "n": "Remotes",
+      "k": [
+       {
+        "c": "RemoteEvent",
+        "n": "Notice"
+       },
+       {
+        "c": "RemoteEvent",
+        "n": "Died"
+       },
+       {
+        "c": "RemoteEvent",
+        "n": "Escaped"
+       }
+      ]
+     },
+     {
+      "c": "Folder",
+      "n": "State",
+      "k": [
+       {
+        "c": "IntValue",
+        "n": "Door",
+        "p": {
+         "Value": 0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "c": "ServerScriptService",
+    "n": "ServerScriptService",
+    "k": [
+     {
+      "c": "Script",
+      "n": "Hotel",
+      "p": {
+       "Source": "-- ServerScriptService.Hotel: the hotel itself. Rooms are built as the doors open (a few\n-- kept behind you), each with its door to the next one: open ones swing aside when you\n-- come close, locked ones need the key that lies somewhere in the room. Drawers hold\n-- coins, wardrobes hide you. Now and then the lights flicker and the Howl comes screaming\n-- through every room: whoever isn't hiding dies. Twice the eyes appear on the walls and\n-- the Watcher chases you through a run of halls. Door 100 is the way out.\nlocal Players = game:GetService(\"Players\")\nlocal TweenService = game:GetService(\"TweenService\")\nlocal TeleportService = game:GetService(\"TeleportService\")\nlocal RS = game.ReplicatedStorage\nlocal Shared = require(RS.Shared)\nlocal Assets = RS.Assets\nlocal Remotes = RS.Remotes\nlocal State = RS.State\nlocal Store = game:GetService(\"DataStoreService\"):GetDataStore(\"Hotel\")\n\nlocal LOBBY = RS.Config.LobbyPlaceId.Value\nlocal H = 10 -- room height\nlocal DOOR_W, DOOR_H = 4.4, 7.5\nlocal KEEP_BEHIND = 4 -- rooms kept behind the newest one\n\nlocal rng = Random.new()\nlocal rooms = {} -- n -> room (see build)\nlocal latest = 0 -- the newest room\nlocal oldest = 0\nlocal hidden = {} -- player -> wardrobe model\nlocal coins = {} -- player -> coins this run\nlocal alive = {} -- player -> true\nlocal busy = false -- the Howl or the Watcher is out\nlocal lastHowl = 0\nlocal chaseAt = { rng:NextInteger(28, 36), rng:NextInteger(64, 72) }\nlocal CHASE_LEN = 6\n-- Studio tests: Config.Test = \"howl\" (it comes at door 2) or \"chase\" (the chase at door 3).\nlocal testing = RS.Config:FindFirstChild(\"Test\") and RS.Config.Test.Value or \"\"\nif testing == \"chase\" then\n\tchaseAt = { 3, 64 }\nend\n\nlocal function isChase(n)\n\tfor _, c in chaseAt do\n\t\tif n >= c and n < c + CHASE_LEN then\n\t\t\treturn true\n\t\tend\n\tend\n\treturn false\nend\n\nlocal function eyesBefore(n)\n\tfor _, c in chaseAt do\n\t\tif n >= c - 3 and n < c then\n\t\t\treturn true\n\t\tend\n\tend\n\treturn false\nend\n\n-- ------------------------------------------------------------------------------------\n-- Building blocks\n-- ------------------------------------------------------------------------------------\n\nlocal function part(parent, name, size, pos, color, props)\n\tlocal p = Instance.new(\"Part\")\n\tp.Name = name\n\tp.Size = size\n\tp.Position = pos\n\tp.Color = color\n\tp.Anchored = true\n\tfor k, v in props or {} do\n\t\tp[k] = v\n\tend\n\tp.Parent = parent\n\treturn p\nend\n\nlocal function sound(parent, id, volume, looped)\n\tlocal s = Instance.new(\"Sound\")\n\ts.SoundId = id\n\ts.Volume = volume or 1\n\ts.Looped = looped == true\n\ts.Parent = parent\n\treturn s\nend\n\nlocal function prompt(parent, action, object, dist)\n\tlocal p = Instance.new(\"ProximityPrompt\")\n\tp.ActionText = action\n\tp.ObjectText = object or \"\"\n\tp.MaxActivationDistance = dist or 8\n\tp.Parent = parent\n\treturn p\nend\n\nlocal function notice(player, key, ...)\n\tRemotes.Notice:FireClient(player, key, ...)\nend\n\nlocal function rootOf(player)\n\tlocal c = player.Character\n\treturn c and c:FindFirstChild(\"HumanoidRootPart\")\nend\n\nlocal WALL = { Color3.fromHex(\"#5b4a5e\"), Color3.fromHex(\"#4a5160\"), Color3.fromHex(\"#5e5246\"), Color3.fromHex(\"#3f5450\") }\nlocal CARPET = { Color3.fromHex(\"#6b2230\"), Color3.fromHex(\"#2f3a5c\"), Color3.fromHex(\"#4a3b2a\"), Color3.fromHex(\"#2d4a3a\") }\nlocal WOOD = Color3.fromHex(\"#5a3b26\")\nlocal DARKWOOD = Color3.fromHex(\"#3a2618\")\n\n-- A ceiling lamp: a glowing shade and its light.\nlocal function lamp(room, x, z, color)\n\tlocal m = room.model\n\tlocal shade = part(m, \"Lamp\", Vector3.new(1.6, 0.4, 1.6), Vector3.new(x, H - 0.4, z), color or Color3.fromHex(\"#ffd9a0\"), { Material = \"Neon\", CanCollide = false })\n\tlocal light = Instance.new(\"PointLight\")\n\tlight.Color = color or Color3.fromHex(\"#ffcf8a\")\n\tlight.Brightness = room.kind == \"dark\" and 0.4 or 1.4\n\tlight.Range = 18\n\tlight.Offset = Vector3.new(0, -1, 0)\n\tlight.Parent = shade\n\ttable.insert(room.lights, light)\n\treturn light\nend\n\n-- A wardrobe against a side wall, its front toward the middle of the room. Hide in it\n-- (one at a time); the Howl walks past.\nlocal function wardrobe(room, x, z, face)\n\tlocal m = Instance.new(\"Model\")\n\tm.Name = \"Wardrobe\"\n\tm.Parent = room.model\n\tlocal d = 2.6 -- depth\n\tlocal w = 3.4\n\tlocal back = x - face * d / 2\n\tpart(m, \"Back\", Vector3.new(0.3, 7, w), Vector3.new(back, 3.5, z), DARKWOOD)\n\tpart(m, \"SideA\", Vector3.new(d, 7, 0.3), Vector3.new(x, 3.5, z - w / 2), DARKWOOD)\n\tpart(m, \"SideB\", Vector3.new(d, 7, 0.3), Vector3.new(x, 3.5, z + w / 2), DARKWOOD)\n\tpart(m, \"Top\", Vector3.new(d, 0.3, w), Vector3.new(x, 7, z), DARKWOOD)\n\tpart(m, \"Floor\", Vector3.new(d, 0.3, w), Vector3.new(x, 0.15, z), DARKWOOD)\n\tlocal front = x + face * d / 2\n\t-- Two doors with a slit between them: you see out, the Howl doesn't see in.\n\tlocal doorA = part(m, \"DoorA\", Vector3.new(0.25, 6.6, w / 2 - 0.12), Vector3.new(front, 3.5, z - w / 4 - 0.06), WOOD)\n\tpart(m, \"DoorB\", Vector3.new(0.25, 6.6, w / 2 - 0.12), Vector3.new(front, 3.5, z + w / 4 + 0.06), WOOD)\n\tpart(m, \"Knob\", Vector3.new(0.3, 0.3, 0.3), Vector3.new(front + face * 0.2, 3.6, z - 0.3), Color3.fromHex(\"#c9a14a\"), { Shape = \"Ball\", Material = \"Metal\" })\n\tlocal inside = Vector3.new(x, 1.2, z)\n\tlocal outside = Vector3.new(x + face * (d / 2 + 2.2), 1.2, z)\n\tlocal p = prompt(doorA, \"$hide\", \"$wardrobe\", 7)\n\tp.Triggered:Connect(function(player)\n\t\tlocal hum = player.Character and player.Character:FindFirstChildOfClass(\"Humanoid\")\n\t\tif not hum or not alive[player] then\n\t\t\treturn\n\t\tend\n\t\tif hidden[player] == m then\n\t\t\thidden[player] = nil\n\t\t\tm:SetAttribute(\"taken\", false)\n\t\t\tplayer:Teleport(outside)\n\t\t\thum.WalkSpeed = 9\n\t\t\thum.CanJump = true\n\t\t\tplayer.CameraMaxZoom = 10\n\t\t\tp.ActionText = \"$hide\"\n\t\t\treturn\n\t\tend\n\t\tif hidden[player] or m:GetAttribute(\"taken\") then\n\t\t\treturn\n\t\tend\n\t\thidden[player] = m\n\t\tm:SetAttribute(\"taken\", true)\n\t\tplayer:Teleport(inside)\n\t\thum.WalkSpeed = 0\n\t\thum.CanJump = false\n\t\tplayer.CameraMaxZoom = 0.5 -- inside: you look out through the slit\n\t\tp.ActionText = \"$leave\"\n\tend)\n\ttable.insert(room.wardrobes, m)\nend\n\n-- A chest of drawers: each drawer has a few coins (or nothing).\nlocal function drawers(room, x, z, face)\n\tlocal m = Instance.new(\"Model\")\n\tm.Name = \"Drawers\"\n\tm.Parent = room.model\n\tpart(m, \"Body\", Vector3.new(2, 3.2, 4), Vector3.new(x, 1.6, z), WOOD)\n\tfor i = 1, 2 do\n\t\tlocal dr = part(m, \"Drawer\" .. i, Vector3.new(0.2, 1.1, 3.4), Vector3.new(x + face * 1.05, 0.85 + (i - 1) * 1.4, z), Color3.fromHex(\"#7a5434\"))\n\t\tlocal p = prompt(dr, \"$open\", \"$drawer\", 6)\n\t\tp.Triggered:Connect(function(player)\n\t\t\tif not alive[player] then\n\t\t\t\treturn\n\t\t\tend\n\t\t\tp:Destroy()\n\t\t\tsound(dr, Assets.Drawer.Value, 0.8):Play()\n\t\t\tdr.Position += Vector3.new(face * 0.8, 0, 0)\n\t\t\tlocal n = rng:NextInteger(0, 100) < 65 and rng:NextInteger(1, 4) or 0\n\t\t\tif n > 0 then\n\t\t\t\tcoins[player] = (coins[player] or 0) + n\n\t\t\t\tlocal ls = player:FindFirstChild(\"leaderstats\")\n\t\t\t\tif ls then\n\t\t\t\t\tls.Coins.Value = coins[player]\n\t\t\t\tend\n\t\t\t\tnotice(player, \"got_coins\", n)\n\t\t\telse\n\t\t\t\tnotice(player, \"empty\")\n\t\t\tend\n\t\tend)\n\tend\nend\n\n-- The key to a locked door, lying on a little table.\nlocal function key(room, x, z)\n\tpart(room.model, \"Table\", Vector3.new(2.6, 2.6, 2.6), Vector3.new(x, 1.3, z), WOOD)\n\tlocal k = part(room.model, \"Key\", Vector3.new(0.4, 0.2, 1.2), Vector3.new(x, 2.75, z), Color3.fromHex(\"#f2c94c\"), { Material = \"Neon\" })\n\tlocal glow = Instance.new(\"PointLight\")\n\tglow.Color = Color3.fromHex(\"#ffd36b\")\n\tglow.Brightness = 1\n\tglow.Range = 6\n\tglow.Parent = k\n\tlocal p = prompt(k, \"$take\", \"$key\", 7)\n\tp.Triggered:Connect(function(player)\n\t\tif not alive[player] then\n\t\t\treturn\n\t\tend\n\t\tk:Destroy()\n\t\troom.keyHolder = player\n\t\tlocal tool = Instance.new(\"Tool\")\n\t\ttool.Name = \"Key\"\n\t\ttool.ToolTip = \"$key\"\n\t\tpart(tool, \"Handle\", Vector3.new(0.3, 0.2, 1), Vector3.new(0, 0, 0), Color3.fromHex(\"#f2c94c\"), { Material = \"Neon\", CanCollide = false })\n\t\ttool.Parent = player:FindFirstChildOfClass(\"Backpack\")\n\t\tnotice(player, \"got_key\", Shared.door(room.n + 1))\n\tend)\nend\n\nlocal function bed(room, x, z, face)\n\tpart(room.model, \"BedFrame\", Vector3.new(6, 1.2, 4), Vector3.new(x + face * 1, 0.6, z), DARKWOOD)\n\tpart(room.model, \"Mattress\", Vector3.new(5.8, 0.7, 3.8), Vector3.new(x + face * 1, 1.5, z), Color3.fromHex(\"#d8d2c4\"))\n\tpart(room.model, \"Blanket\", Vector3.new(3.8, 0.75, 3.9), Vector3.new(x + face * 2, 1.55, z), Color3.fromHex(\"#7a2a3a\"))\n\tpart(room.model, \"Pillow\", Vector3.new(1.2, 0.5, 3), Vector3.new(x - face * 1.2, 2.0, z), Color3.fromHex(\"#f0ece2\"))\n\tpart(room.model, \"Headboard\", Vector3.new(0.4, 3.4, 4.2), Vector3.new(x - face * 2, 1.7, z), DARKWOOD)\nend\n\nlocal function shelf(room, x, z, along)\n\tlocal size = along and Vector3.new(6, 6.5, 1.4) or Vector3.new(1.4, 6.5, 6)\n\tpart(room.model, \"Shelf\", size, Vector3.new(x, 3.25, z), DARKWOOD)\n\tfor i = 1, 3 do\n\t\tlocal bs = along and Vector3.new(5.4, 0.2, 1.5) or Vector3.new(1.5, 0.2, 5.4)\n\t\tpart(room.model, \"Board\", bs, Vector3.new(x, i * 1.9, z), WOOD)\n\t\tfor j = 1, rng:NextInteger(2, 5) do\n\t\t\tlocal off = rng:NextNumber(-2.4, 2.4)\n\t\t\tlocal bp = along and Vector3.new(x + off, i * 1.9 + 0.6, z) or Vector3.new(x, i * 1.9 + 0.6, z + off)\n\t\t\tpart(room.model, \"Book\", Vector3.new(0.35, 1, 0.35) + (along and Vector3.new(0, 0, 0.6) or Vector3.new(0.6, 0, 0)), bp,\n\t\t\t\tColor3.fromHSV(rng:NextNumber(0, 1), 0.5, 0.45))\n\t\tend\n\tend\nend\n\nlocal function painting(room, x, y, z, face)\n\tlocal w = rng:NextNumber(2, 3.5)\n\tpart(room.model, \"Frame\", Vector3.new(0.2, w * 0.8, w), Vector3.new(x, y, z), Color3.fromHex(\"#8a6a2a\"), { Material = \"Metal\" })\n\tpart(room.model, \"Canvas\", Vector3.new(0.22, w * 0.8 - 0.4, w - 0.4), Vector3.new(x + face * 0.02, y, z), Color3.fromHSV(rng:NextNumber(0, 1), 0.35, 0.3))\nend\n\n-- The Watcher's eyes, painted on the walls before it comes.\nlocal function eyes(room)\n\tfor i = 1, rng:NextInteger(3, 6) do\n\t\tlocal side = rng:NextInteger(0, 1) == 0 and -1 or 1\n\t\tlocal x = room.cx + side * (room.w / 2 - 0.15)\n\t\tlocal z = room.z0 - rng:NextNumber(2, room.len - 2)\n\t\tlocal y = rng:NextNumber(2.5, 7.5)\n\t\tlocal p = part(room.model, \"Eye\", Vector3.new(0.1, 1.6, 2.6), Vector3.new(x, y, z), room.wall, { CanCollide = false })\n\t\tlocal d = Instance.new(\"Decal\")\n\t\td.Texture = Assets.Eye.Value\n\t\td.Face = side < 0 and \"Right\" or \"Left\"\n\t\td.Parent = p\n\tend\nend\n\n-- ------------------------------------------------------------------------------------\n-- Rooms\n-- ------------------------------------------------------------------------------------\n\nlocal function pickKind(n)\n\tif n == 0 then\n\t\treturn \"start\"\n\telseif n >= Shared.LAST_DOOR then\n\t\treturn \"exit\"\n\telseif isChase(n) then\n\t\treturn \"chase\"\n\tend\n\tlocal r = rng:NextNumber()\n\tif r < 0.32 then\n\t\treturn \"hall\"\n\telseif r < 0.62 then\n\t\treturn \"bedroom\"\n\telseif r < 0.84 or n < 10 then\n\t\treturn \"storage\"\n\tend\n\treturn \"dark\"\nend\n\n-- Room n: from the doorway it's entered by (x, z0) away down -Z. Its own exit door, to\n-- room n + 1, is in its far wall.\nlocal function build(n, entranceX, z0)\n\tlocal kind = pickKind(n)\n\tlocal room = { n = n, kind = kind, z0 = z0, lights = {}, wardrobes = {}, opened = false }\n\tlocal w, len\n\tif kind == \"hall\" or kind == \"chase\" then\n\t\tw, len = 12, rng:NextInteger(30, 42)\n\telseif kind == \"bedroom\" then\n\t\tw, len = rng:NextInteger(18, 22), rng:NextInteger(18, 24)\n\telseif kind == \"start\" then\n\t\tw, len = 16, 20\n\telseif kind == \"exit\" then\n\t\tw, len = 20, 24\n\telse\n\t\tw, len = rng:NextInteger(16, 20), rng:NextInteger(20, 28)\n\tend\n\tlocal room_margin = w / 2 - 3.2\n\tlocal cx = entranceX + (n == 0 and 0 or rng:NextNumber(-room_margin, room_margin))\n\tlocal exitX = cx + rng:NextNumber(-room_margin, room_margin)\n\tif kind == \"exit\" then\n\t\texitX = cx\n\tend\n\tlocal z1 = z0 - len\n\troom.w, room.len, room.cx, room.z1, room.entranceX, room.exitX = w, len, cx, z1, entranceX, exitX\n\troom.wall = WALL[rng:NextInteger(1, #WALL)]\n\tlocal m = Instance.new(\"Model\")\n\tm.Name = \"Room\" .. n\n\tm.Parent = workspace.Rooms\n\troom.model = m\n\tlocal mid = (z0 + z1) / 2\n\tlocal carpet = kind == \"chase\" and Color3.fromHex(\"#3a1418\") or CARPET[rng:NextInteger(1, #CARPET)]\n\tpart(m, \"Floor\", Vector3.new(w, 1, len), Vector3.new(cx, -0.5, mid), carpet, { Material = \"Fabric\" })\n\tpart(m, \"Ceiling\", Vector3.new(w, 1, len), Vector3.new(cx, H + 0.5, mid), Color3.fromHex(\"#2a2530\"))\n\tfor _, side in { -1, 1 } do\n\t\tpart(m, \"Wall\", Vector3.new(1, H, len), Vector3.new(cx + side * (w / 2 + 0.5), H / 2, mid), room.wall)\n\t\t-- Wood panels along the bottom, and a trim on top of them.\n\t\tpart(m, \"Panel\", Vector3.new(0.2, 3, len), Vector3.new(cx + side * (w / 2 - 0.1), 1.5, mid), DARKWOOD, { CanCollide = false })\n\t\tpart(m, \"Trim\", Vector3.new(0.3, 0.25, len), Vector3.new(cx + side * (w / 2 - 0.15), 3.05, mid), Color3.fromHex(\"#8a6a2a\"), { CanCollide = false })\n\tend\n\t-- The far wall, with the doorway to the next room.\n\tlocal leftW = (exitX - DOOR_W / 2) - (cx - w / 2)\n\tlocal rightW = (cx + w / 2) - (exitX + DOOR_W / 2)\n\tpart(m, \"FarWallL\", Vector3.new(leftW + 1, H, 1), Vector3.new(cx - w / 2 + leftW / 2 - 0.5, H / 2, z1 - 0.5), room.wall)\n\tpart(m, \"FarWallR\", Vector3.new(rightW + 1, H, 1), Vector3.new(cx + w / 2 - rightW / 2 + 0.5, H / 2, z1 - 0.5), room.wall)\n\tpart(m, \"Lintel\", Vector3.new(DOOR_W, H - DOOR_H, 1), Vector3.new(exitX, DOOR_H + (H - DOOR_H) / 2, z1 - 0.5), room.wall)\n\t-- Behind you: shut once the room before is gone (a wall where its doorway was).\n\troom.back = part(m, \"BackWall\", Vector3.new(w, H, 1), Vector3.new(cx, H / 2, z0 + 0.5), room.wall,\n\t\t{ Transparency = n == 0 and 0 or 1, CanCollide = n == 0 })\n\tif n > 0 then\n\t\t-- The bits of this room's near wall beside the doorway it's entered by.\n\t\tlocal nl = (entranceX - DOOR_W / 2) - (cx - w / 2)\n\t\tlocal nr = (cx + w / 2) - (entranceX + DOOR_W / 2)\n\t\tif nl > 0.05 then\n\t\t\tpart(m, \"NearWallL\", Vector3.new(nl, H, 1), Vector3.new(cx - w / 2 + nl / 2, H / 2, z0 + 0.5), room.wall)\n\t\tend\n\t\tif nr > 0.05 then\n\t\t\tpart(m, \"NearWallR\", Vector3.new(nr, H, 1), Vector3.new(cx + w / 2 - nr / 2, H / 2, z0 + 0.5), room.wall)\n\t\tend\n\tend\n\t-- The door and its number plate.\n\tif kind ~= \"exit\" then\n\t\tlocal door = part(m, \"Door\", Vector3.new(DOOR_W - 0.1, DOOR_H, 0.35), Vector3.new(exitX, DOOR_H / 2, z1 - 0.5), Color3.fromHex(\"#4a2c1a\"))\n\t\tpart(door, \"DoorKnob\", Vector3.new(0.3, 0.3, 0.5), Vector3.new(exitX + DOOR_W / 2 - 0.6, 3.6, z1 - 0.2), Color3.fromHex(\"#c9a14a\"), { Shape = \"Ball\", Material = \"Metal\", CanCollide = false })\n\t\troom.door = door\n\t\tpart(m, \"Plate\", Vector3.new(2.6, 1.1, 0.1), Vector3.new(exitX, DOOR_H + 0.9, z1 + 0.05), Color3.fromHex(\"#8a6a2a\"), { Material = \"Metal\", CanCollide = false })\n\t\tlocal plate = Instance.new(\"Text3D\")\n\t\tplate.Text = Shared.door(n + 1)\n\t\tplate.Position = Vector3.new(exitX, DOOR_H + 0.9, z1 + 0.12)\n\t\tplate.TextSize = 110\n\t\tplate.TextColor = Color3.fromHex(\"#f2d48a\")\n\t\tplate.Font = \"Black\"\n\t\tplate.Parent = m\n\t\troom.locked = kind ~= \"chase\" and n >= 4 and rng:NextNumber() < 0.2 and not (rooms[n - 1] and rooms[n - 1].locked)\n\tend\n\t-- Lights.\n\tlocal lampColor = kind == \"chase\" and Color3.fromHex(\"#ff5040\") or nil\n\tlocal step = kind == \"dark\" and len or 9\n\tlocal z = z0 - step / 2\n\twhile z > z1 do\n\t\tif kind ~= \"dark\" or rng:NextNumber() < 0.6 then\n\t\t\tlamp(room, cx, z, lampColor)\n\t\tend\n\t\tz -= step\n\tend\n\t-- What's in it.\n\tlocal function along(t)\n\t\treturn z0 - len * t\n\tend\n\tif kind == \"start\" then\n\t\tlocal sign = Instance.new(\"Text3D\")\n\t\tsign.Text = \"$welcome\"\n\t\tsign.Position = Vector3.new(cx, 6.5, z0 - 0.1)\n\t\tsign.Rotation = Vector3.new(0, 180, 0)\n\t\tsign.TextSize = 36\n\t\tsign.TextColor = Color3.fromHex(\"#f2d48a\")\n\t\tsign.Parent = m\n\t\tdrawers(room, cx + w / 2 - 1.2, along(0.5), -1)\n\t\twardrobe(room, cx - w / 2 + 1.5, along(0.5), 1)\n\telseif kind == \"exit\" then\n\t\t-- Daylight through the last doorway.\n\t\tlocal out = part(m, \"Outside\", Vector3.new(DOOR_W, DOOR_H, 0.4), Vector3.new(exitX, DOOR_H / 2, z1 - 0.3), Color3.fromHex(\"#fff6d8\"), { Material = \"Neon\", CanCollide = false })\n\t\tlocal sun = Instance.new(\"PointLight\")\n\t\tsun.Color = Color3.fromHex(\"#fff2c8\")\n\t\tsun.Brightness = 3\n\t\tsun.Range = 40\n\t\tsun.Offset = Vector3.new(0, 0, 4)\n\t\tsun.Parent = out\n\t\tlocal sign = Instance.new(\"Text3D\")\n\t\tsign.Text = \"$way_out\"\n\t\tsign.Position = Vector3.new(exitX, DOOR_H + 1, z1 + 0.05)\n\t\tsign.TextSize = 44\n\t\tsign.TextColor = Color3.fromHex(\"#9cffb0\")\n\t\tsign.Font = \"Black\"\n\t\tsign.Parent = m\n\t\troom.exit = out\n\telseif kind == \"bedroom\" then\n\t\tlocal side = rng:NextInteger(0, 1) == 0 and -1 or 1\n\t\tbed(room, cx + side * (w / 2 - 3.5), along(0.35), -side)\n\t\twardrobe(room, cx - side * (w / 2 - 1.5), along(0.4), side)\n\t\tif rng:NextNumber() < 0.6 then\n\t\t\twardrobe(room, cx + side * (w / 2 - 1.5), along(0.8), -side)\n\t\tend\n\t\tdrawers(room, cx - side * (w / 2 - 1.2), along(0.75), side)\n\t\tpainting(room, cx + side * (w / 2 - 0.1), 6, along(0.6), -side)\n\telseif kind == \"storage\" then\n\t\tfor i = 1, rng:NextInteger(2, 4) do\n\t\t\tshelf(room, cx + (i % 2 == 0 and -1 or 1) * (w / 2 - 1.2), along(i / 5), false)\n\t\tend\n\t\tfor i = 1, rng:NextInteger(3, 7) do\n\t\t\tlocal s = rng:NextNumber(1.2, 2.4)\n\t\t\tpart(m, \"Box\", Vector3.new(s, s, s), Vector3.new(cx + rng:NextNumber(-w / 2 + 2, w / 2 - 2), s / 2, along(rng:NextNumber(0.15, 0.85))),\n\t\t\t\tColor3.fromHex(\"#8a6a44\"), { Rotation = Vector3.new(0, rng:NextNumber(0, 90), 0) })\n\t\tend\n\t\twardrobe(room, cx - w / 2 + 1.5, along(0.9), 1)\n\t\tdrawers(room, cx + w / 2 - 1.2, along(0.9), -1)\n\telseif kind == \"hall\" or kind == \"dark\" then\n\t\tfor i = 1, 3 do\n\t\t\tpainting(room, cx + (i % 2 == 0 and -1 or 1) * (w / 2 - 0.1), 5.5, along(i / 4), i % 2 == 0 and 1 or -1)\n\t\tend\n\t\t-- A wardrobe against one wall, facing the middle; maybe drawers by the other.\n\t\tlocal side = rng:NextInteger(0, 1) == 0 and -1 or 1\n\t\twardrobe(room, cx + side * (w / 2 - 1.5), along(0.55), -side)\n\t\tif rng:NextNumber() < 0.5 then\n\t\t\tdrawers(room, cx - side * (w / 2 - 1.2), along(0.25), side)\n\t\tend\n\telseif kind == \"chase\" then\n\t\t-- Fallen shelves to dodge.\n\t\tfor i = 1, 2 do\n\t\t\tlocal x = cx + (rng:NextInteger(0, 1) == 0 and -1 or 1) * rng:NextNumber(1.5, 3)\n\t\t\tpart(m, \"Fallen\", Vector3.new(4, 2.2, 1.2), Vector3.new(x, 1.1, along(i / 3)), DARKWOOD, { Rotation = Vector3.new(0, rng:NextNumber(-30, 30), 0) })\n\t\tend\n\tend\n\tif room.locked then\n\t\tkey(room, cx + rng:NextNumber(-w / 2 + 3, w / 2 - 3), along(rng:NextNumber(0.3, 0.7)))\n\t\tlocal p = prompt(room.door, \"$unlock\", \"$locked_door\", 8)\n\t\troom.lockPrompt = p\n\t\tp.Triggered:Connect(function(player)\n\t\t\tlocal tool = player.Character and player.Character:FindFirstChild(\"Key\") or player:FindFirstChildOfClass(\"Backpack\"):FindFirstChild(\"Key\")\n\t\t\tif not tool then\n\t\t\t\tnotice(player, \"need_key\")\n\t\t\t\treturn\n\t\t\tend\n\t\t\ttool:Destroy()\n\t\t\troom.locked = false\n\t\t\tp:Destroy()\n\t\tend)\n\tend\n\tif eyesBefore(n) then\n\t\teyes(room)\n\tend\n\trooms[n] = room\n\tlatest = math.max(latest, n)\n\treturn room\nend\n\n-- Swings the door aside (into the wall) and builds what's behind it.\nlocal openDoor\n\nlocal function forget(n)\n\tlocal r = rooms[n]\n\tif not r then\n\t\treturn\n\tend\n\tr.model:Destroy()\n\trooms[n] = nil\n\tif rooms[n + 1] then\n\t\trooms[n + 1].back.Transparency = 0\n\t\trooms[n + 1].back.CanCollide = true\n\tend\nend\n\n-- Old rooms nobody is in any more go away.\nlocal function tidy()\n\twhile oldest < latest - KEEP_BEHIND do\n\t\tlocal r = rooms[oldest]\n\t\tlocal someone = false\n\t\tfor player in alive do\n\t\t\tlocal root = rootOf(player)\n\t\t\tif r and root and root.Position.Z <= r.z0 + 1 and root.Position.Z >= r.z1 - 1 then\n\t\t\t\tsomeone = true\n\t\t\tend\n\t\tend\n\t\tif someone then\n\t\t\treturn\n\t\tend\n\t\tforget(oldest)\n\t\toldest += 1\n\tend\nend\n\n-- ------------------------------------------------------------------------------------\n-- Monsters\n-- ------------------------------------------------------------------------------------\n\nlocal function kill(player, why)\n\tif not alive[player] then\n\t\treturn\n\tend\n\talive[player] = nil\n\thidden[player] = nil\n\tlocal hum = player.Character and player.Character:FindFirstChildOfClass(\"Humanoid\")\n\tif hum then\n\t\thum.Health = 0\n\tend\n\tRemotes.Died:FireClient(player, why)\nend\n\n-- The path through the rooms that are standing: doorway, middle, next doorway...\nlocal function path(from, to)\n\tlocal pts = {}\n\tfor n = from, to do\n\t\tlocal r = rooms[n]\n\t\tif r then\n\t\t\ttable.insert(pts, Vector3.new(r.entranceX, 4, r.z0 + 0.5))\n\t\t\ttable.insert(pts, Vector3.new(r.cx, 4, (r.z0 + r.z1) / 2))\n\t\t\ttable.insert(pts, Vector3.new(r.exitX, 4, r.z1 - 0.5))\n\t\tend\n\tend\n\treturn pts\nend\n\nlocal function roomAt(z)\n\tfor _, r in rooms do\n\t\tif z <= r.z0 + 0.5 and z >= r.z1 - 0.5 then\n\t\t\treturn r\n\t\tend\n\tend\n\treturn nil\nend\n\n-- The Howl: the lights flicker and something rumbles, then it screams through every room\n-- standing, from the oldest to the newest. Whoever isn't in a wardrobe dies.\nlocal function howl()\n\tbusy = true\n\tlastHowl = latest\n\tlocal near = workspace.HowlNear\n\tnear.Playing = true\n\tfor i = 1, 14 do\n\t\tfor n = oldest, latest do\n\t\t\tlocal r = rooms[n]\n\t\t\tif r then\n\t\t\t\tfor _, l in r.lights do\n\t\t\t\t\tl.Enabled = i % 2 == 0 or rng:NextNumber() < 0.3\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\ttask.wait(0.18)\n\tend\n\tfor n = oldest, latest do\n\t\tif rooms[n] then\n\t\t\tfor _, l in rooms[n].lights do\n\t\t\t\tl.Enabled = true\n\t\t\tend\n\t\tend\n\tend\n\ttask.wait(1.5)\n\tlocal pts = path(oldest, latest)\n\tlocal h = part(workspace, \"Howl\", Vector3.new(2, 2, 2), pts[1], Color3.new(0, 0, 0), { Transparency = 1, CanCollide = false, CanTouch = false })\n\tlocal bb = Instance.new(\"BillboardGui\")\n\tbb.Size = UDim2.new(9, 0, 9, 0)\n\tbb.StudsOffset = Vector3.new(0, 0, 0)\n\tbb.MaxDistance = 400\n\tbb.Parent = h\n\tlocal img = Instance.new(\"ImageLabel\")\n\timg.Image = Assets.Howl.Value\n\timg.Size = UDim2.new(1, 0, 1, 0)\n\timg.BackgroundTransparency = 1\n\timg.Parent = bb\n\tlocal red = Instance.new(\"PointLight\")\n\tred.Color = Color3.fromHex(\"#ff3020\")\n\tred.Brightness = 3\n\tred.Range = 22\n\tred.Parent = h\n\tsound(h, Assets.HowlScream.Value, 1.5, true).Playing = true\n\tlocal speed = 70\n\tfor i = 1, #pts - 1 do\n\t\tlocal a, b = pts[i], pts[i + 1]\n\t\tlocal len = (b - a).Magnitude\n\t\tlocal t = 0\n\t\twhile t < len do\n\t\t\tt += speed * 0.05\n\t\t\th.Position = a:Lerp(b, math.min(t / len, 1))\n\t\t\t-- Everyone in the room it's in, not hiding: gone.\n\t\t\tlocal r = roomAt(h.Position.Z)\n\t\t\tif r then\n\t\t\t\tfor player in alive do\n\t\t\t\t\tlocal root = rootOf(player)\n\t\t\t\t\tlocal p = root and root.Position\n\t\t\t\t\tif p and not hidden[player] and p.Z <= r.z0 + 0.5 and p.Z >= r.z1 - 0.5 and math.abs(p.X - r.cx) <= r.w / 2 + 1 then\n\t\t\t\t\t\tkill(player, \"howl\")\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\t\t-- And it breaks a few lights on the way.\n\t\t\t\tfor _, l in r.lights do\n\t\t\t\t\tif rng:NextNumber() < 0.01 then\n\t\t\t\t\t\tl.Enabled = false\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\t\ttask.wait(0.05)\n\t\tend\n\tend\n\th:Destroy()\n\tnear.Playing = false\n\tbusy = false\nend\n\n-- The Watcher: comes out of the dark behind you in the first chase hall and runs after\n-- you through all of them. Run! The door at the far end slams in its face.\nlocal function chase(first)\n\tbusy = true\n\tlocal last = first + CHASE_LEN - 1\n\tworkspace.HotelHum.Playing = false\n\tworkspace.ChaseMusic.Playing = true\n\t-- The lights of the halls ahead go red, and a moment to start running.\n\tfor n = first, last do\n\t\tif rooms[n] then\n\t\t\tfor _, l in rooms[n].lights do\n\t\t\t\tl.Brightness = 2\n\t\t\tend\n\t\tend\n\tend\n\ttask.wait(2.5)\n\tlocal pts = path(first - 1, last)\n\t-- Arc length along the path, to know who's ahead of whom.\n\tlocal acc = { 0 }\n\tfor i = 2, #pts do\n\t\tacc[i] = acc[i - 1] + (pts[i] - pts[i - 1]).Magnitude\n\tend\n\tlocal function at(s)\n\t\tfor i = 2, #pts do\n\t\t\tif s <= acc[i] then\n\t\t\t\tlocal k = (s - acc[i - 1]) / math.max(acc[i] - acc[i - 1], 0.001)\n\t\t\t\treturn pts[i - 1]:Lerp(pts[i], k), (pts[i] - pts[i - 1]).Unit\n\t\t\tend\n\t\tend\n\t\treturn pts[#pts], Vector3.new(0, 0, -1)\n\tend\n\tlocal function progress(p)\n\t\tlocal best, bestD = 0, math.huge\n\t\tfor i = 2, #pts do\n\t\t\tlocal a, b = pts[i - 1], pts[i]\n\t\t\tlocal ab = b - a\n\t\t\tlocal k = math.clamp((p - a):Dot(ab) / math.max(ab:Dot(ab), 0.001), 0, 1)\n\t\t\tlocal q = a + ab * k\n\t\t\tlocal d = Vector3.new(p.X - q.X, 0, p.Z - q.Z).Magnitude\n\t\t\tif d < bestD then\n\t\t\t\tbest, bestD = acc[i - 1] + ab.Magnitude * k, d\n\t\t\tend\n\t\tend\n\t\treturn best\n\tend\n\tlocal rig = Instance.new(\"Rig\")\n\trig.Name = \"Watcher\"\n\trig.DisplayName = \"\"\n\tfor _, k in { \"HeadColor\", \"TorsoColor\", \"LeftArmColor\", \"RightArmColor\", \"LeftLegColor\", \"RightLegColor\" } do\n\t\trig[k] = Color3.fromHex(\"#050407\")\n\tend\n\trig.Face = \"-_-\"\n\t-- Tall and thin, long arms, a big head.\n\trig.HeadScale = Vector3.new(1.3, 1.3, 1.3)\n\trig.TorsoScale = Vector3.new(0.9, 1.3, 0.9)\n\trig.LeftArmScale = Vector3.new(0.7, 1.7, 0.7)\n\trig.RightArmScale = Vector3.new(0.7, 1.7, 0.7)\n\trig.LeftLegScale = Vector3.new(0.8, 1.35, 0.8)\n\trig.RightLegScale = Vector3.new(0.8, 1.35, 0.8)\n\trig.CanCollide = false\n\trig.Animation = \"run\"\n\trig.AnimationSpeed = 1.4\n\trig.Position = pts[1]\n\trig.Parent = workspace\n\t-- One red eye in the middle of its face, lighting it up from the front.\n\tlocal eye = part(workspace, \"WatcherEye\", Vector3.new(0.6, 0.6, 0.6), pts[1], Color3.fromHex(\"#ff3b2a\"), { Shape = \"Ball\", Material = \"Neon\", CanCollide = false, CanTouch = false })\n\tlocal glow = Instance.new(\"PointLight\")\n\tglow.Color = Color3.fromHex(\"#ff2a1a\")\n\tglow.Brightness = 2.5\n\tglow.Range = 12\n\tglow.Offset = Vector3.new(0, 0, 0)\n\tglow.Parent = eye\n\tlocal s = 0\n\tlocal speed = 11.5\n\tlocal goal = acc[#acc]\n\twhile true do\n\t\tspeed = math.min(speed + 0.05 * 0.08, 13.5)\n\t\ts += speed * 0.05\n\t\tlocal pos, dir = at(s)\n\t\trig.Position = Vector3.new(pos.X, 0, pos.Z)\n\t\trig.Rotation = Vector3.new(0, math.deg(math.atan2(-dir.X, -dir.Z)), 0)\n\t\teye.Position = Vector3.new(pos.X, 2.0, pos.Z) + dir * 0.8\n\t\tlocal left = 0\n\t\tfor player in alive do\n\t\t\tlocal root = rootOf(player)\n\t\t\tif root then\n\t\t\t\tlocal ps = progress(root.Position)\n\t\t\t\tif ps < goal then\n\t\t\t\t\tleft += 1\n\t\t\t\tend\n\t\t\t\tif ps <= s + 1.2 and (root.Position - Vector3.new(pos.X, root.Position.Y, pos.Z)).Magnitude < 4 then\n\t\t\t\t\tkill(player, \"watcher\")\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\tif left == 0 or s >= goal then\n\t\t\tbreak\n\t\tend\n\t\ttask.wait(0.05)\n\tend\n\t-- Slam! The last door shuts behind the ones who made it.\n\tlocal r = rooms[last]\n\tif r and r.door then\n\t\tTweenService:Create(r.door, TweenInfo.new(0.15), { Position = r.doorShut }):Play()\n\t\tsound(r.door, Assets.Door.Value, 1.2):Play()\n\tend\n\trig:Destroy()\n\teye:Destroy()\n\tworkspace.ChaseMusic.Playing = false\n\tworkspace.HotelHum.Playing = true\n\ttask.wait(1)\n\t-- (it opens again for whoever is past it)\n\tif r and r.door then\n\t\tTweenService:Create(r.door, TweenInfo.new(0.5), { Position = r.doorOpen }):Play()\n\tend\n\tbusy = false\nend\n\n-- ------------------------------------------------------------------------------------\n-- Doors\n-- ------------------------------------------------------------------------------------\n\nfunction openDoor(room)\n\tif room.opened or not room.door then\n\t\treturn\n\tend\n\troom.opened = true\n\tlocal nextRoom = rooms[room.n + 1] or build(room.n + 1, room.exitX, room.z1 - 1)\n\t-- A chase: its halls are all built at once, their doors already open.\n\tif nextRoom.kind == \"chase\" and not rooms[room.n + 2] then\n\t\tlocal r = nextRoom\n\t\twhile r.kind == \"chase\" and r.n < Shared.LAST_DOOR do\n\t\t\tlocal nr = build(r.n + 1, r.exitX, r.z1 - 1)\n\t\t\tr.doorShut = r.door.Position\n\t\t\tr.doorOpen = r.door.Position + Vector3.new(DOOR_W, 0, 0)\n\t\t\tr.door.Position = r.doorOpen\n\t\t\tr.opened = true\n\t\t\tr = nr\n\t\tend\n\tend\n\troom.doorShut = room.door.Position\n\troom.doorOpen = room.door.Position + Vector3.new(DOOR_W, 0, 0)\n\tTweenService:Create(room.door, TweenInfo.new(0.6, \"Quad\", \"Out\"), { Position = room.doorOpen }):Play()\n\tsound(room.door, Assets.Door.Value, 0.9):Play()\n\tState.Door.Value = math.max(State.Door.Value, room.n + 1)\n\ttidy()\n\t-- What comes through it.\n\tlocal d = room.n + 1\n\tif busy then\n\t\treturn\n\tend\n\tfor _, c in chaseAt do\n\t\tif d == c then\n\t\t\ttask.spawn(chase, c)\n\t\t\treturn\n\t\tend\n\tend\n\tif (testing == \"howl\" and d == 2) or d >= 6 and d < Shared.LAST_DOOR - 1 and d - lastHowl >= 5 and not isChase(d) and not isChase(d + 1) and rng:NextNumber() < 0.24 then\n\t\ttask.delay(rng:NextNumber(1, 4), function()\n\t\t\tif not busy then\n\t\t\t\thowl()\n\t\t\tend\n\t\tend)\n\tend\nend\n\n-- ------------------------------------------------------------------------------------\n-- Players\n-- ------------------------------------------------------------------------------------\n\nlocal function save(player, escaped)\n\tlocal door = State.Door.Value\n\tlocal ok, data = pcall(function()\n\t\treturn Store:GetAsync(Shared.key(player))\n\tend)\n\tif not ok then\n\t\treturn\n\tend\n\tdata = type(data) == \"table\" and data or Shared.blank()\n\tdata.coins = (data.coins or 0) + (coins[player] or 0) + (escaped and 30 or 0)\n\tdata.best = math.max(data.best or 0, escaped and Shared.LAST_DOOR or door)\n\tdata.escapes = (data.escapes or 0) + (escaped and 1 or 0)\n\tpcall(function()\n\t\tStore:SetAsync(Shared.key(player), data)\n\tend)\n\tcoins[player] = 0\nend\n\nlocal function backToLobby(player, data)\n\tif player.Parent and LOBBY ~= \"\" then\n\t\tTeleportService:Teleport(LOBBY, player, data)\n\tend\nend\n\nPlayers.PlayerAdded:Connect(function(player)\n\tlocal ls = Instance.new(\"Folder\")\n\tls.Name = \"leaderstats\"\n\tls.Parent = player\n\tlocal c = Instance.new(\"IntValue\")\n\tc.Name = \"Coins\"\n\tc.Parent = ls\n\tcoins[player] = 0\n\tplayer.CharacterAdded:Connect(function(character)\n\t\tlocal hum = character:WaitForChild(\"Humanoid\")\n\t\talive[player] = true\n\t\tplayer.CameraMaxZoom = 10\n\t\thum.Died:Connect(function()\n\t\t\tif alive[player] then\n\t\t\t\talive[player] = nil\n\t\t\t\thidden[player] = nil\n\t\t\t\tRemotes.Died:FireClient(player, \"fall\")\n\t\t\tend\n\t\t\tlocal reached = State.Door.Value\n\t\t\tsave(player, false)\n\t\t\ttask.wait(6)\n\t\t\tbackToLobby(player, { door = reached, died = true })\n\t\tend)\n\tend)\nend)\n\nPlayers.PlayerRemoving:Connect(function(player)\n\tif alive[player] or (coins[player] or 0) > 0 then\n\t\tsave(player, false)\n\tend\n\talive[player] = nil\n\thidden[player] = nil\nend)\n\n-- The way out at door 100.\nlocal function escape(player)\n\tif not alive[player] then\n\t\treturn\n\tend\n\talive[player] = nil\n\tsave(player, true)\n\tRemotes.Escaped:FireClient(player)\n\ttask.wait(5)\n\tbackToLobby(player, { door = Shared.LAST_DOOR, escaped = true })\nend\n\n-- The first rooms, then the watch over the doors.\nworkspace.HotelHum.Playing = true\nbuild(0, 0, 0)\n\nwhile true do\n\ttask.wait(0.1)\n\tfor n = math.max(oldest, latest - 2), latest do\n\t\tlocal room = rooms[n]\n\t\tif room and room.door and not room.opened and not room.locked then\n\t\t\tfor player in alive do\n\t\t\t\tlocal root = rootOf(player)\n\t\t\t\tif root and (root.Position - room.door.Position).Magnitude < 8 then\n\t\t\t\t\topenDoor(room)\n\t\t\t\t\tbreak\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\t\tif room and room.exit then\n\t\t\tfor player in alive do\n\t\t\t\tlocal root = rootOf(player)\n\t\t\t\tif root and (root.Position - room.exit.Position).Magnitude < 4 then\n\t\t\t\t\ttask.spawn(escape, player)\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\n"
+      }
+     }
+    ]
+   },
+   {
+    "c": "ServerStorage",
+    "n": "ServerStorage"
+   },
+   {
+    "c": "StarterGui",
+    "n": "StarterGui"
+   },
+   {
+    "c": "StarterPlayer",
+    "n": "StarterPlayer",
+    "p": {
+     "WalkSpeed": 9,
+     "SprintSpeed": 14,
+     "MaxStamina": 0,
+     "RespawnTime": 60,
+     "CameraMaxZoom": 10
+    },
+    "k": [
+     {
+      "c": "StarterPlayerScripts",
+      "n": "StarterPlayerScripts",
+      "k": [
+       {
+        "c": "LocalScript",
+        "n": "HotelUI",
+        "p": {
+         "Source": "-- StarterPlayerScripts.HotelUI: the door you're at, your coins this run, little notes\n-- (coins found, a key, a locked door), and what's left when something gets you: a word\n-- of advice in blue light, then back down to the lobby.\nlocal Players = game:GetService(\"Players\")\nlocal TweenService = game:GetService(\"TweenService\")\nlocal RS = game.ReplicatedStorage\nlocal Shared = require(RS.Shared)\nlocal Remotes = RS.Remotes\nlocal State = RS.State\nlocal Assets = RS.Assets\n\nlocal me = Players.LocalPlayer\nlocal gui = Instance.new(\"ScreenGui\")\ngui.Name = \"HotelUI\"\ngui.Parent = me:WaitForChild(\"PlayerGui\")\n\nlocal function label(props)\n\tlocal l = Instance.new(\"TextLabel\")\n\tl.BackgroundTransparency = 1\n\tl.TextColor = Color3.fromHex(\"#f4f1ec\")\n\tl.Font = \"Black\"\n\tfor k, v in props do\n\t\tif k ~= \"Parent\" then\n\t\t\tl[k] = v\n\t\tend\n\tend\n\tl.Parent = props.Parent or gui\n\treturn l\nend\n\n-- The door number, top middle.\nlocal door = label({ Size = UDim2.new(0, 260, 0, 44), Position = UDim2.new(0.5, -130, 0, 74), TextSize = 30 })\nlocal function showDoor()\n\tdoor.Text = Strings.get(\"door_n\", Shared.door(State.Door.Value))\nend\nState.Door.Changed:Connect(showDoor)\nshowDoor()\n\n-- Coins this run, under it.\nlocal coins = label({ Size = UDim2.new(0, 260, 0, 26), Position = UDim2.new(0.5, -130, 0, 114), TextSize = 18, TextColor = Color3.fromHex(\"#ffd36b\") })\nlocal function showCoins()\n\tlocal ls = me:FindFirstChild(\"leaderstats\")\n\tcoins.Text = ls and Strings.get(\"coins_run\", ls.Coins.Value) or \"\"\nend\ntask.spawn(function()\n\tlocal ls = me:WaitForChild(\"leaderstats\")\n\tls:WaitForChild(\"Coins\").Changed:Connect(showCoins)\n\tshowCoins()\nend)\n\n-- Little notes that fade.\nlocal note = label({ Size = UDim2.new(0, 520, 0, 34), Position = UDim2.new(0.5, -260, 1, -150), TextSize = 22, TextTransparency = 1 })\nRemotes.Notice.OnClientEvent:Connect(function(key, ...)\n\tnote.Text = Strings.get(key, ...)\n\tnote.TextTransparency = 0\n\tTweenService:Create(note, TweenInfo.new(1.2, \"Quad\", \"In\", 0, false, 2), { TextTransparency = 1 }):Play()\nend)\n\n-- Got you: the dark, a word of advice, back to the lobby.\nlocal function curtain(color, lines)\n\tlocal f = Instance.new(\"Frame\")\n\tf.Size = UDim2.new(1, 0, 1, 0)\n\tf.BackgroundColor = Color3.new(0, 0, 0)\n\tf.BackgroundTransparency = 1\n\tf.ZIndex = 20\n\tf.Parent = gui\n\tTweenService:Create(f, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()\n\tlocal y = 0.34\n\tfor i, text in lines do\n\t\tlocal l = label({ Parent = f, Size = UDim2.new(0.8, 0, 0, 60), Position = UDim2.new(0.1, 0, y, 0), TextSize = i == 1 and 34 or 22,\n\t\t\tTextColor = color, TextWrapped = true, TextTransparency = 1, ZIndex = 21, Text = text })\n\t\tTweenService:Create(l, TweenInfo.new(1, \"Quad\", \"Out\", 0, false, 0.8 + i * 1.1), { TextTransparency = 0 }):Play()\n\t\ty += i == 1 and 0.1 or 0.08\n\tend\nend\n\nRemotes.Died.OnClientEvent:Connect(function(why)\n\tlocal s = Instance.new(\"Sound\")\n\ts.SoundId = Assets.Sting.Value\n\ts.Volume = 1.2\n\ts.Parent = gui\n\ts:Play()\n\tlocal blue = Color3.fromHex(\"#8fd0ff\")\n\tcurtain(blue, {\n\t\tStrings.get(\"died_\" .. tostring(why)),\n\t\tStrings.get(\"advice_\" .. tostring(why)),\n\t\tStrings.get(\"back_to_lobby\"),\n\t})\nend)\n\nRemotes.Escaped.OnClientEvent:Connect(function()\n\tcurtain(Color3.fromHex(\"#ffe9a8\"), { Strings.get(\"escaped\"), Strings.get(\"escaped_sub\"), Strings.get(\"back_to_lobby\") })\nend)\n"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "c": "StarterPack",
+    "n": "StarterPack"
+   }
+  ]
+ }
+}
