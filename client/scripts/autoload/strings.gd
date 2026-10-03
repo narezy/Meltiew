@@ -377,6 +377,8 @@ const TABLE := {
 	"console": ["Console", "Консоль"],
 	"place_unsupported": ["Scripts can't run on this device, so the place may not work.", "На этом устройстве скрипты не запускаются, поэтому плейс может не работать."],
 	"loading_place": ["Loading the place...", "Загружаем плейс..."],
+	"loading_world": ["Loading the world", "Загружаем мир"],
+	"loading_by": ["by {0}", "от {0}"],
 	"inventory": ["Inventory", "Инвентарь"],
 	"eco_pieces": ["Pieces", "Кусочки"],
 	"eco_orbs": ["Orbs", "Опыт"],

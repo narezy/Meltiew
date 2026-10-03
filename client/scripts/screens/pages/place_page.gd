@@ -143,7 +143,10 @@ func _build() -> void:
 	var pic := Icon.make("play", 22, UI.INK)
 	pic.position = Vector2(30, 21)
 	play.add_child(pic)
-	play.pressed.connect(func(): _menu().play("auto", place_id))
+	play.pressed.connect(func():
+		# The loading screen shows the name and author right away.
+		Session.set_meta("pending_place", _place)
+		_menu().play("auto", place_id))
 	info.add_child(play)
 	var hint := UI.label(L.t("play_hint"), 14, UI.MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

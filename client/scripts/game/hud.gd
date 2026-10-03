@@ -925,7 +925,13 @@ func set_stats(fps: int, ping: int, detail := "") -> void:
 	_stats_label.text = L.t("stats", [fps, ("%d ms" % ping) if ping >= 0 else "—"]) + ("\n" + detail if detail != "" else "")
 
 
+## Something to say over the game (a lost connection, an error): the loading screen, if
+## it's still up, gives way to it.
+signal overlay_shown
+
+
 func show_overlay(text: String, buttons: Array = []) -> void:
+	overlay_shown.emit()
 	_overlay.visible = true
 	_overlay_text.text = text
 	for c in _overlay_buttons.get_children():

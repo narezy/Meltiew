@@ -128,7 +128,15 @@ func _ready() -> void:
 	net.connected.connect(_on_connected)
 	net.disconnected.connect(_on_disconnected)
 	net.message.connect(_on_message)
-	hud.show_overlay(L.t("loading_place") if _is_place else L.t("joining_playground"))
+	# The place's cover, icon, name and author while it loads.
+	_loading = LoadingScreen.new()
+	add_child(_loading)
+	hud.overlay_shown.connect(_finish_loading)
+	var known: Dictionary = Session.get_meta("pending_place", {})
+	if not Session.test_melt.is_empty():
+		known = {"name": str(Session.test_melt.get("meta", {}).get("name", ""))}
+	_loading.show_place(Session.pending_game if _is_place else "playground", L.t("loading_world"), known)
+	Session.remove_meta("pending_place")
 	net.connect_to_game()
 	if VR.active:
 		VR.attach(self)
@@ -421,6 +429,8 @@ func _on_welcome(m: Dictionary) -> void:
 		player.reset_physics_interpolation()
 		player.velocity = Vector3.ZERO
 	hud.hide_overlay()
+	# A moment for the world to draw its first frames, then the loading screen goes.
+	get_tree().create_timer(0.4).timeout.connect(_finish_loading)
 	hud.set_chat_enabled(bool(m.get("chat", true)))
 	_refresh_players()
 	Sfx.play("join")
@@ -1325,6 +1335,15 @@ func _confirm_leave() -> void:
 var _confirming := false
 
 
+var _loading: LoadingScreen
+
+
+func _finish_loading() -> void:
+	if is_instance_valid(_loading):
+		_loading.finish()
+	_loading = null
+
+
 ## TeleportService sent us to another place of this game (in a Studio test: another place
 ## of the game being edited, loaded from the server or the editor itself).
 func _teleport(m: Dictionary) -> void:
@@ -1332,7 +1351,10 @@ func _teleport(m: Dictionary) -> void:
 		return
 	_leaving = true
 	var place := str(m.get("game", ""))
-	hud.show_overlay(L.t("teleporting"))
+	# The place we're going to, while we go.
+	_loading = LoadingScreen.new()
+	add_child(_loading)
+	_loading.show_place(place, L.t("teleporting").trim_suffix("…"))
 	net.close()
 	if not Session.test_melt.is_empty():
 		var melt: Dictionary = {}

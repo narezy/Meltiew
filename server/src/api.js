@@ -199,7 +199,9 @@ export function createApi({ db, hub, renderDir, store, supportDir, owner = proce
 
   const isFriend = (a, b) => a === b || !!(q.friendRow.get(a, b)?.status === 'accepted' || q.friendRow.get(b, a)?.status === 'accepted');
   function visibleRow(user, id) {
-    const p = pq.one.get(id);
+    let p = pq.one.get(id);
+    // A sub-place shows as its game (the main place): its page, cover, name.
+    if (p?.parent_id) p = pq.one.get(p.parent_id);
     if (!p || p.deleted || !store.canSee(p, user, isFriend)) throw new HttpError(404, 'no_place');
     return p;
   }
