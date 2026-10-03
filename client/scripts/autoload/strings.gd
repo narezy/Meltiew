@@ -643,6 +643,7 @@ const TABLE := {
 	"st_places_back_tip": ["Back to the game's main place (this one is saved first)", "Вернуться в главный плейс игры (этот сохранится)"],
 	"st_sub_settings": ["You're editing {0}, a place of the game {1}. Who can play, covers, passes, badges and stats below are the whole game's.", "Ты редактируешь «{0}», плейс игры «{1}». Доступ, обложки, геймпассы, бейджи и статистика ниже общие для всей игры."],
 	"teleporting": ["Teleporting…", "Телепортация…"],
+	"speed_kmh": ["{0} km/h", "{0} км/ч"],
 	"teleport_failed": ["Couldn't get to that place", "Не получилось попасть в этот плейс"],
 	"st_edit_script": ["Edit script", "Открыть скрипт"],
 	"st_duplicate": ["Duplicate", "Дублировать"],

@@ -361,6 +361,8 @@ func _on_message(m: Dictionary) -> void:
 				])
 		"teleport":
 			_teleport(m)
+		"vh":
+			_on_vehicles(m.get("v", []))
 		"kicked":
 			_leaving = true
 			net.close()
@@ -579,6 +581,7 @@ func _sync_place(delta: float) -> void:
 	_sync_emote_overrides()
 	_sync_joints()
 	_check_seats()
+	_step_vehicles(delta)
 	_sync_tools()
 	if not player.dead:
 		for i in player.get_slide_collision_count():
@@ -1198,6 +1201,9 @@ func _check_seats() -> void:
 		_seat_left = _seat_id
 		_seat_id = ""
 		net.send({"t": "seat"})
+		# Out of the driver's seat: the car rolls on to a stop by itself.
+		if is_instance_valid(_drive):
+			_drive.let_go()
 	if player.seated:
 		return
 	var t := place_host.tree
@@ -1207,7 +1213,7 @@ func _check_seats() -> void:
 		if id == _seat_left:
 			touching_left = true
 			continue
-		if id != "" and player.can_sit() and t.cls(id) == "Seat" and t.prop(id, "Disabled") != true and not _seat_taken(id):
+		if id != "" and player.can_sit() and t.is_a(id, "Seat") and t.prop(id, "Disabled") != true and not _seat_taken(id):
 			_sit(id)
 			return
 	if not touching_left and player.is_on_floor():
@@ -1224,15 +1230,138 @@ func _seat_taken(id: String) -> bool:
 
 
 func _sit(id: String) -> void:
-	var t := place_host.tree
-	var pos: Vector3 = t.prop(id, "Position")
-	var rot: Vector3 = t.prop(id, "Rotation")
-	var size: Vector3 = t.prop(id, "Size")
-	var b := Basis.from_euler(Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z)))
-	# Sit on the top face, looking out of the seat's front (-Z).
-	player.sit_on(pos + b.y * size.y * 0.5, Basis(-b.x, b.y, -b.z))
+	var top := _seat_top(id)
+	player.sit_on(top.origin, top.basis)
 	_seat_id = id
+	_seat_yaw = INF
 	net.send({"t": "seat", "id": id})
+	# The driver's seat: this app drives the vehicle now.
+	if place_host.tree.cls(id) == "VehicleSeat":
+		if is_instance_valid(_drive):
+			_drive.queue_free()
+		_vehicle_views.erase(id)
+		_drive = VehicleDrive.new()
+		_drive.player = player
+		_drive.setup(place_host.scene, id)
+		_drive.report.connect(func(m: Dictionary): net.send(m))
+		add_child(_drive)
+
+
+## Where you sit on a seat: its top, looking out of its front (-Z); where the seat is
+## drawn right now (a moving vehicle), else where the tree has it.
+func _seat_top(id: String) -> Transform3D:
+	var t := place_host.tree
+	var size: Vector3 = t.prop(id, "Size")
+	var body := place_host.scene.body_of(id)
+	var xf := body.global_transform if body else place_host.scene.part_transform(id)
+	var b := xf.basis.orthonormalized()
+	return Transform3D(Basis(-b.x, b.y, -b.z), xf.origin + b.y * size.y * 0.5)
+
+
+# --- vehicles ------------------------------------------------------------------------
+
+var _drive: VehicleDrive  # the vehicle this app drives (or lets roll to a stop)
+var _vehicle_views := {}  # VehicleSeat id -> { vehicle: Vehicle, snaps: [[ms, pos, deg, speed, steer]] }
+var _seat_yaw := INF
+
+
+## Someone else drives: their reports, 20 a second.
+func _on_vehicles(list: Array) -> void:
+	if place_host == null:
+		return
+	var now := Time.get_ticks_msec()
+	for u in list:
+		if not (u is Array) or u.size() < 9:
+			continue
+		var id := str(u[0])
+		if is_instance_valid(_drive) and _drive.seat == id or not place_host.tree.has(id):
+			continue
+		if not _vehicle_views.has(id):
+			var v := Vehicle.new()
+			v.setup(place_host.scene, id)
+			add_child(v)
+			_vehicle_views[id] = {"vehicle": v, "snaps": []}
+		var snaps: Array = _vehicle_views[id].snaps
+		snaps.append([now, Vector3(float(u[1]), float(u[2]), float(u[3])), Vector3(float(u[4]), float(u[5]), float(u[6])), float(u[7]), float(u[8])])
+		while snaps.size() > 30:
+			snaps.pop_front()
+
+
+## Every physics step: other people's vehicles glide between their reports; whoever sits
+## in a moving vehicle rides along (you, and others as this app shows them).
+func _step_vehicles(delta: float) -> void:
+	var render_t := Time.get_ticks_msec() - RemotePlayer.DELAY_MS
+	for id in _vehicle_views.keys():
+		var e: Dictionary = _vehicle_views[id]
+		var v: Vehicle = e.vehicle
+		if not place_host.tree.has(id):
+			v.queue_free()
+			_vehicle_views.erase(id)
+			continue
+		var snaps: Array = e.snaps
+		while snaps.size() >= 2 and snaps[1][0] <= render_t:
+			snaps.pop_front()
+		if snaps.is_empty():
+			continue
+		var a: Array = snaps[0]
+		var pos: Vector3 = a[1]
+		var rot := Vehicle.basis_of(a[2])
+		var sp: float = a[3]
+		var st: float = a[4]
+		if snaps.size() >= 2 and render_t > a[0]:
+			var b: Array = snaps[1]
+			var k := clampf((render_t - a[0]) / maxf(b[0] - a[0], 1.0), 0.0, 1.0)
+			pos = pos.lerp(b[1], k)
+			rot = Basis(Quaternion(rot.orthonormalized()).slerp(Quaternion(Vehicle.basis_of(b[2]).orthonormalized()), k))
+			sp = lerpf(sp, b[3], k)
+			st = lerpf(st, b[4], k)
+		elif snaps.size() == 1 and render_t - a[0] > 1500:
+			continue  # it stopped: stays where it is
+		v.place(Transform3D(rot, pos), sp, st, delta)
+	# Riders: the seats of every moving vehicle carry whoever sits in them.
+	for r in remotes.values():
+		(r as RemotePlayer).pinned = null
+	var moving: Array = _vehicle_views.values().map(func(e): return e.vehicle)
+	if is_instance_valid(_drive):
+		moving.append(_drive)
+	for v: Vehicle in moving:
+		for id in v.parts:
+			if not place_host.tree.is_a(id, "Seat"):
+				continue
+			var uid := _occupant_user(id)
+			if uid != 0 and uid != my_id and remotes.has(uid):
+				var top := _seat_top(id)
+				(remotes[uid] as RemotePlayer).pinned = Transform3D(top.basis, top.origin - top.basis.y * 0.17)
+	if player.seated and _seat_id != "" and place_host.tree.has(_seat_id):
+		var top := _seat_top(_seat_id)
+		player.sit_follow(top.origin, top.basis)
+		# The camera turns with the car.
+		var f := -top.basis.z
+		var yaw := atan2(f.x, f.z)
+		if _seat_yaw != INF:
+			var turn := angle_difference(_seat_yaw, yaw)
+			if absf(turn) > 0.0001:
+				player.cam_yaw += turn
+				if VR.active:
+					VR._turn(turn)
+		_seat_yaw = yaw
+	# The speedometer while you drive (VehicleSeat.HeadsUpDisplay).
+	var shown: bool = is_instance_valid(_drive) and _drive.driving and place_host.tree.prop(_drive.seat, "HeadsUpDisplay") != false
+	hud.set_speed(roundi(absf(_drive.speed) * 3.6) if shown else -1)
+
+
+## The player sitting on a seat (from its Occupant, a character's Humanoid), or 0.
+func _occupant_user(seat: String) -> int:
+	var t := place_host.tree
+	var occ: Variant = t.prop(seat, "Occupant")
+	if not (occ is Dictionary and occ.has("$i")):
+		return 0
+	var model := t.parent_of(str(occ["$i"]))
+	for k in t.kids(t.service("Players")):
+		var ch: Variant = t.prop(k, "Character")
+		if ch is Dictionary and str(ch.get("$i", "")) == model:
+			return int(t.prop(k, "UserId"))
+	return 0
 
 
 ## EmoteOverride objects in StarterPlayer swap wheel moves for the place's own animations.

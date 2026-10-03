@@ -89,6 +89,27 @@ func _ready() -> void:
 	joystick = Joystick.new()
 	_root.add_child(joystick)
 
+	# Bottom middle: how fast you drive (VehicleSeat.HeadsUpDisplay).
+	_speed = PanelContainer.new()
+	var ssb := StyleBoxFlat.new()
+	ssb.bg_color = Color(UI.BG, 0.72)
+	ssb.set_corner_radius_all(16)
+	ssb.content_margin_left = 18
+	ssb.content_margin_right = 18
+	ssb.content_margin_top = 6
+	ssb.content_margin_bottom = 6
+	_speed.add_theme_stylebox_override("panel", ssb)
+	_speed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_speed.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_speed.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_speed.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_speed.offset_bottom = -64
+	_speed.visible = false
+	_speed_label = UI.label("", 30, UI.TEXT, "black")
+	_speed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_speed.add_child(_speed_label)
+	_root.add_child(_speed)
+
 	# Top-left: menu, server info, health, chat log.
 	var tl := UI.vbox(8)
 	tl.position = Vector2(20, 16)
@@ -918,6 +939,17 @@ func _send_chat() -> void:
 	# Back to playing: the chat stays open to read replies, but WASD moves again
 	# (and phones hide the keyboard). Enter, T or / jumps back into typing.
 	_chat_input.release_focus()
+
+
+var _speed: PanelContainer
+var _speed_label: Label
+
+
+## The speedometer: km/h (a stud is about a meter), or -1 to hide it.
+func set_speed(kmh: int) -> void:
+	_speed.visible = kmh >= 0
+	if kmh >= 0:
+		_speed_label.text = L.t("speed_kmh", [kmh])
 
 
 func set_stats(fps: int, ping: int, detail := "") -> void:

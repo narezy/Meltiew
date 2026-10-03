@@ -219,6 +219,16 @@ func sit_on(seat: Vector3, seat_basis: Basis) -> void:
 	avatar.play("sit")
 
 
+## Riding: the seat moved (a vehicle), and you on it, facing the same way.
+func sit_follow(seat: Vector3, seat_basis: Basis) -> void:
+	if not seated:
+		return
+	global_position = seat - seat_basis.y * 0.17 + seat_basis * Vector3(0, 0, 0.05)
+	var fwd := seat_basis * Vector3(0, 0, 1)
+	_facing = atan2(-fwd.x, -fwd.z)
+	avatar.rotation.y = _facing
+
+
 func stand_up() -> void:
 	if not seated:
 		return

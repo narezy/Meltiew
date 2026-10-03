@@ -67,6 +67,8 @@ func send(m: Dictionary) -> void:
 			_events.append({"e": "died", "userId": int(_me.id)})
 		"tp":
 			message.emit({"t": "teleport", "game": str(m.get("place", "")), "server": "test", "data": m.get("data")})
+		"veh":
+			_events.append({"e": "veh", "id": m.get("id"), "p": m.get("p"), "r": m.get("r"), "th": m.get("th"), "st": m.get("st"), "sp": m.get("sp")})
 		"chat":
 			message.emit({"t": "chat", "id": int(_me.id), "name": str(_me.display_name), "m": str(m.m)})
 		"ping":
@@ -107,11 +109,11 @@ func _join() -> void:
 		"you": int(_me.id),
 		"chat": starter.get("ChatEnabled", true) != false,
 		"emotes": starter.get("EmotesEnabled", true) != false,
-		"place": {"id": here, "game_id": game_id, "join": Session.get_meta("tp_join", null), "strings": melt.get("strings", {}), "snapshot": snap if snap is Array else []},
+		"place": {"id": here, "game_id": game_id, "join": (Session.get_meta("tp_join") if Session.has_meta("tp_join") else null), "strings": melt.get("strings", {}), "snapshot": snap if snap is Array else []},
 		"spawn": [0, 5, 0],
 		"players": [],
 	})
-	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info, "vr": VR.active, "join": Session.get_meta("tp_join", null)}]))
+	_route(_call("__dispatch", [{"e": "player_add", "userId": int(_me.id), "name": str(_me.username), "display": str(_me.display_name), "lang": L.lang, "badge_info": badge_info, "vr": VR.active, "join": (Session.get_meta("tp_join") if Session.has_meta("tp_join") else null)}]))
 	_flush()
 
 

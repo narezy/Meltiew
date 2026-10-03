@@ -136,6 +136,12 @@ func create(id: String, c: String, n: String, parent: String, raw_props: Diction
 	added.emit(id)
 
 
+## A value the app already shows (a vehicle it moved itself): written without telling anyone.
+func set_quiet(id: String, key: String, value: Variant) -> void:
+	if nodes.has(id):
+		nodes[id].props[key] = value
+
+
 func set_prop(id: String, key: String, value: Variant) -> void:
 	if not nodes.has(id):
 		return

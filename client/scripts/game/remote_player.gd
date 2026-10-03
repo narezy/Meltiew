@@ -9,6 +9,9 @@ var user: Dictionary = {}
 var avatar: MellyAvatar
 ## What they are doing now ("hug": waiting for a hug).
 var current_anim := ""
+## Riding a moving vehicle here: sits right on its seat (feet place, facing), whatever
+## their own reports say; null otherwise. Set every physics step by game.gd.
+var pinned: Variant = null
 var _snaps: Array = []  # [local_ms, pos, yaw, anim]
 var _name_tag: Label3D
 var _role_tag: Label3D
@@ -149,8 +152,12 @@ func _process(delta: float) -> void:
 				head = Vector3(lerpf(head.x, b[5].x, k), lerpf(head.y, b[5].y, k), lerpf(head.z, b[5].z, k))
 		avatar.set_vr_hands(hands[0], hands[1])
 		avatar.set_vr_head(head)
+		if pinned is Transform3D:
+			pos = (pinned as Transform3D).origin
+			var f := -(pinned as Transform3D).basis.z
+			yaw = atan2(-f.x, -f.z)
 		global_position = pos
-		avatar.rotation.y = lerp_angle(avatar.rotation.y, yaw, minf(delta * 16.0, 1.0))
+		avatar.rotation.y = lerp_angle(avatar.rotation.y, yaw, minf(delta * 16.0, 1.0)) if not pinned is Transform3D else yaw
 		var anim: String = a[3]
 		current_anim = anim
 		if anim == "dead":

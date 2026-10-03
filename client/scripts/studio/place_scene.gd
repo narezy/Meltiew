@@ -417,7 +417,8 @@ func _build_part(id: String) -> void:
 		hb.sync_to_physics = false
 		body = hb
 		_held[id] = tool
-	elif editing or anchored:
+	elif editing or anchored or vehicle_seat_of(id) != "":
+		# (A vehicle's parts move together with it, never on their own.)
 		var ab := AnimatableBody3D.new()
 		ab.sync_to_physics = not editing
 		body = ab
@@ -479,6 +480,70 @@ func _move_part(id: String) -> void:
 	else:
 		# Replicated movement arrives ~20 times a second; glide between updates.
 		_targets[id] = t
+
+
+# --- vehicles ----------------------------------------------------------------------
+
+## The Model a VehicleSeat drives (its nearest one), or "" for a seat out on its own.
+func vehicle_model(seat: String) -> String:
+	var cur := tree.parent_of(seat)
+	var ws := tree.service("Workspace")
+	while cur != "" and cur != ws and cur != PlaceTree.ROOT:
+		if tree.cls(cur) == "Model":
+			return cur
+		cur = tree.parent_of(cur)
+	return ""
+
+
+## The VehicleSeat that drives this part's vehicle, or "".
+func vehicle_seat_of(id: String) -> String:
+	if tree.cls(id) == "VehicleSeat":
+		return id
+	var cur := tree.parent_of(id)
+	var ws := tree.service("Workspace")
+	while cur != "" and cur != ws and cur != PlaceTree.ROOT:
+		if tree.cls(cur) == "Model":
+			for d in tree.descendants(cur):
+				if tree.cls(d) == "VehicleSeat":
+					return d
+			return ""
+		cur = tree.parent_of(cur)
+	return ""
+
+
+## Every part a VehicleSeat moves (the seat too).
+func vehicle_parts(seat: String) -> Array[String]:
+	var out: Array[String] = []
+	var model := vehicle_model(seat)
+	for d in ([seat] if model == "" else tree.descendants(model)):
+		if tree.is_a(d, "BasePart") and _parts.has(d):
+			out.append(d)
+	return out
+
+
+## A part's place from the tree (what scripts last set).
+func part_transform(id: String) -> Transform3D:
+	return _transform_of(id)
+
+
+## Moves a vehicle's part (a physics step): drawn on its own from now on, carried players
+## and pushed parts feel it like a moving platform.
+func pose_part(id: String, t: Transform3D) -> void:
+	var e: Dictionary = _parts.get(id, {})
+	if e.is_empty():
+		return
+	if not _dynamic.has(id):
+		_dynamic[id] = true
+		if _batcher and _batcher.has(id):
+			_batcher.remove(id)
+			e.mesh.visible = float(tree.prop(id, "Transparency")) < 0.999
+	_targets.erase(id)
+	(e.body as Node3D).global_transform = t
+
+
+## A part's drawn mesh (for wheels turning on their own inside it).
+func part_mesh(id: String) -> MeshInstance3D:
+	return _parts.get(id, {}).get("mesh")
 
 
 ## Jumps a body somewhere without it sweeping (and shoving things) on the way.
